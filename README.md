@@ -1,10 +1,17 @@
-# Spotter 🔍
+<div align="center">
+  <h1>Spotter</h1>
+  
+  <p><strong>⚡️Universal Kubernetes Security Engine</strong></p>
+</div>
 
-[![CI](https://github.com/madhuakula/spotter/actions/workflows/ci.yml/badge.svg)](https://github.com/madhuakula/spotter/actions/workflows/ci.yml)
+<div align="center">
+
 [![Go Report Card](https://goreportcard.com/badge/github.com/madhuakula/spotter)](https://goreportcard.com/report/github.com/madhuakula/spotter)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Release](https://img.shields.io/github/release/madhuakula/spotter.svg)](https://github.com/madhuakula/spotter/releases)
-[![Docker Pulls](https://img.shields.io/docker/pulls/madhuakula/spotter.svg)](https://hub.docker.com/r/madhuakula/spotter)
+[![License](https://img.shields.io/github/license/madhuakula/spotter)](https://github.com/madhuakula/spotter/blob/main/LICENSE)
+[![Release](https://img.shields.io/github/v/release/madhuakula/spotter)](https://github.com/madhuakula/spotter/releases)
+</div>
+
+---
 
 Spotter is a comprehensive Kubernetes security scanner that helps identify security misconfigurations, vulnerabilities, and compliance issues in your Kubernetes clusters and manifests. Built with extensibility and performance in mind, Spotter uses the Common Expression Language (CEL) for flexible rule definitions and supports multiple output formats including SARIF for seamless CI/CD integration.
 
