@@ -1,0 +1,45 @@
+apiVersion: rules.spotter.run/v1
+kind: SecurityRule
+metadata:
+  name: rbac-roles-with-port-forwarding-permission
+  labels:
+    category: "Access Control"
+    severity: high
+spec:
+  id: SPOTTER-ACCESS-CONTROL-993
+  name: "RBAC Roles with Port-Forwarding Permission"
+  version: "1.0.0"
+  description: "RBAC roles that grant port-forwarding permissions can be abused to gain access to internal services."
+  severity:
+    level: HIGH
+    score: 8.0
+  category: "Access Control"
+  subcategory: "RBAC Permissions"
+  cwe: "CWE-266"
+  regulatoryStandards:
+    - name: "NIST SP 800-53"
+      reference: "https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final"
+      section: "AC-6"
+  match:
+    resources:
+      kubernetes:
+        apiGroups:
+          - "rbac.authorization.k8s.io"
+        versions:
+          - "v1"
+        kinds:
+          - Role
+          - ClusterRole
+        namespaces:
+          include: ["*"]
+          exclude: ["kube-system", "kube-public"]
+  cel: |
+    object.kind in ["Role", "ClusterRole"] && object.rules.exists(r, "portforward" in r.verbs)
+  remediation:
+    manual: "Avoid granting `portforward` permissions in RBAC roles unless absolutely necessary."
+  references:
+    - title: "Kubernetes RBAC"
+      url: "https://kubernetes.io/docs/reference/access-authn-authz/rbac/"
+  metadata:
+    author: "Spotter Security Team"
+    created: "2025-07-30"

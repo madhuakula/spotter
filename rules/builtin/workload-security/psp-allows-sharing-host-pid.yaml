@@ -1,0 +1,44 @@
+apiVersion: rules.spotter.run/v1
+kind: SecurityRule
+metadata:
+  name: psp-allows-sharing-host-pid
+  labels:
+    category: "Workload Security"
+    severity: high
+spec:
+  id: SPOTTER-WORKLOAD-SECURITY-114
+  name: "PSP Allows Sharing Host PID"
+  version: "1.0.0"
+  description: "Pod Security Policies (PSPs) should not allow sharing the host PID namespace, as this can expose host processes to containers."
+  severity:
+    level: HIGH
+    score: 8.3
+  category: "Workload Security"
+  subcategory: "Pod Security Policy"
+  cwe: "CWE-265"
+  regulatoryStandards:
+    - name: "CIS Kubernetes Benchmark v1.8.0"
+      reference: "https://www.cisecurity.org/benchmark/kubernetes"
+      section: "5.2.3"
+  match:
+    resources:
+      kubernetes:
+        apiGroups:
+          - "policy"
+        versions:
+          - "v1beta1"
+        kinds:
+          - PodSecurityPolicy
+        namespaces:
+          include: ["*"]
+          exclude: []
+  cel: |
+    object.kind == "PodSecurityPolicy" && has(object.spec.hostPID) && object.spec.hostPID == true
+  remediation:
+    manual: "Set `hostPID: false` in the PodSecurityPolicy."
+  references:
+    - title: "Kubernetes Pod Security Policy"
+      url: "https://kubernetes.io/docs/concepts/policy/pod-security-policy/"
+  metadata:
+    author: "Spotter Security Team"
+    created: "2025-07-29"

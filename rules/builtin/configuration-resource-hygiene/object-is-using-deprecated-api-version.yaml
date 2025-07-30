@@ -1,0 +1,44 @@
+apiVersion: rules.spotter.run/v1
+kind: SecurityRule
+metadata:
+  name: object-is-using-deprecated-api-version
+  labels:
+    category: "Configuration & Resource Hygiene"
+    severity: medium
+spec:
+  id: SPOTTER-CONFIGURATION-RESOURCE-HYGIENE-109
+  name: "Object Is Using A Deprecated API Version"
+  version: "1.0.0"
+  description: "Kubernetes objects should not use deprecated API versions, as they may be removed in future releases, leading to compatibility issues."
+  severity:
+    level: MEDIUM
+    score: 5.0
+  category: "Configuration & Resource Hygiene"
+  subcategory: "API Version Management"
+  cwe: "CWE-665"
+  regulatoryStandards:
+    - name: "NIST SP 800-53"
+      reference: "https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final"
+      section: "CM-6"
+  match:
+    resources:
+      kubernetes:
+        apiGroups:
+          - "*"
+        versions:
+          - "*"
+        kinds:
+          - "*"
+        namespaces:
+          include: ["*"]
+          exclude: []
+  cel: |
+    object.apiVersion.startsWith("extensions/v1beta1") || object.apiVersion.startsWith("apps/v1beta1") || object.apiVersion.startsWith("apps/v1beta2") || (object.apiVersion.startsWith("policy/v1beta1") && object.kind == "PodSecurityPolicy")
+  remediation:
+    manual: "Update the API version of the object to a supported and stable version. Refer to Kubernetes API deprecation guide."
+  references:
+    - title: "Kubernetes API Deprecation Guide"
+      url: "https://kubernetes.io/docs/reference/using-api/deprecation-guide/"
+  metadata:
+    author: "Spotter Security Team"
+    created: "2025-07-29"

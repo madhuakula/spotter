@@ -1,0 +1,44 @@
+apiVersion: rules.spotter.run/v1
+kind: SecurityRule
+metadata:
+  name: rotate-kubelet-server-certificate-not-active
+  labels:
+    category: "Platform & Infrastructure Security"
+    severity: high
+spec:
+  id: SPOTTER-PLATFORM-INFRASTRUCTURE-SECURITY-104
+  name: "Rotate Kubelet Server Certificate Not Active"
+  version: "1.0.0"
+  description: "The Kubelet should be configured to automatically rotate its server certificate to ensure up-to-date TLS configurations."
+  severity:
+    level: HIGH
+    score: 8.0
+  category: "Platform & Infrastructure Security"
+  subcategory: "Kubelet Security"
+  cwe: "CWE-295"
+  regulatoryStandards:
+    - name: "CIS Kubernetes Benchmark v1.8.0"
+      reference: "https://www.cisecurity.org/benchmark/kubernetes"
+      section: "4.2.11"
+  match:
+    resources:
+      kubernetes:
+        apiGroups:
+          - ""
+        versions:
+          - v1
+        kinds:
+          - Pod
+        namespaces:
+          include: ["kube-system"]
+          exclude: ["*"]
+  cel: |
+    has(object.spec.containers) && object.spec.containers.exists(c, has(c.command) && c.command.exists(cmd, cmd == "kubelet") && (!has(c.args) || !c.args.exists(arg, arg == "--rotate-server-certificates=true")))
+  remediation:
+    manual: "Set `--rotate-server-certificates=true` for the Kubelet."
+  references:
+    - title: "Kubelet Command Line Reference"
+      url: "https://kubernetes.io/docs/reference/command-line-tools-reference/kubelet/"
+  metadata:
+    author: "Spotter Security Team"
+    created: "2025-07-29"

@@ -1,0 +1,47 @@
+apiVersion: rules.spotter.run/v1
+kind: SecurityRule
+metadata:
+  name: audit-log-path-missing
+  labels:
+    category: "Audit, Logging & Compliance"
+    severity: high
+spec:
+  id: SPOTTER-AUDIT-001
+  name: "Audit Log Path Not Set"
+  version: "1.0.0"
+  description: "The audit log path is not set, which means that no audit logs will be generated. Auditing should be enabled to track all activities in the cluster."
+  severity:
+    level: HIGH
+    score: 7.5
+  category: "Audit, Logging & Compliance"
+  subcategory: "Logging"
+  cwe: "CWE-778"
+  regulatoryStandards:
+    - name: "CIS Kubernetes Benchmark v1.8.0"
+      reference: "https://www.cisecurity.org/benchmark/kubernetes"
+      section: "3.2.1"
+  match:
+    resources:
+      kubernetes:
+        apiGroups:
+          - ""
+        versions:
+          - v1
+        kinds:
+          - Pod
+        namespaces:
+          include: ["kube-system"]
+          exclude: ["*"]
+  cel: |
+    has(object.spec.containers) && object.spec.containers.exists(c,
+      has(c.command) && c.command.exists(cmd, cmd == "kube-apiserver") &&
+      (!has(c.args) || !c.args.exists(arg, arg.startsWith("--audit-log-path=")))
+    )
+  remediation:
+    manual: "Edit the kube-apiserver pod specification file and add the --audit-log-path flag, setting it to a suitable path."
+  references:
+    - title: "Kubernetes Auditing"
+      url: "https://kubernetes.io/docs/tasks/debug/debug-cluster/audit/"
+  metadata:
+    author: "Spotter Security Team"
+    created: "2024-07-29"

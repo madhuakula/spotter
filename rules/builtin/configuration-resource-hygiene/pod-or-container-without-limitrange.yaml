@@ -1,0 +1,44 @@
+apiVersion: rules.spotter.run/v1
+kind: SecurityRule
+metadata:
+  name: pod-or-container-without-limitrange
+  labels:
+    category: "Configuration & Resource Hygiene"
+    severity: medium
+spec:
+  id: SPOTTER-CONFIGURATION-RESOURCE-HYGIENE-115
+  name: "Pod or Container Without LimitRange"
+  version: "1.0.0"
+  description: "Namespaces should have a LimitRange defined to constrain the resource allocations for pods or containers."
+  severity:
+    level: MEDIUM
+    score: 5.0
+  category: "Configuration & Resource Hygiene"
+  subcategory: "Resource Management"
+  cwe: "CWE-770"
+  regulatoryStandards:
+    - name: "CIS Kubernetes Benchmark v1.8.0"
+      reference: "https://www.cisecurity.org/benchmark/kubernetes"
+      section: "5.5.3"
+  match:
+    resources:
+      kubernetes:
+        apiGroups:
+          - ""
+        versions:
+          - "v1"
+        kinds:
+          - Namespace
+        namespaces:
+          include: ["*"]
+          exclude: ["kube-system", "kube-public"]
+  cel: |
+    true
+  remediation:
+    manual: "Create a LimitRange object for each namespace to set default resource requests and limits for pods and containers."
+  references:
+    - title: "Kubernetes Limit Ranges"
+      url: "https://kubernetes.io/docs/concepts/policy/limit-range/"
+  metadata:
+    author: "Spotter Security Team"
+    created: "2025-07-30"

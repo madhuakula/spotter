@@ -1,0 +1,48 @@
+apiVersion: rules.spotter.run/v1
+kind: SecurityRule
+metadata:
+  name: docker-daemon-socket-exposed-to-containers
+  labels:
+    category: "Workload Security"
+    severity: critical
+spec:
+  id: SPOTTER-WORKLOAD-SECURITY-111
+  name: "Docker Daemon Socket is Exposed to Containers"
+  version: "1.0.0"
+  description: "Exposing the Docker daemon socket (`/var/run/docker.sock`) to containers can lead to container escape and host compromise."
+  severity:
+    level: CRITICAL
+    score: 9.8
+  category: "Workload Security"
+  subcategory: "Volume Mounts"
+  cwe: "CWE-269"
+  regulatoryStandards:
+    - name: "CIS Kubernetes Benchmark v1.8.0"
+      reference: "https://www.cisecurity.org/benchmark/kubernetes"
+      section: "5.2.5"
+  match:
+    resources:
+      kubernetes:
+        apiGroups:
+          - ""
+          - "apps"
+        versions:
+          - "v1"
+        kinds:
+          - Pod
+          - Deployment
+          - StatefulSet
+          - DaemonSet
+        namespaces:
+          include: ["*"]
+          exclude: ["kube-system", "kube-public"]
+  cel: |
+    (object.kind == 'Pod' && has(object.spec.volumes) && object.spec.volumes.exists(v, has(v.hostPath) && v.hostPath.path == '/var/run/docker.sock')) || (object.kind != 'Pod' && has(object.spec.template.spec.volumes) && object.spec.template.spec.volumes.exists(v, has(v.hostPath) && v.hostPath.path == '/var/run/docker.sock'))
+  remediation:
+    manual: "Do not mount the Docker daemon socket into containers."
+  references:
+    - title: "Kubernetes Volumes"
+      url: "https://kubernetes.io/docs/concepts/storage/volumes/#hostpath"
+  metadata:
+    author: "Spotter Security Team"
+    created: "2025-07-29"

@@ -1,0 +1,44 @@
+apiVersion: rules.spotter.run/v1
+kind: SecurityRule
+metadata:
+  name: psp-not-limited-capabilities
+  labels:
+    category: "Workload Security"
+    severity: high
+spec:
+  id: SPOTTER-WORKLOAD-SECURITY-116
+  name: "PSP Not Limited Capabilities"
+  version: "1.0.0"
+  description: "Pod Security Policies (PSPs) should explicitly define allowed and dropped capabilities to limit the privileges of containers."
+  severity:
+    level: HIGH
+    score: 8.0
+  category: "Workload Security"
+  subcategory: "Pod Security Policy"
+  cwe: "CWE-266"
+  regulatoryStandards:
+    - name: "CIS Kubernetes Benchmark v1.8.0"
+      reference: "https://www.cisecurity.org/benchmark/kubernetes"
+      section: "5.2.10"
+  match:
+    resources:
+      kubernetes:
+        apiGroups:
+          - "policy"
+        versions:
+          - "v1beta1"
+        kinds:
+          - PodSecurityPolicy
+        namespaces:
+          include: ["*"]
+          exclude: []
+  cel: |
+    object.kind == "PodSecurityPolicy" && (!has(object.spec.allowedCapabilities) || !has(object.spec.requiredDropCapabilities))
+  remediation:
+    manual: "Define `allowedCapabilities` and `requiredDropCapabilities` in the PodSecurityPolicy to explicitly control container capabilities."
+  references:
+    - title: "Kubernetes Pod Security Policy"
+      url: "https://kubernetes.io/docs/concepts/policy/pod-security-policy/"
+  metadata:
+    author: "Spotter Security Team"
+    created: "2025-07-29"

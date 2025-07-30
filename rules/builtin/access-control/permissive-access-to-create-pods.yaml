@@ -1,0 +1,51 @@
+apiVersion: rules.spotter.run/v1
+kind: SecurityRule
+metadata:
+  name: permissive-access-to-create-pods
+  labels:
+    category: "Access Control"
+    severity: high
+spec:
+  id: SPOTTER-ACCESS-CONTROL-998
+  name: "Permissive Access to Create Pods"
+  version: "1.0.0"
+  description: "Roles should not grant permissions to create pods, as this can be abused to run malicious workloads."
+  severity:
+    level: HIGH
+    score: 8.5
+  category: "Access Control"
+  subcategory: "RBAC Permissions"
+  cwe: "CWE-266"
+  regulatoryStandards:
+    - name: "CIS Kubernetes Benchmark v1.8.0"
+      reference: "https://www.cisecurity.org/benchmark/kubernetes"
+      section: "5.1.2"
+  match:
+    resources:
+      kubernetes:
+        apiGroups:
+          - "rbac.authorization.k8s.io"
+        versions:
+          - "v1"
+        kinds:
+          - Role
+          - ClusterRole
+        namespaces:
+          include: ["*"]
+          exclude: ["kube-system", "kube-public"]
+  cel: |
+    object.kind in ["Role", "ClusterRole"] &&
+    has(object.rules) &&
+    object.rules.exists(r,
+      has(r.apiGroups) && r.apiGroups.exists(g, g == "" || g == "*") &&
+      has(r.resources) && r.resources.exists(res, res == "pods" || res == "*") &&
+      has(r.verbs) && r.verbs.exists(v, v == "create" || v == "*")
+    )
+  remediation:
+    manual: "Avoid granting 'create' permissions on 'pods' resources. Use more specific roles if pod creation is necessary."
+  references:
+    - title: "Kubernetes RBAC"
+      url: "https://kubernetes.io/docs/reference/access-authn-authz/rbac/"
+  metadata:
+    author: "Spotter Security Team"
+    created: "2025-07-30"

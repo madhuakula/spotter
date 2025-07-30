@@ -1,0 +1,44 @@
+apiVersion: rules.spotter.run/v1
+kind: SecurityRule
+metadata:
+  name: encryption-provider-not-properly-configured
+  labels:
+    category: "Secrets & Data Protection"
+    severity: critical
+spec:
+  id: SPOTTER-SECRETS-DATA-PROTECTION-100
+  name: "Encryption Provider Not Properly Configured"
+  version: "1.0.0"
+  description: "The API server should be configured with an encryption provider to encrypt sensitive data at rest in Etcd."
+  severity:
+    level: CRITICAL
+    score: 9.5
+  category: "Secrets & Data Protection"
+  subcategory: "Data Encryption"
+  cwe: "CWE-311"
+  regulatoryStandards:
+    - name: "NIST SP 800-53"
+      reference: "https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final"
+      section: "SC-28"
+  match:
+    resources:
+      kubernetes:
+        apiGroups:
+          - ""
+        versions:
+          - v1
+        kinds:
+          - Pod
+        namespaces:
+          include: ["kube-system"]
+          exclude: ["*"]
+  cel: |
+    has(object.spec.containers) && object.spec.containers.exists(c, has(c.command) && c.command.exists(cmd, cmd == "kube-apiserver") && (!has(c.args) || !c.args.exists(arg, arg.startsWith("--encryption-provider-config="))))
+  remediation:
+    manual: "Configure the API server with an encryption provider by setting the `--encryption-provider-config` flag."
+  references:
+    - title: "Encrypting Secret Data at Rest"
+      url: "https://kubernetes.io/docs/tasks/administer-cluster/encrypt-data/"
+  metadata:
+    author: "Spotter Security Team"
+    created: "2025-07-29"

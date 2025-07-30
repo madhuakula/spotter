@@ -1,0 +1,44 @@
+apiVersion: rules.spotter.run/v1
+kind: SecurityRule
+metadata:
+  name: etcd-client-certificate-file-not-defined
+  labels:
+    category: "Platform & Infrastructure Security"
+    severity: critical
+spec:
+  id: SPOTTER-PLATFORM-INFRASTRUCTURE-SECURITY-109
+  name: "Etcd Client Certificate File Not Defined"
+  version: "1.0.0"
+  description: "Etcd client communication should be secured with TLS, and the client certificate file should be properly configured."
+  severity:
+    level: CRITICAL
+    score: 9.8
+  category: "Platform & Infrastructure Security"
+  subcategory: "Etcd Security"
+  cwe: "CWE-295"
+  regulatoryStandards:
+    - name: "CIS Kubernetes Benchmark v1.8.0"
+      reference: "https://www.cisecurity.org/benchmark/kubernetes"
+      section: "2.1.5"
+  match:
+    resources:
+      kubernetes:
+        apiGroups:
+          - ""
+        versions:
+          - v1
+        kinds:
+          - Pod
+        namespaces:
+          include: ["kube-system"]
+          exclude: ["*"]
+  cel: |
+    has(object.spec.containers) && object.spec.containers.exists(c, has(c.command) && c.command.exists(cmd, cmd == "etcd") && (!has(c.args) || !c.args.exists(arg, arg.startsWith("--client-cert-auth=true")) || !c.args.exists(arg, arg.startsWith("--trusted-ca-file="))))
+  remediation:
+    manual: "Ensure that `--client-cert-auth=true` and `--trusted-ca-file` flags are set for Etcd client communication."
+  references:
+    - title: "Etcd Security"
+      url: "https://etcd.io/docs/v3.5/op-guide/security/"
+  metadata:
+    author: "Spotter Security Team"
+    created: "2025-07-29"

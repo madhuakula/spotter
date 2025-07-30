@@ -1,0 +1,44 @@
+apiVersion: rules.spotter.run/v1
+kind: SecurityRule
+metadata:
+  name: tiller-is-deployed
+  labels:
+    category: "Supply Chain & Image Security"
+    severity: critical
+spec:
+  id: SPOTTER-SUPPLY-CHAIN-IMAGE-SECURITY-102
+  name: "Tiller (Helm v2) Is Deployed"
+  version: "1.0.0"
+  description: "Tiller (Helm v2) is deprecated and has known security vulnerabilities. It should not be used."
+  severity:
+    level: CRITICAL
+    score: 9.5
+  category: "Supply Chain & Image Security"
+  subcategory: "Deprecated Components"
+  cwe: "CWE-1125"
+  regulatoryStandards:
+    - name: "NIST SP 800-53"
+      reference: "https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final"
+      section: "RA-5"
+  match:
+    resources:
+      kubernetes:
+        apiGroups:
+          - "apps"
+        versions:
+          - "v1"
+        kinds:
+          - Deployment
+        namespaces:
+          include: ["kube-system"]
+          exclude: []
+  cel: |
+    object.kind == "Deployment" && object.spec.template.spec.containers.exists(c, c.image.contains("tiller"))
+  remediation:
+    manual: "Migrate from Helm v2 to Helm v3, which does not use Tiller."
+  references:
+    - title: "Helm v2 to v3 Migration Guide"
+      url: "https://helm.sh/docs/topics/v2_v3_migration/"
+  metadata:
+    author: "Spotter Security Team"
+    created: "2025-07-30"

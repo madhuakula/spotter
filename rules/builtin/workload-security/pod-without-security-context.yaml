@@ -1,0 +1,48 @@
+apiVersion: rules.spotter.run/v1
+kind: SecurityRule
+metadata:
+  name: pod-without-security-context
+  labels:
+    category: "Workload Security"
+    severity: high
+spec:
+  id: SPOTTER-WORKLOAD-SECURITY-705
+  name: "Pod Without Security Context"
+  version: "1.0.0"
+  description: "All pods must define securityContext"
+  severity:
+    level: HIGH
+    score: 8.0
+  category: "Workload Security"
+  subcategory: "Pod Security Context"
+  cwe: "CWE-705"
+  regulatoryStandards:
+    - name: "CIS Kubernetes Benchmark v1.8.0"
+      reference: "https://www.cisecurity.org/benchmark/kubernetes"
+      section: "5.2.8"
+  match:
+    resources:
+      kubernetes:
+        apiGroups:
+        - ''
+        - apps
+        versions:
+        - v1
+        kinds:
+        - Pod
+        - Deployment
+        - StatefulSet
+        namespaces:
+          include:
+          - '*'
+          exclude:
+          - kube-system
+          - kube-public
+  cel: |
+    (object.kind == 'Pod' && has(object.spec.containers) && object.spec.containers.exists(c, !has(c.securityContext))) ||
+    (object.kind != 'Pod' && has(object.spec.template.spec.containers) && object.spec.template.spec.containers.exists(c, !has(c.securityContext)))
+  remediation:
+    manual: "Define securityContext for all pods"
+  metadata:
+    author: "Spotter AutoGen"
+    created: "2025-07-29"

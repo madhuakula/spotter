@@ -1,0 +1,44 @@
+apiVersion: rules.spotter.run/v1
+kind: SecurityRule
+metadata:
+  name: statefulset-has-no-podantiaffinity
+  labels:
+    category: "Configuration & Resource Hygiene"
+    severity: medium
+spec:
+  id: SPOTTER-CONFIGURATION-RESOURCE-HYGIENE-118
+  name: "StatefulSet Has No PodAntiAffinity"
+  version: "1.0.0"
+  description: "StatefulSets should use `podAntiAffinity` to ensure high availability and prevent all replicas from running on the same node."
+  severity:
+    level: MEDIUM
+    score: 5.0
+  category: "Configuration & Resource Hygiene"
+  subcategory: "Scheduling"
+  cwe: "CWE-248"
+  regulatoryStandards:
+    - name: "NIST SP 800-53"
+      reference: "https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final"
+      section: "CP-10"
+  match:
+    resources:
+      kubernetes:
+        apiGroups:
+          - "apps"
+        versions:
+          - "v1"
+        kinds:
+          - StatefulSet
+        namespaces:
+          include: ["*"]
+          exclude: ["kube-system", "kube-public"]
+  cel: |
+    object.kind == "StatefulSet" && (!has(object.spec.template.spec.affinity) || !has(object.spec.template.spec.affinity.podAntiAffinity))
+  remediation:
+    manual: "Add `podAntiAffinity` to the StatefulSet's pod template spec to spread pods across different nodes."
+  references:
+    - title: "Kubernetes Assigning Pods to Nodes"
+      url: "https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/"
+  metadata:
+    author: "Spotter Security Team"
+    created: "2025-07-30"

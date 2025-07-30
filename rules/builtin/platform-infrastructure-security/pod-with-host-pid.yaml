@@ -1,0 +1,49 @@
+apiVersion: rules.spotter.run/v1
+kind: SecurityRule
+metadata:
+  name: pod-with-host-pid
+  labels:
+    category: "Platform & Infrastructure Security"
+    severity: high
+spec:
+  id: SPOTTER-PLATFORM-INFRASTRUCTURE-SECURITY-005
+  name: "Pod Uses Host PID"
+  version: "1.0.0"
+  description: "Pods that use the host PID namespace can see all processes on the node, which can be a security risk."
+  severity:
+    level: HIGH
+    score: 8.3
+  category: "Platform & Infrastructure Security"
+  subcategory: "Pod Security"
+  cwe: "CWE-265"
+  regulatoryStandards:
+    - name: "CIS Kubernetes Benchmark v1.8.0"
+      reference: "https://www.cisecurity.org/benchmark/kubernetes"
+      section: "5.2.3"
+  match:
+    resources:
+      kubernetes:
+        apiGroups:
+          - ""
+          - "apps"
+        versions:
+          - "v1"
+        kinds:
+          - Pod
+          - Deployment
+          - StatefulSet
+          - DaemonSet
+        namespaces:
+          include: ["*"]
+          exclude: ["kube-system", "kube-public"]
+  cel: |
+    (object.kind == 'Pod' && has(object.spec.hostPID) && object.spec.hostPID == true) ||
+    (object.kind != 'Pod' && has(object.spec.template.spec.hostPID) && object.spec.template.spec.hostPID == true)
+  remediation:
+    manual: "Do not use the host PID namespace for pods unless it is absolutely necessary."
+  references:
+    - title: "Pod Security Standards"
+      url: "https://kubernetes.io/docs/concepts/security/pod-security-standards/#host-namespaces"
+  metadata:
+    author: "Spotter Security Team"
+    created: "2024-07-29"

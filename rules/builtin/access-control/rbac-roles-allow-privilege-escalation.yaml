@@ -1,0 +1,45 @@
+apiVersion: rules.spotter.run/v1
+kind: SecurityRule
+metadata:
+  name: rbac-roles-allow-privilege-escalation
+  labels:
+    category: "Access Control"
+    severity: critical
+spec:
+  id: SPOTTER-ACCESS-CONTROL-991
+  name: "RBAC Roles Allow Privilege Escalation"
+  version: "1.0.0"
+  description: "RBAC roles that grant `escalate` permissions can be abused to gain higher privileges."
+  severity:
+    level: CRITICAL
+    score: 9.8
+  category: "Access Control"
+  subcategory: "RBAC Permissions"
+  cwe: "CWE-269"
+  regulatoryStandards:
+    - name: "CIS Kubernetes Benchmark v1.8.0"
+      reference: "https://www.cisecurity.org/benchmark/kubernetes"
+      section: "5.1.2"
+  match:
+    resources:
+      kubernetes:
+        apiGroups:
+          - "rbac.authorization.k8s.io"
+        versions:
+          - "v1"
+        kinds:
+          - Role
+          - ClusterRole
+        namespaces:
+          include: ["*"]
+          exclude: ["kube-system", "kube-public"]
+  cel: |
+    object.kind in ["Role", "ClusterRole"] && object.rules.exists(r, "escalate" in r.verbs)
+  remediation:
+    manual: "Avoid granting `escalate` permissions in RBAC roles."
+  references:
+    - title: "Kubernetes RBAC"
+      url: "https://kubernetes.io/docs/reference/access-authn-authz/rbac/"
+  metadata:
+    author: "Spotter Security Team"
+    created: "2025-07-30"

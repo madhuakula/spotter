@@ -1,0 +1,44 @@
+apiVersion: rules.spotter.run/v1
+kind: SecurityRule
+metadata:
+  name: etcd-peer-client-certificate-authentication-set-to-false
+  labels:
+    category: "Platform & Infrastructure Security"
+    severity: critical
+spec:
+  id: SPOTTER-PLATFORM-INFRASTRUCTURE-SECURITY-117
+  name: "Etcd Peer Client Certificate Authentication Set To False"
+  version: "1.0.0"
+  description: "Etcd peer client certificate authentication should be enabled to ensure only authenticated peers can communicate with Etcd."
+  severity:
+    level: CRITICAL
+    score: 9.8
+  category: "Platform & Infrastructure Security"
+  subcategory: "Etcd Security"
+  cwe: "CWE-287"
+  regulatoryStandards:
+    - name: "CIS Kubernetes Benchmark v1.8.0"
+      reference: "https://www.cisecurity.org/benchmark/kubernetes"
+      section: "2.1.6"
+  match:
+    resources:
+      kubernetes:
+        apiGroups:
+          - ""
+        versions:
+          - v1
+        kinds:
+          - Pod
+        namespaces:
+          include: ["kube-system"]
+          exclude: ["*"]
+  cel: |
+    has(object.spec.containers) && object.spec.containers.exists(c, has(c.command) && c.command.exists(cmd, cmd == "etcd") && has(c.args) && c.args.exists(arg, arg == "--peer-client-cert-auth=false"))
+  remediation:
+    manual: "Set `--peer-client-cert-auth=true` for Etcd."
+  references:
+    - title: "Etcd Security"
+      url: "https://etcd.io/docs/v3.5/op-guide/security/"
+  metadata:
+    author: "Spotter Security Team"
+    created: "2025-07-29"

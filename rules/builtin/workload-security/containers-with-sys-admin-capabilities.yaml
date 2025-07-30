@@ -1,0 +1,49 @@
+apiVersion: rules.spotter.run/v1
+kind: SecurityRule
+metadata:
+  name: containers-with-sys-admin-capabilities
+  labels:
+    category: "Workload Security"
+    severity: critical
+spec:
+  id: SPOTTER-WORKLOAD-SECURITY-118
+  name: "Containers With Sys Admin Capabilities"
+  version: "1.0.0"
+  description: "Containers should not be granted the `SYS_ADMIN` capability, as it provides a wide range of powerful permissions."
+  severity:
+    level: CRITICAL
+    score: 9.8
+  category: "Workload Security"
+  subcategory: "Container Capabilities"
+  cwe: "CWE-266"
+  regulatoryStandards:
+    - name: "CIS Kubernetes Benchmark v1.8.0"
+      reference: "https://www.cisecurity.org/benchmark/kubernetes"
+      section: "5.2.10"
+  match:
+    resources:
+      kubernetes:
+        apiGroups:
+          - ""
+          - "apps"
+        versions:
+          - "v1"
+        kinds:
+          - Pod
+          - Deployment
+          - StatefulSet
+          - DaemonSet
+        namespaces:
+          include: ["*"]
+          exclude: ["kube-system", "kube-public"]
+  cel: |
+    (object.kind == 'Pod' && has(object.spec.containers) && object.spec.containers.exists(c, has(c.securityContext) && has(c.securityContext.capabilities) && has(c.securityContext.capabilities.add) && c.securityContext.capabilities.add.exists(cap, cap == "SYS_ADMIN"))) ||
+    (object.kind != 'Pod' && has(object.spec.template.spec.containers) && object.spec.template.spec.containers.exists(c, has(c.securityContext) && has(c.securityContext.capabilities) && has(c.securityContext.capabilities.add) && c.securityContext.capabilities.add.exists(cap, cap == "SYS_ADMIN")))
+  remediation:
+    manual: "Remove the `SYS_ADMIN` capability from the container's security context."
+  references:
+    - title: "Kubernetes Pod Security Standards (Restricted)"
+      url: "https://kubernetes.io/docs/concepts/security/pod-security-standards/#restricted"
+  metadata:
+    author: "Spotter Security Team"
+    created: "2025-07-30"

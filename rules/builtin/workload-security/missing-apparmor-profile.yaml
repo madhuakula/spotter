@@ -1,0 +1,49 @@
+apiVersion: rules.spotter.run/v1
+kind: SecurityRule
+metadata:
+  name: missing-apparmor-profile
+  labels:
+    category: "Workload Security"
+    severity: medium
+spec:
+  id: SPOTTER-WORKLOAD-SECURITY-103
+  name: "Missing AppArmor Profile"
+  version: "1.0.0"
+  description: "Pods should define an AppArmor profile to restrict container capabilities and enhance security."
+  severity:
+    level: MEDIUM
+    score: 6.5
+  category: "Workload Security"
+  subcategory: "Container Runtime Security"
+  cwe: "CWE-284"
+  regulatoryStandards:
+    - name: "CIS Kubernetes Benchmark v1.8.0"
+      reference: "https://www.cisecurity.org/benchmark/kubernetes"
+      section: "5.2.12"
+  match:
+    resources:
+      kubernetes:
+        apiGroups:
+          - ""
+          - "apps"
+        versions:
+          - "v1"
+        kinds:
+          - Pod
+          - Deployment
+          - StatefulSet
+          - DaemonSet
+        namespaces:
+          include: ["*"]
+          exclude: ["kube-system", "kube-public"]
+  cel: |
+    (object.kind == 'Pod' && (!has(object.metadata.annotations) || size(object.metadata.annotations.filter(k, k.startsWith('container.apparmor.security.beta.kubernetes.io/'))) == 0)) ||
+    (object.kind != 'Pod' && (!has(object.spec.template.metadata.annotations) || size(object.spec.template.metadata.annotations.filter(k, k.startsWith('container.apparmor.security.beta.kubernetes.io/'))) == 0))
+  remediation:
+    manual: "Add an AppArmor annotation to the pod or pod template, specifying a profile (e.g., `container.apparmor.security.beta.kubernetes.io/my-container: runtime/default`)."
+  references:
+    - title: "Kubernetes AppArmor"
+      url: "https://kubernetes.io/docs/tutorials/security/apparmor/"
+  metadata:
+    author: "Spotter Security Team"
+    created: "2025-07-29"

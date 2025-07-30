@@ -1,0 +1,44 @@
+apiVersion: rules.spotter.run/v1
+kind: SecurityRule
+metadata:
+  name: kubelet-https-set-to-false
+  labels:
+    category: "Platform & Infrastructure Security"
+    severity: critical
+spec:
+  id: SPOTTER-PLATFORM-INFRASTRUCTURE-SECURITY-125
+  name: "Kubelet HTTPS Set To False"
+  version: "1.0.0"
+  description: "The Kubelet should enforce HTTPS for its API to ensure secure communication."
+  severity:
+    level: CRITICAL
+    score: 9.0
+  category: "Platform & Infrastructure Security"
+  subcategory: "Kubelet Security"
+  cwe: "CWE-319"
+  regulatoryStandards:
+    - name: "CIS Kubernetes Benchmark v1.8.0"
+      reference: "https://www.cisecurity.org/benchmark/kubernetes"
+      section: "4.2.5"
+  match:
+    resources:
+      kubernetes:
+        apiGroups:
+          - ""
+        versions:
+          - v1
+        kinds:
+          - Pod
+        namespaces:
+          include: ["kube-system"]
+          exclude: ["*"]
+  cel: |
+    has(object.spec.containers) && object.spec.containers.exists(c, has(c.command) && c.command.exists(cmd, cmd == "kubelet") && has(c.args) && c.args.exists(arg, arg == "--https=false"))
+  remediation:
+    manual: "Ensure `--https` is not set to `false` or is omitted (defaults to `true`), and explicitly configure `--tls-cert-file` and `--tls-private-key-file`."
+  references:
+    - title: "Kubelet Command Line Reference"
+      url: "https://kubernetes.io/docs/reference/command-line-tools-reference/kubelet/"
+  metadata:
+    author: "Spotter Security Team"
+    created: "2025-07-29"

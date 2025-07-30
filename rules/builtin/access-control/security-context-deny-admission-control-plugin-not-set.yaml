@@ -1,0 +1,44 @@
+apiVersion: rules.spotter.run/v1
+kind: SecurityRule
+metadata:
+  name: security-context-deny-admission-control-plugin-not-set
+  labels:
+    category: "Access Control"
+    severity: high
+spec:
+  id: SPOTTER-ACCESS-CONTROL-105
+  name: "Security Context Deny Admission Control Plugin Not Set"
+  version: "1.0.0"
+  description: "The `SecurityContextDeny` admission controller should be enabled to enforce security context constraints."
+  severity:
+    level: HIGH
+    score: 8.0
+  category: "Access Control"
+  subcategory: "Admission Control"
+  cwe: "CWE-284"
+  regulatoryStandards:
+    - name: "CIS Kubernetes Benchmark v1.8.0"
+      reference: "https://www.cisecurity.org/benchmark/kubernetes"
+      section: "1.2.17"
+  match:
+    resources:
+      kubernetes:
+        apiGroups:
+          - ""
+        versions:
+          - v1
+        kinds:
+          - Pod
+        namespaces:
+          include: ["kube-system"]
+          exclude: ["*"]
+  cel: |
+    has(object.spec.containers) && object.spec.containers.exists(c, has(c.command) && c.command.exists(cmd, cmd == "kube-apiserver") && has(c.args) && !c.args.exists(arg, arg.contains("--enable-admission-plugins=") && "SecurityContextDeny" in arg.split("=")[1].split(",")))
+  remediation:
+    manual: "Enable the `SecurityContextDeny` admission plugin in the kube-apiserver configuration."
+  references:
+    - title: "Kubernetes Admission Controllers"
+      url: "https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#securitycontextdeny"
+  metadata:
+    author: "Spotter Security Team"
+    created: "2025-07-29"

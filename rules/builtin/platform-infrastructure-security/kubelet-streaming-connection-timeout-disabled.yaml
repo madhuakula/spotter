@@ -1,0 +1,44 @@
+apiVersion: rules.spotter.run/v1
+kind: SecurityRule
+metadata:
+  name: kubelet-streaming-connection-timeout-disabled
+  labels:
+    category: "Platform & Infrastructure Security"
+    severity: medium
+spec:
+  id: SPOTTER-PLATFORM-INFRASTRUCTURE-SECURITY-124
+  name: "Kubelet Streaming Connection Timeout Disabled"
+  version: "1.0.0"
+  description: "The Kubelet's streaming connection timeout should be set to prevent indefinite connections."
+  severity:
+    level: MEDIUM
+    score: 6.0
+  category: "Platform & Infrastructure Security"
+  subcategory: "Kubelet Security"
+  cwe: "CWE-770"
+  regulatoryStandards:
+    - name: "NIST SP 800-53"
+      reference: "https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final"
+      section: "CM-6"
+  match:
+    resources:
+      kubernetes:
+        apiGroups:
+          - ""
+        versions:
+          - v1
+        kinds:
+          - Pod
+        namespaces:
+          include: ["kube-system"]
+          exclude: ["*"]
+  cel: |
+    has(object.spec.containers) && object.spec.containers.exists(c, has(c.command) && c.command.exists(cmd, cmd == "kubelet") && (!has(c.args) || !c.args.exists(arg, arg.startsWith("--streaming-connection-idle-timeout=")) || c.args.exists(arg, arg.startsWith("--streaming-connection-idle-timeout=") && arg.split("=")[1].endsWith("s") && double(arg.split("=")[1].replace("s", "")) == 0.0)))
+  remediation:
+    manual: "Set `--streaming-connection-idle-timeout` for the Kubelet to a non-zero value (e.g., 5m)."
+  references:
+    - title: "Kubelet Command Line Reference"
+      url: "https://kubernetes.io/docs/reference/command-line-tools-reference/kubelet/"
+  metadata:
+    author: "Spotter Security Team"
+    created: "2025-07-29"

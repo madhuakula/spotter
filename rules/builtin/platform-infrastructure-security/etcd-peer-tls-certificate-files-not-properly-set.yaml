@@ -1,0 +1,44 @@
+apiVersion: rules.spotter.run/v1
+kind: SecurityRule
+metadata:
+  name: etcd-peer-tls-certificate-files-not-properly-set
+  labels:
+    category: "Platform & Infrastructure Security"
+    severity: critical
+spec:
+  id: SPOTTER-PLATFORM-INFRASTRUCTURE-SECURITY-102
+  name: "Etcd Peer TLS Certificate Files Not Properly Set"
+  version: "1.0.0"
+  description: "Etcd peer communication should be secured with TLS, and the peer certificate and key files should be properly configured."
+  severity:
+    level: CRITICAL
+    score: 9.8
+  category: "Platform & Infrastructure Security"
+  subcategory: "Etcd Security"
+  cwe: "CWE-295"
+  regulatoryStandards:
+    - name: "CIS Kubernetes Benchmark v1.8.0"
+      reference: "https://www.cisecurity.org/benchmark/kubernetes"
+      section: "2.1.3, 2.1.4"
+  match:
+    resources:
+      kubernetes:
+        apiGroups:
+          - ""
+        versions:
+          - v1
+        kinds:
+          - Pod
+        namespaces:
+          include: ["kube-system"]
+          exclude: ["*"]
+  cel: |
+    has(object.spec.containers) && object.spec.containers.exists(c, has(c.command) && c.command.exists(cmd, cmd == "etcd") && (!has(c.args) || !c.args.exists(arg, arg.startsWith("--peer-cert-file=")) || !c.args.exists(arg, arg.startsWith("--peer-key-file="))))
+  remediation:
+    manual: "Ensure that `--peer-cert-file` and `--peer-key-file` flags are set for Etcd peer communication."
+  references:
+    - title: "Etcd Security"
+      url: "https://etcd.io/docs/v3.5/op-guide/security/"
+  metadata:
+    author: "Spotter Security Team"
+    created: "2025-07-29"

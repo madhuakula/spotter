@@ -1,0 +1,44 @@
+apiVersion: rules.spotter.run/v1
+kind: SecurityRule
+metadata:
+  name: using-unrecommended-namespace
+  labels:
+    category: "Configuration & Resource Hygiene"
+    severity: medium
+spec:
+  id: SPOTTER-CONFIGURATION-RESOURCE-HYGIENE-110
+  name: "Using Unrecommended Namespace"
+  version: "1.0.0"
+  description: "Pods should not be deployed in the `default`, `kube-system`, or `kube-public` namespaces."
+  severity:
+    level: MEDIUM
+    score: 5.0
+  category: "Configuration & Resource Hygiene"
+  subcategory: "Namespace Management"
+  cwe: "CWE-665"
+  regulatoryStandards:
+    - name: "CIS Kubernetes Benchmark v1.8.0"
+      reference: "https://www.cisecurity.org/benchmark/kubernetes"
+      section: "5.7.1"
+  match:
+    resources:
+      kubernetes:
+        apiGroups:
+          - ""
+        versions:
+          - "v1"
+        kinds:
+          - Pod
+        namespaces:
+          include: ["default", "kube-system", "kube-public"]
+          exclude: []
+  cel: |
+    object.kind == "Pod" && object.metadata.namespace in ["default", "kube-system", "kube-public"]
+  remediation:
+    manual: "Create and use a dedicated namespace for your applications instead of using default or system namespaces."
+  references:
+    - title: "Kubernetes Namespaces"
+      url: "https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/"
+  metadata:
+    author: "Spotter Security Team"
+    created: "2025-07-30"

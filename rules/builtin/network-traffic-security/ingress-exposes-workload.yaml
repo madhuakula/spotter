@@ -1,0 +1,44 @@
+apiVersion: rules.spotter.run/v1
+kind: SecurityRule
+metadata:
+  name: ingress-exposes-workload
+  labels:
+    category: "Network & Traffic Security"
+    severity: high
+spec:
+  id: SPOTTER-NETWORK-TRAFFIC-SECURITY-001
+  name: "Ingress Exposes Service without TLS"
+  version: "1.0.0"
+  description: "An Ingress that does not have a TLS configuration will expose the service over plain HTTP, which is insecure."
+  severity:
+    level: HIGH
+    score: 7.4
+  category: "Network & Traffic Security"
+  subcategory: "Ingress"
+  cwe: "CWE-319"
+  regulatoryStandards:
+    - name: "NIST SP 800-53"
+      reference: "https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final"
+      section: "SC-8"
+  match:
+    resources:
+      kubernetes:
+        apiGroups:
+          - "networking.k8s.io"
+        versions:
+          - "v1"
+        kinds:
+          - Ingress
+        namespaces:
+          include: ["*"]
+          exclude: ["kube-system", "kube-public"]
+  cel: |
+    !has(object.spec.tls) || size(object.spec.tls) == 0
+  remediation:
+    manual: "Configure TLS for the Ingress to encrypt traffic."
+  references:
+    - title: "Kubernetes Ingress TLS"
+      url: "https://kubernetes.io/docs/concepts/services-networking/ingress/#tls"
+  metadata:
+    author: "Spotter Security Team"
+    created: "2024-07-29"

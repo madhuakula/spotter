@@ -1,0 +1,49 @@
+apiVersion: rules.spotter.run/v1
+kind: SecurityRule
+metadata:
+  name: privilege-escalation-allowed
+  labels:
+    category: "Workload Security"
+    severity: critical
+spec:
+  id: SPOTTER-WORKLOAD-SECURITY-466
+  name: "Privilege Escalation Allowed"
+  version: "1.0.0"
+  description: "Containers must not run with allowPrivilegeEscalation=true"
+  severity:
+    level: CRITICAL
+    score: 9.0
+  category: "Workload Security"
+  subcategory: "Privilege Escalation"
+  cwe: "CWE-466"
+  regulatoryStandards:
+    - name: "CIS Kubernetes Benchmark v1.8.0"
+      reference: "https://www.cisecurity.org/benchmark/kubernetes"
+      section: "5.2.9"
+  match:
+    resources:
+      kubernetes:
+        apiGroups:
+        - ''
+        - apps
+        versions:
+        - v1
+        kinds:
+        - Pod
+        - Deployment
+        - StatefulSet
+        - DaemonSet
+        namespaces:
+          include:
+          - '*'
+          exclude:
+          - kube-system
+          - kube-public
+  cel: |
+    (object.kind == 'Pod' && has(object.spec.containers) && object.spec.containers.exists(c, has(c.securityContext) && has(c.securityContext.allowPrivilegeEscalation) && c.securityContext.allowPrivilegeEscalation == true)) ||
+    (object.kind != 'Pod' && has(object.spec.template.spec.containers) && object.spec.template.spec.containers.exists(c, has(c.securityContext) && has(c.securityContext.allowPrivilegeEscalation) && c.securityContext.allowPrivilegeEscalation == true))
+  remediation:
+    manual: "Set allowPrivilegeEscalation=false in securityContext"
+  metadata:
+    author: "Spotter AutoGen"
+    created: "2025-07-29"

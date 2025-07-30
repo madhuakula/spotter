@@ -1,0 +1,48 @@
+apiVersion: rules.spotter.run/v1
+kind: SecurityRule
+metadata:
+  name: volume-mount-with-os-directory-write-permissions
+  labels:
+    category: "Workload Security"
+    severity: critical
+spec:
+  id: SPOTTER-WORKLOAD-SECURITY-120
+  name: "Volume Mount With OS Directory Write Permissions"
+  version: "1.0.0"
+  description: "HostPath volumes mounting sensitive OS directories should be read-only."
+  severity:
+    level: CRITICAL
+    score: 9.0
+  category: "Workload Security"
+  subcategory: "Volume Mounts"
+  cwe: "CWE-732"
+  regulatoryStandards:
+    - name: "CIS Kubernetes Benchmark v1.8.0"
+      reference: "https://www.cisecurity.org/benchmark/kubernetes"
+      section: "5.2.5"
+  match:
+    resources:
+      kubernetes:
+        apiGroups:
+          - ""
+          - "apps"
+        versions:
+          - "v1"
+        kinds:
+          - Pod
+          - Deployment
+          - StatefulSet
+          - DaemonSet
+        namespaces:
+          include: ["*"]
+          exclude: ["kube-system", "kube-public"]
+  cel: |
+    (object.kind == 'Pod' && has(object.spec.volumes) && object.spec.volumes.exists(v, has(v.hostPath) && (v.hostPath.path.startsWith('/etc') || v.hostPath.path.startsWith('/var') || v.hostPath.path.startsWith('/usr')))) || (object.kind != 'Pod' && has(object.spec.template.spec.volumes) && object.spec.template.spec.volumes.exists(v, has(v.hostPath) && (v.hostPath.path.startsWith('/etc') || v.hostPath.path.startsWith('/var') || v.hostPath.path.startsWith('/usr'))))
+  remediation:
+    manual: "Set `readOnly: true` for hostPath volume mounts that access sensitive OS directories."
+  references:
+    - title: "Volumes - hostPath"
+      url: "https://kubernetes.io/docs/concepts/storage/volumes/#hostpath"
+  metadata:
+    author: "Spotter Security Team"
+    created: "2025-07-30"

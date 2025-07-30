@@ -1,0 +1,77 @@
+apiVersion: rules.spotter.run/v1
+kind: SecurityRule
+metadata:
+  name: unique-name
+  labels:
+    category: "Workload Security"
+    severity: high
+
+spec:
+  id: SPOTTER-<CATEGORY>-<NNN>
+  name: "Readable Rule Name"
+  version: "1.0.0"
+  description: "Human readable explanation of what this rule checks"
+
+  severity:
+    level: "HIGH"                  # LOW | MEDIUM | HIGH | CRITICAL
+    score: 8.7                     # 0.0 - 10.0, like CVSS
+
+  category: "Workload Security"   # See SecurityCategory constants for all available categories
+  subcategory: "Privilege Escalation"
+  cwe: "CWE-269"                   # Optional CWE or MITRE ref
+
+  regulatoryStandards:
+    - name: "CIS Kubernetes 5.2.5"
+      reference: "https://cisecurity.org/..."
+    - name: "NIST SP 800-53 AC-6"
+      reference: "https://csrc.nist.gov/..."
+
+  match:
+    resources:
+      kubernetes:
+        apiGroups:
+          - ""
+          - apps
+        versions:
+          - v1
+        kinds:
+          - Pod
+          - Deployment
+          - StatefulSet
+          - Job
+        namespaces:
+          include: ["*"]
+          exclude: ["kube-system", "kube-public"]
+        labels:
+          include:
+            environment: ["production", "staging"]
+          exclude:
+            security.spotter.dev/ignore: ["true"]
+
+  cel: |
+    object.kind in ["Pod", "Deployment", "StatefulSet", "Job"] &&
+    (
+      (object.kind == "Pod" &&
+       has(object.spec.containers) &&
+       object.spec.containers.exists(container,
+         has(container.securityContext) &&
+         container.securityContext.allowPrivilegeEscalation == true
+       )) ||
+      (has(object.spec.template.spec.containers) &&
+       object.spec.template.spec.containers.exists(container,
+         has(container.securityContext) &&
+         container.securityContext.allowPrivilegeEscalation == true
+       ))
+    )
+
+  remediation:
+    manual: |
+      Update securityContext to disable allowPrivilegeEscalation...
+
+  references:
+    - title: "Kubernetes Security Context"
+      url: "https://kubernetes.io/docs/tasks/configure-pod-container/security-context/"
+
+  metadata:
+    author: "Spotter Security Team"
+    created: "2024-01-01"

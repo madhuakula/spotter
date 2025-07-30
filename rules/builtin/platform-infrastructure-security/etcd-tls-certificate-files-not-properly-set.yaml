@@ -1,0 +1,44 @@
+apiVersion: rules.spotter.run/v1
+kind: SecurityRule
+metadata:
+  name: etcd-tls-certificate-files-not-properly-set
+  labels:
+    category: "Platform & Infrastructure Security"
+    severity: critical
+spec:
+  id: SPOTTER-PLATFORM-INFRASTRUCTURE-SECURITY-101
+  name: "Etcd TLS Certificate Files Not Properly Set"
+  version: "1.0.0"
+  description: "Etcd communication should be secured with TLS, and the certificate and key files should be properly configured."
+  severity:
+    level: CRITICAL
+    score: 9.8
+  category: "Platform & Infrastructure Security"
+  subcategory: "Etcd Security"
+  cwe: "CWE-295"
+  regulatoryStandards:
+    - name: "CIS Kubernetes Benchmark v1.8.0"
+      reference: "https://www.cisecurity.org/benchmark/kubernetes"
+      section: "2.1.1, 2.1.2"
+  match:
+    resources:
+      kubernetes:
+        apiGroups:
+          - ""
+        versions:
+          - v1
+        kinds:
+          - Pod
+        namespaces:
+          include: ["kube-system"]
+          exclude: ["*"]
+  cel: |
+    has(object.spec.containers) && object.spec.containers.exists(c, (has(c.command) && c.command.exists(cmd, cmd == "kube-apiserver") && (!has(c.args) || !c.args.exists(arg, arg.startsWith("--etcd-certfile=")) || !c.args.exists(arg, arg.startsWith("--etcd-keyfile=")))) || (has(c.command) && c.command.exists(cmd, cmd == "etcd") && (!has(c.args) || !c.args.exists(arg, arg.startsWith("--cert-file=")) || !c.args.exists(arg, arg.startsWith("--key-file=")))))
+  remediation:
+    manual: "Ensure that `--etcd-certfile` and `--etcd-keyfile` flags are set for kube-apiserver, and `--cert-file` and `--key-file` are set for etcd."
+  references:
+    - title: "Kubernetes Etcd Security"
+      url: "https://kubernetes.io/docs/setup/best-practices/security/#etcd-security"
+  metadata:
+    author: "Spotter Security Team"
+    created: "2025-07-29"

@@ -1,0 +1,49 @@
+apiVersion: rules.spotter.run/v1
+kind: SecurityRule
+metadata:
+  name: root-containers-admitted
+  labels:
+    category: "Workload Security"
+    severity: critical
+spec:
+  id: SPOTTER-WORKLOAD-SECURITY-585
+  name: "Container Running As Root"
+  version: "1.0.0"
+  description: "Containers must not run as UID 0"
+  severity:
+    level: CRITICAL
+    score: 9.0
+  category: "Workload Security"
+  subcategory: "Pod Security Context"
+  cwe: "CWE-585"
+  regulatoryStandards:
+    - name: "CIS Kubernetes Benchmark v1.8.0"
+      reference: "https://www.cisecurity.org/benchmark/kubernetes"
+      section: "5.2.6"
+  match:
+    resources:
+      kubernetes:
+        apiGroups:
+        - ''
+        - apps
+        versions:
+        - v1
+        kinds:
+        - Pod
+        - Deployment
+        - StatefulSet
+        - DaemonSet
+        namespaces:
+          include:
+          - '*'
+          exclude:
+          - kube-system
+          - kube-public
+  cel: |
+    (object.kind == 'Pod' && has(object.spec.containers) && object.spec.containers.exists(c, has(c.securityContext) && ((has(c.securityContext.runAsUser) && c.securityContext.runAsUser == 0) || (!has(c.securityContext.runAsUser) && (!has(c.securityContext.runAsNonRoot) || !c.securityContext.runAsNonRoot))))) ||
+    (object.kind != 'Pod' && has(object.spec.template.spec.containers) && object.spec.template.spec.containers.exists(c, has(c.securityContext) && ((has(c.securityContext.runAsUser) && c.securityContext.runAsUser == 0) || (!has(c.securityContext.runAsUser) && (!has(c.securityContext.runAsNonRoot) || !c.securityContext.runAsNonRoot)))))
+  remediation:
+    manual: "Set runAsNonRoot=true and runAsUser>=1000"
+  metadata:
+    author: "Spotter AutoGen"
+    created: "2025-07-29"

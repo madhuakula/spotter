@@ -1,0 +1,49 @@
+apiVersion: rules.spotter.run/v1
+kind: SecurityRule
+metadata:
+  name: container-running-with-low-uid
+  labels:
+    category: "Workload Security"
+    severity: medium
+spec:
+  id: SPOTTER-WORKLOAD-SECURITY-100
+  name: "Container Running With Low UID"
+  version: "1.0.0"
+  description: "Containers should not run with a UID less than 10000 to prevent potential privilege escalation."
+  severity:
+    level: MEDIUM
+    score: 6.0
+  category: "Workload Security"
+  subcategory: "Pod Security Context"
+  cwe: "CWE-276"
+  regulatoryStandards:
+    - name: "CIS Kubernetes Benchmark v1.8.0"
+      reference: "https://www.cisecurity.org/benchmark/kubernetes"
+      section: "5.2.6"
+  match:
+    resources:
+      kubernetes:
+        apiGroups:
+          - ""
+          - "apps"
+        versions:
+          - "v1"
+        kinds:
+          - Pod
+          - Deployment
+          - StatefulSet
+          - DaemonSet
+        namespaces:
+          include: ["*"]
+          exclude: ["kube-system", "kube-public"]
+  cel: |
+    (object.kind == 'Pod' && has(object.spec.containers) && object.spec.containers.exists(c, has(c.securityContext) && has(c.securityContext.runAsUser) && c.securityContext.runAsUser < 10000)) ||
+    (object.kind != 'Pod' && has(object.spec.template.spec.containers) && object.spec.template.spec.containers.exists(c, has(c.securityContext) && has(c.securityContext.runAsUser) && c.securityContext.runAsUser < 10000))
+  remediation:
+    manual: "Set runAsUser to a value greater than or equal to 10000 in the container's security context."
+  references:
+    - title: "Kubernetes Pod Security Standards (Restricted)"
+      url: "https://kubernetes.io/docs/concepts/security/pod-security-standards/#restricted"
+  metadata:
+    author: "Spotter Security Team"
+    created: "2025-07-29"

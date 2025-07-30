@@ -1,0 +1,44 @@
+apiVersion: rules.spotter.run/v1
+kind: SecurityRule
+metadata:
+  name: kubelet-client-certificate-or-key-not-set
+  labels:
+    category: "Platform & Infrastructure Security"
+    severity: critical
+spec:
+  id: SPOTTER-PLATFORM-INFRASTRUCTURE-SECURITY-107
+  name: "Kubelet Client Certificate Or Key Not Set"
+  version: "1.0.0"
+  description: "The Kubelet should be configured with client certificate and key files for secure communication with the API server."
+  severity:
+    level: CRITICAL
+    score: 9.0
+  category: "Platform & Infrastructure Security"
+  subcategory: "Kubelet Security"
+  cwe: "CWE-295"
+  regulatoryStandards:
+    - name: "CIS Kubernetes Benchmark v1.8.0"
+      reference: "https://www.cisecurity.org/benchmark/kubernetes"
+      section: "4.2.2, 4.2.3"
+  match:
+    resources:
+      kubernetes:
+        apiGroups:
+          - ""
+        versions:
+          - v1
+        kinds:
+          - Pod
+        namespaces:
+          include: ["kube-system"]
+          exclude: ["*"]
+  cel: |
+    has(object.spec.containers) && object.spec.containers.exists(c, has(c.command) && c.command.exists(cmd, cmd == "kubelet") && (!has(c.args) || !c.args.exists(arg, arg.startsWith("--client-ca-file=")) || !c.args.exists(arg, arg.startsWith("--kubelet-client-certificate=")) || !c.args.exists(arg, arg.startsWith("--kubelet-client-key="))))
+  remediation:
+    manual: "Set `--client-ca-file`, `--kubelet-client-certificate`, and `--kubelet-client-key` flags for the Kubelet."
+  references:
+    - title: "Kubelet Command Line Reference"
+      url: "https://kubernetes.io/docs/reference/command-line-tools-reference/kubelet/"
+  metadata:
+    author: "Spotter Security Team"
+    created: "2025-07-29"

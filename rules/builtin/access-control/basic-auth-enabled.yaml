@@ -1,0 +1,47 @@
+apiVersion: rules.spotter.run/v1
+kind: SecurityRule
+metadata:
+  name: basic-auth-enabled
+  labels:
+    category: "Access Control"
+    severity: high
+spec:
+  id: SPOTTER-ACCESS-CONTROL-003
+  name: "Basic Authentication Enabled"
+  version: "1.0.0"
+  description: "Basic authentication uses a static password file and is not recommended for production clusters. It should be disabled."
+  severity:
+    level: HIGH
+    score: 8.8
+  category: "Access Control"
+  subcategory: "Authentication"
+  cwe: "CWE-798"
+  regulatoryStandards:
+    - name: "CIS Kubernetes Benchmark v1.8.0"
+      reference: "https://www.cisecurity.org/benchmark/kubernetes"
+      section: "1.2.4"
+  match:
+    resources:
+      kubernetes:
+        apiGroups:
+          - ""
+        versions:
+          - v1
+        kinds:
+          - Pod
+        namespaces:
+          include: ["kube-system"]
+          exclude: ["*"]
+  cel: |
+    has(object.spec.containers) && object.spec.containers.exists(c,
+      has(c.command) && c.command.exists(cmd, cmd == "kube-apiserver") &&
+      has(c.args) && c.args.exists(arg, arg.startsWith("--basic-auth-file="))
+    )
+  remediation:
+    manual: "Edit the kube-apiserver pod specification file and remove the --basic-auth-file argument."
+  references:
+    - title: "Kubernetes API Server Authentication"
+      url: "https://kubernetes.io/docs/reference/access-authn-authz/authentication/#static-password-file"
+  metadata:
+    author: "Spotter Security Team"
+    created: "2024-07-29"

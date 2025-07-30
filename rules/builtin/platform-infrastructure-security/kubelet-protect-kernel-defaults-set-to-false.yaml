@@ -1,0 +1,44 @@
+apiVersion: rules.spotter.run/v1
+kind: SecurityRule
+metadata:
+  name: kubelet-protect-kernel-defaults-set-to-false
+  labels:
+    category: "Platform & Infrastructure Security"
+    severity: high
+spec:
+  id: SPOTTER-PLATFORM-INFRASTRUCTURE-SECURITY-113
+  name: "Kubelet Protect Kernel Defaults Set To False"
+  version: "1.0.0"
+  description: "The Kubelet should be configured to protect kernel defaults to prevent insecure kernel parameter changes."
+  severity:
+    level: HIGH
+    score: 8.0
+  category: "Platform & Infrastructure Security"
+  subcategory: "Kubelet Security"
+  cwe: "CWE-665"
+  regulatoryStandards:
+    - name: "CIS Kubernetes Benchmark v1.8.0"
+      reference: "https://www.cisecurity.org/benchmark/kubernetes"
+      section: "4.2.13"
+  match:
+    resources:
+      kubernetes:
+        apiGroups:
+          - ""
+        versions:
+          - v1
+        kinds:
+          - Pod
+        namespaces:
+          include: ["kube-system"]
+          exclude: ["*"]
+  cel: |
+    has(object.spec.containers) && object.spec.containers.exists(c, has(c.command) && c.command.exists(cmd, cmd == "kubelet") && has(c.args) && c.args.exists(arg, arg == "--protect-kernel-defaults=false"))
+  remediation:
+    manual: "Set `--protect-kernel-defaults=true` for the Kubelet."
+  references:
+    - title: "Kubelet Command Line Reference"
+      url: "https://kubernetes.io/docs/reference/command-line-tools-reference/kubelet/"
+  metadata:
+    author: "Spotter Security Team"
+    created: "2025-07-29"
