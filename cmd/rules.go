@@ -221,7 +221,6 @@ func init() {
 
 	// Info command flags
 	infoCmd.Flags().Bool("show-cel", false, "show CEL expression in output")
-	infoCmd.Flags().Bool("show-examples", false, "show usage examples")
 	// Note: 'output' flag is inherited from global persistent flags
 
 	// Generate command flags
@@ -512,6 +511,8 @@ func runExportRules(cmd *cobra.Command, args []string) error {
 func loadRulesForCommand(cmd *cobra.Command) ([]*RuleWithSource, error) {
 	parser := parser.NewYAMLParser(true)
 	var allRules []*RuleWithSource
+	ruleIDMap := make(map[string]bool)     // Track rule IDs to prevent duplicates
+	ruleNameMap := make(map[string]string) // Track rule names to detect duplicates with different IDs
 
 	builtinOnly, _ := cmd.Flags().GetBool("builtin-only")
 	customOnly, _ := cmd.Flags().GetBool("custom-only")
@@ -523,10 +524,22 @@ func loadRulesForCommand(cmd *cobra.Command) ([]*RuleWithSource, error) {
 			return nil, fmt.Errorf("failed to load built-in rules: %w", err)
 		}
 		for _, rule := range builtinRules {
-			allRules = append(allRules, &RuleWithSource{
-				SecurityRule: rule,
-				Source:       "built-in",
-			})
+			// Check if we've already seen this rule ID
+			if !ruleIDMap[rule.Spec.ID] {
+				// Check if we've seen a rule with the same name but different ID
+				if existingID, found := ruleNameMap[rule.Spec.Name]; found {
+					logger.Warn("Found duplicate rule with different ID", "name", rule.Spec.Name, "existing_id", existingID, "new_id", rule.Spec.ID)
+					// Skip this rule as we already have one with the same name
+					continue
+				}
+				
+				ruleIDMap[rule.Spec.ID] = true
+				ruleNameMap[rule.Spec.Name] = rule.Spec.ID
+				allRules = append(allRules, &RuleWithSource{
+					SecurityRule: rule,
+					Source:       "built-in",
+				})
+			}
 		}
 	}
 
@@ -539,10 +552,22 @@ func loadRulesForCommand(cmd *cobra.Command) ([]*RuleWithSource, error) {
 				return nil, fmt.Errorf("failed to load external rules: %w", err)
 			}
 			for _, rule := range externalRules {
-				allRules = append(allRules, &RuleWithSource{
-					SecurityRule: rule,
-					Source:       "custom",
-				})
+				// Check if we've already seen this rule ID
+				if !ruleIDMap[rule.Spec.ID] {
+					// Check if we've seen a rule with the same name but different ID
+					if existingID, found := ruleNameMap[rule.Spec.Name]; found {
+						logger.Warn("Found duplicate rule with different ID", "name", rule.Spec.Name, "existing_id", existingID, "new_id", rule.Spec.ID)
+						// Skip this rule as we already have one with the same name
+						continue
+					}
+					
+					ruleIDMap[rule.Spec.ID] = true
+					ruleNameMap[rule.Spec.Name] = rule.Spec.ID
+					allRules = append(allRules, &RuleWithSource{
+						SecurityRule: rule,
+						Source:       "custom",
+					})
+				}
 			}
 		}
 	}
