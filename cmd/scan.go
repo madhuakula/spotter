@@ -149,7 +149,6 @@ func init() {
 	clusterCmd.Flags().String("context", "", "kubernetes context to use")
 	clusterCmd.Flags().Bool("watch", false, "watch for resource changes and continuously scan")
 	clusterCmd.Flags().Duration("watch-interval", 30*time.Second, "interval for watch mode scanning")
-	clusterCmd.Flags().Int("max-violations", 0, "maximum number of violations before stopping scan (0 = unlimited)")
 	clusterCmd.Flags().String("label-selector", "", "label selector to filter resources (e.g., app=nginx,env=prod)")
 	clusterCmd.Flags().String("field-selector", "", "field selector to filter resources")
 	clusterCmd.Flags().Bool("dry-run", false, "show what would be scanned without actually scanning")
@@ -157,41 +156,16 @@ func init() {
 	clusterCmd.Flags().Duration("cache-ttl", 5*time.Minute, "cache time-to-live for scan results")
 
 	// Performance optimization flags
-	clusterCmd.Flags().Int("batch-size", 50, "number of resources to process in each batch")
-	clusterCmd.Flags().Int("parallelism", 4, "number of parallel workers for scanning")
-	clusterCmd.Flags().Int64("memory-limit", 0, "maximum memory usage in MB (0 = unlimited)")
 	clusterCmd.Flags().Int("resource-pool-size", 100, "size of resource object pool for reuse")
-
-	// Enhanced filtering flags
-
-	// Interactive and user experience flags
-	clusterCmd.Flags().Bool("interactive", false, "enable interactive mode with progress bars and real-time updates")
-	clusterCmd.Flags().Bool("show-progress", true, "show progress indicators during scanning")
-	clusterCmd.Flags().Bool("quiet", false, "suppress non-essential output")
-	clusterCmd.Flags().Bool("summary-only", false, "show only summary statistics")
 
 	// Manifests scan flags
 	manifestsCmd.Flags().Bool("recursive", true, "recursively scan directories")
 	manifestsCmd.Flags().StringSlice("file-extensions", []string{".yaml", ".yml", ".json"}, "file extensions to scan")
 	manifestsCmd.Flags().Bool("validate-syntax", true, "validate YAML/JSON syntax before scanning")
 	manifestsCmd.Flags().StringSlice("include-paths", []string{}, "paths to include in scanning")
-	manifestsCmd.Flags().Int("max-violations", 0, "maximum number of violations before stopping scan (0 = unlimited)")
 	manifestsCmd.Flags().Bool("follow-symlinks", false, "follow symbolic links when scanning directories")
 	manifestsCmd.Flags().Bool("exclude-system-namespaces", false, "exclude system namespaces (kube-system, kube-public, etc.)")
 	manifestsCmd.Flags().Bool("include-cluster-resources", true, "include cluster-scoped resources")
-
-	// Performance optimization flags for manifests
-	manifestsCmd.Flags().Int("batch-size", 50, "number of files to process in each batch")
-	manifestsCmd.Flags().Int("parallelism", 4, "number of parallel workers for scanning")
-	manifestsCmd.Flags().Int64("memory-limit", 0, "maximum memory usage in MB (0 = unlimited)")
-
-	// Enhanced filtering flags for manifests
-
-	// Interactive and user experience flags for manifests
-	manifestsCmd.Flags().Bool("interactive", false, "enable interactive mode with progress bars")
-	manifestsCmd.Flags().Bool("show-progress", true, "show progress indicators during scanning")
-	manifestsCmd.Flags().Bool("quiet", false, "suppress non-essential output")
-	manifestsCmd.Flags().Bool("summary-only", false, "show only summary statistics")
 
 	// Helm scan flags
 	helmCmd.Flags().StringSlice("values", []string{}, "values files for Helm chart rendering")
@@ -202,7 +176,6 @@ func init() {
 	helmCmd.Flags().Bool("include-dependencies", true, "include chart dependencies in scan")
 	helmCmd.Flags().Bool("validate-schema", true, "validate chart schema before scanning")
 	helmCmd.Flags().String("kube-version", "", "kubernetes version to use for rendering (e.g., 1.28.0)")
-	helmCmd.Flags().Int("max-violations", 0, "maximum number of violations before stopping scan (0 = unlimited)")
 	helmCmd.Flags().Bool("exclude-system-namespaces", false, "exclude system namespaces (kube-system, kube-public, etc.)")
 	helmCmd.Flags().Bool("include-cluster-resources", true, "include cluster-scoped resources")
 	helmCmd.Flags().Bool("skip-tests", false, "skip test templates when scanning")
@@ -210,8 +183,6 @@ func init() {
 	helmCmd.Flags().String("chart-repo", "", "helm chart repository URL")
 	helmCmd.Flags().String("chart-version", "", "specific chart version to scan")
 	helmCmd.Flags().Bool("update-dependencies", false, "update chart dependencies before scanning")
-
-	// Enhanced filtering flags for helm
 
 	// Common scan flags
 	for _, cmd := range []*cobra.Command{clusterCmd, manifestsCmd, helmCmd} {
@@ -221,6 +192,14 @@ func init() {
 		cmd.Flags().StringSlice("categories", []string{}, "rule categories to include")
 		cmd.Flags().StringToString("custom-filters", map[string]string{}, "custom filter expressions (key=value)")
 		cmd.Flags().Bool("continue-on-error", true, "continue scanning even if some resources fail")
+		cmd.Flags().Int("max-violations", 0, "maximum number of violations before stopping scan (0 = unlimited)")
+		cmd.Flags().Int("batch-size", 50, "number of resources/files to process in each batch")
+		cmd.Flags().Int("parallelism", 4, "number of parallel workers for scanning")
+		cmd.Flags().Int64("memory-limit", 0, "maximum memory usage in MB (0 = unlimited)")
+		cmd.Flags().Bool("interactive", false, "enable interactive mode with progress bars")
+		cmd.Flags().Bool("show-progress", true, "show progress indicators during scanning")
+		cmd.Flags().Bool("quiet", false, "suppress non-essential output")
+		cmd.Flags().Bool("summary-only", false, "show only summary statistics")
 		// Note: 'no-color' flag is inherited from global persistent flags
 	}
 }
