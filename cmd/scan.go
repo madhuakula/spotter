@@ -177,9 +177,7 @@ func init() {
 	manifestsCmd.Flags().Bool("recursive", true, "recursively scan directories")
 	manifestsCmd.Flags().StringSlice("file-extensions", []string{".yaml", ".yml", ".json"}, "file extensions to scan")
 	manifestsCmd.Flags().Bool("validate-syntax", true, "validate YAML/JSON syntax before scanning")
-	manifestsCmd.Flags().StringSlice("exclude-paths", []string{}, "paths to exclude from scanning")
-	manifestsCmd.Flags().StringSlice("include-paths", []string{}, "paths to include in scanning (overrides exclude-paths)")
-	manifestsCmd.Flags().Bool("ignore-parse-errors", false, "continue scanning even if some files fail to parse")
+	manifestsCmd.Flags().StringSlice("include-paths", []string{}, "paths to include in scanning")
 	manifestsCmd.Flags().String("baseline", "", "baseline file to compare against")
 	manifestsCmd.Flags().Bool("update-baseline", false, "update the baseline file with current scan results")
 	manifestsCmd.Flags().Bool("fail-on-violations", false, "exit with non-zero code if violations are found")
@@ -432,7 +430,7 @@ func loadSecurityRules() ([]*models.SecurityRule, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to load built-in rules: %w", err)
 	}
-	
+
 	// Add builtin rules and track their IDs
 	for _, rule := range builtinRules {
 		if !ruleIDMap[rule.Spec.ID] {
@@ -448,7 +446,7 @@ func loadSecurityRules() ([]*models.SecurityRule, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to load external rules: %w", err)
 		}
-		
+
 		// Add external rules only if their IDs are not already present
 		for _, rule := range externalRules {
 			if !ruleIDMap[rule.Spec.ID] {
