@@ -1,0 +1,145 @@
+# Makefile for Spotter Admission Controller
+
+# Variables
+REGISTRY ?= docker.io
+REPOSITORY ?= spotter
+TAG ?= latest
+IMAGE = $(REGISTRY)/$(REPOSITORY):$(TAG)
+
+NAMESPACE = spotter-system
+DEPLOYMENT_DIR = deployments/admission-controller
+
+.PHONY: help build push deploy undeploy generate-certs test clean
+
+help: ## Show this help message
+	@echo "Spotter Admission Controller - Available targets:"
+	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+
+build: ## Build the Docker image
+	@echo "Building Docker image..."
+	docker build -f Dockerfile.admission -t $(IMAGE) .
+	@echo "✅ Image built: $(IMAGE)"
+
+push: ## Push the Docker image to registry
+	@echo "Pushing Docker image to registry..."
+	docker push $(IMAGE)
+	@echo "✅ Image pushed: $(IMAGE)"
+
+generate-certs: ## Generate TLS certificates for admission controller
+	@echo "Generating TLS certificates..."
+	cd $(DEPLOYMENT_DIR) && ./generate-certs.sh
+	@echo "✅ TLS certificates generated"
+
+deploy: ## Deploy the admission controller to Kubernetes
+	@echo "Deploying admission controller..."
+	kubectl apply -f $(DEPLOYMENT_DIR)/deployment.yaml
+	@echo "Waiting for deployment to be ready..."
+	kubectl wait --for=condition=available --timeout=300s deployment/spotter-admission-controller -n $(NAMESPACE)
+	@echo "✅ Admission controller deployed successfully"
+
+deploy-webhook: ## Deploy the webhook configuration
+	@echo "Deploying webhook configuration..."
+	kubectl apply -f $(DEPLOYMENT_DIR)/webhook.yaml
+	@echo "✅ Webhook configuration deployed"
+
+undeploy: ## Remove the admission controller from Kubernetes
+	@echo "Removing admission controller..."
+	-kubectl delete -f $(DEPLOYMENT_DIR)/webhook.yaml
+	-kubectl delete -f $(DEPLOYMENT_DIR)/deployment.yaml
+	@echo "✅ Admission controller removed"
+
+logs: ## Show admission controller logs
+	kubectl logs -f deployment/spotter-admission-controller -n $(NAMESPACE)
+
+status: ## Show admission controller status
+	@echo "=== Deployment Status ==="
+	kubectl get deployment spotter-admission-controller -n $(NAMESPACE) -o wide
+	@echo ""
+	@echo "=== Pods ==="
+	kubectl get pods -l app.kubernetes.io/name=spotter -n $(NAMESPACE) -o wide
+	@echo ""
+	@echo "=== Service ==="
+	kubectl get service spotter-admission-controller -n $(NAMESPACE) -o wide
+	@echo ""
+	@echo "=== Webhook Configuration ==="
+	kubectl get validatingadmissionwebhooks spotter-validating-webhook
+	@echo ""
+	@echo "=== Recent Events ==="
+	kubectl get events -n $(NAMESPACE) --sort-by='.lastTimestamp' | tail -10
+
+test-validating: ## Test admission controller with a test pod
+	@echo "Testing admission controller with a non-compliant pod..."
+	@cat <<EOF | kubectl apply -f - || echo "✅ Pod was rejected as expected"
+	apiVersion: v1
+	kind: Pod
+	metadata:
+	  name: test-insecure-pod
+	  namespace: default
+	spec:
+	  containers:
+	  - name: test
+	    image: nginx:latest
+	    securityContext:
+	      runAsUser: 0
+	      privileged: true
+	EOF
+
+test-compliant: ## Test admission controller with a compliant pod
+	@echo "Testing admission controller with a compliant pod..."
+	@cat <<EOF | kubectl apply -f -
+	apiVersion: v1
+	kind: Pod
+	metadata:
+	  name: test-secure-pod
+	  namespace: default
+	spec:
+	  securityContext:
+	    runAsNonRoot: true
+	    runAsUser: 1001
+	    runAsGroup: 1001
+	  containers:
+	  - name: test
+	    image: nginx:1.21.6@sha256:2275af0f20d71b293916f1958f8497f987b8d8fd8113df54635f2a5915002bf1
+	    securityContext:
+	      allowPrivilegeEscalation: false
+	      readOnlyRootFilesystem: true
+	      runAsNonRoot: true
+	      runAsUser: 1001
+	      runAsGroup: 1001
+	      capabilities:
+	        drop:
+	        - ALL
+	    livenessProbe:
+	      httpGet:
+	        path: /
+	        port: 80
+	      initialDelaySeconds: 30
+	      periodSeconds: 10
+	    readinessProbe:
+	      httpGet:
+	        path: /
+	        port: 80
+	      initialDelaySeconds: 5
+	      periodSeconds: 5
+	EOF
+	@echo "✅ Compliant pod should be accepted"
+
+clean-test: ## Clean up test pods
+	-kubectl delete pod test-insecure-pod test-secure-pod -n default
+
+build-and-deploy: build push deploy ## Build, push, and deploy in one command
+
+setup: generate-certs build-and-deploy deploy-webhook ## Complete setup: generate certs, build, and deploy
+
+clean: undeploy ## Clean up everything
+	@echo "Cleaning up..."
+	-kubectl delete namespace $(NAMESPACE)
+	@echo "✅ Cleanup completed"
+
+dev-setup: ## Setup for development
+	@echo "Setting up development environment..."
+	@echo "1. Make sure you have kubectl configured"
+	@echo "2. Make sure you have Docker running"
+	@echo "3. Run 'make setup' to deploy the admission controller"
+
+.DEFAULT_GOAL := help
