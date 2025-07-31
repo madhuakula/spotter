@@ -120,27 +120,7 @@ func (r *TableReporter) formatHeader(title string) string {
 	return fmt.Sprintf("%s\n  %s  \n%s\n", line, title, line)
 }
 
-func (r *TableReporter) formatSummary(results *models.ScanResult) string {
-	var summary strings.Builder
 
-	summary.WriteString(r.colorize("Scan Summary\n", "cyan"))
-	summary.WriteString(strings.Repeat("=", 80) + "\n")
-
-	// Add tabular summary
-	summary.WriteString(r.formatSummaryTable(results))
-	summary.WriteString("\n")
-
-	// Categorize findings
-	celErrors, securityFindings := r.categorizeFindingsByType(results.Results)
-
-	// Add findings breakdown table
-	if len(celErrors) > 0 || len(securityFindings) > 0 {
-		summary.WriteString(r.formatFindingsTable(celErrors, securityFindings))
-		summary.WriteString("\n")
-	}
-
-	return summary.String()
-}
 
 func (r *TableReporter) formatFindings(results []models.ValidationResult) string {
 	var output strings.Builder
@@ -227,34 +207,7 @@ func (r *TableReporter) formatCELErrorBrief(result *models.ValidationResult, ind
 	return output.String()
 }
 
-func (r *TableReporter) formatSecurityFindingBrief(result *models.ValidationResult, index int) string {
-	var output strings.Builder
 
-	// Brief format for security findings
-	severityEmoji := r.getSeverityEmoji(result.Severity)
-
-	output.WriteString(fmt.Sprintf("%s %d. %s\n",
-		severityEmoji,
-		index,
-		r.colorize(result.RuleName, "white")))
-
-	// Resource info
-	resourceKind := "unknown"
-	resourceName := "unknown"
-	if kind, ok := result.Resource["kind"].(string); ok {
-		resourceKind = kind
-	}
-	if metadata, ok := result.Resource["metadata"].(map[string]interface{}); ok {
-		if name, ok := metadata["name"].(string); ok {
-			resourceName = name
-		}
-	}
-
-	output.WriteString(fmt.Sprintf("   Resource: %s/%s\n", resourceKind, resourceName))
-	output.WriteString(fmt.Sprintf("   Issue: %s\n", result.Message))
-
-	return output.String()
-}
 
 func (r *TableReporter) formatCELError(result *models.ValidationResult, index int) string {
 	var finding strings.Builder
@@ -306,51 +259,7 @@ func (r *TableReporter) formatCELError(result *models.ValidationResult, index in
 	return finding.String()
 }
 
-func (r *TableReporter) formatSecurityFinding(result *models.ValidationResult, index int) string {
-	var finding strings.Builder
 
-	// Header with severity and rule info
-	severityEmoji := r.getSeverityEmoji(result.Severity)
-
-	finding.WriteString(fmt.Sprintf("%s [%d] %s\n",
-		severityEmoji,
-		index,
-		r.colorize(result.RuleName, "bold")))
-
-	// Rule details
-	finding.WriteString(fmt.Sprintf("    Rule ID: %s\n", result.RuleID))
-	if result.Category != "" {
-		finding.WriteString(fmt.Sprintf("    Category: %s\n", result.Category))
-	}
-
-	// Resource info
-	if resourceKind, ok := result.Resource["kind"].(string); ok {
-		resourceName := "unknown"
-		if metadata, ok := result.Resource["metadata"].(map[string]interface{}); ok {
-			if name, ok := metadata["name"].(string); ok {
-				resourceName = name
-			}
-			if namespace, ok := metadata["namespace"].(string); ok && namespace != "" {
-				finding.WriteString(fmt.Sprintf("    Namespace: %s\n", namespace))
-			}
-		}
-		finding.WriteString(fmt.Sprintf("    Resource: %s/%s\n", resourceKind, resourceName))
-	}
-
-	// Message
-	if result.Message != "" {
-		finding.WriteString(fmt.Sprintf("    Issue: %s\n", result.Message))
-	}
-
-	// Remediation guidance
-	if result.Remediation != "" {
-		finding.WriteString(fmt.Sprintf("    %s %s\n", r.colorize("Fix:", "green"), result.Remediation))
-	} else if r.verbose {
-		finding.WriteString(r.colorize("    Tip: Check rule documentation for remediation steps\n", "cyan"))
-	}
-
-	return finding.String()
-}
 
 // formatHierarchicalSecurityFindings creates a hierarchical view of security findings
 // organized by category > severity > rule with concise, actionable data
@@ -682,15 +591,7 @@ func (r *TableReporter) categorizeFindingsByType(results []models.ValidationResu
 	return celErrors, securityFindings
 }
 
-func (r *TableReporter) countBySeverity(results []models.ValidationResult) map[models.SeverityLevel]int {
-	counts := make(map[models.SeverityLevel]int)
-	for _, result := range results {
-		if !result.Passed {
-			counts[result.Severity]++
-		}
-	}
-	return counts
-}
+
 
 func (r *TableReporter) getSeverityColor(severity models.SeverityLevel) string {
 	switch severity {
@@ -707,20 +608,7 @@ func (r *TableReporter) getSeverityColor(severity models.SeverityLevel) string {
 	}
 }
 
-func (r *TableReporter) getSeverityIcon(severity models.SeverityLevel) string {
-	switch severity {
-	case models.SeverityCritical:
-		return "CRIT"
-	case models.SeverityHigh:
-		return "HIGH"
-	case models.SeverityMedium:
-		return "MED"
-	case models.SeverityLow:
-		return "LOW"
-	default:
-		return "UNK"
-	}
-}
+
 
 func (r *TableReporter) getSeverityEmoji(severity models.SeverityLevel) string {
 	switch severity {
@@ -752,119 +640,9 @@ func (r *TableReporter) severityWeight(severity models.SeverityLevel) int {
 	}
 }
 
-// formatSummaryTable creates a simplified tabular summary of scan results (2 columns only)
-func (r *TableReporter) formatSummaryTable(results *models.ScanResult) string {
-	var table strings.Builder
 
-	// Calculate stats
-	totalEvaluations := results.Passed + results.Failed
-	failureRate := float64(0)
-	if totalEvaluations > 0 {
-		failureRate = float64(results.Failed) / float64(totalEvaluations) * 100
-	}
 
-	// Create table rows with only key metrics
-	rows := [][]string{
-		{"Metric", "Value"},
-		{strings.Repeat("-", 25), strings.Repeat("-", 25)},
-		{"Rules Evaluated", fmt.Sprintf("%d", results.TotalRules)},
-		{"Total Evaluations", fmt.Sprintf("%d", totalEvaluations)},
-		{"Failed Evaluations", fmt.Sprintf("%d", results.Failed)},
-		{"Failure Rate", fmt.Sprintf("%.1f%%", failureRate)},
-		{"Resources Scanned", fmt.Sprintf("%d", results.TotalResources)},
-		{"Scan Duration", results.Duration.Round(time.Millisecond).String()},
-	}
 
-	// Format table with proper borders
-	for i, row := range rows {
-		if i == 0 {
-			// Top border and header
-			table.WriteString(fmt.Sprintf("┌─%-25s─┬─%-25s─┐\n", strings.Repeat("─", 25), strings.Repeat("─", 25)))
-			table.WriteString(fmt.Sprintf("│ %-25s │ %-25s │\n",
-				r.colorize(row[0], "cyan"),
-				r.colorize(row[1], "cyan")))
-		} else if i == 1 {
-			// Separator row
-			table.WriteString(fmt.Sprintf("├─%-25s─┼─%-25s─┤\n", row[0], row[1]))
-		} else {
-			// Data rows with appropriate coloring
-			value := row[1]
-			if strings.Contains(row[0], "Failed Evaluations") && results.Failed > 0 {
-				value = r.colorize(value, "red")
-			} else if strings.Contains(row[0], "Failure Rate") {
-				if failureRate > 50 {
-					value = r.colorize(value, "red")
-				} else if failureRate > 20 {
-					value = r.colorize(value, "yellow")
-				} else {
-					value = r.colorize(value, "green")
-				}
-			} else if strings.Contains(row[0], "Rules Evaluated") || strings.Contains(row[0], "Resources Scanned") || strings.Contains(row[0], "Total Evaluations") {
-				value = r.colorize(value, "cyan")
-			}
-
-			table.WriteString(fmt.Sprintf("│ %-25s │ %-25s │\n", row[0], value))
-		}
-	}
-
-	// Bottom border
-	table.WriteString(fmt.Sprintf("└─%-25s─┴─%-25s─┘\n", strings.Repeat("─", 25), strings.Repeat("─", 25)))
-
-	return table.String()
-}
-
-// formatFindingsTable creates a tabular summary of findings
-func (r *TableReporter) formatFindingsTable(celErrors, securityFindings []models.ValidationResult) string {
-	var table strings.Builder
-
-	table.WriteString(r.colorize("\nFindings Summary\n", "cyan"))
-	table.WriteString(strings.Repeat("-", 60) + "\n")
-
-	// CEL Errors summary
-	if len(celErrors) > 0 {
-		table.WriteString(fmt.Sprintf("│ %-25s │ %-10s │ %-15s │\n",
-			r.colorize("Finding Type", "cyan"),
-			r.colorize("Count", "cyan"),
-			r.colorize("Status", "cyan")))
-		table.WriteString(fmt.Sprintf("├─%-25s─┼─%-10s─┼─%-15s─┤\n",
-			strings.Repeat("-", 25),
-			strings.Repeat("-", 10),
-			strings.Repeat("-", 15)))
-		table.WriteString(fmt.Sprintf("│ %-25s │ %-10s │ %-15s │\n",
-			"CEL Evaluation Issues",
-			r.colorize(fmt.Sprintf("%d", len(celErrors)), "yellow"),
-			"NEEDS FIX"))
-	}
-
-	// Security findings summary
-	if len(securityFindings) > 0 {
-		if len(celErrors) == 0 {
-			// Add header if not already added
-			table.WriteString(fmt.Sprintf("│ %-25s │ %-10s │ %-15s │\n",
-				r.colorize("Finding Type", "cyan"),
-				r.colorize("Count", "cyan"),
-				r.colorize("Status", "cyan")))
-			table.WriteString(fmt.Sprintf("├─%-25s─┼─%-10s─┼─%-15s─┤\n",
-				strings.Repeat("-", 25),
-				strings.Repeat("-", 10),
-				strings.Repeat("-", 15)))
-		}
-
-		// Severity breakdown
-		severityCounts := r.countBySeverity(securityFindings)
-		for _, severity := range []models.SeverityLevel{models.SeverityCritical, models.SeverityHigh, models.SeverityMedium, models.SeverityLow} {
-			if count, exists := severityCounts[severity]; exists && count > 0 {
-				color := r.getSeverityColor(severity)
-				table.WriteString(fmt.Sprintf("│ %-25s │ %-10s │ %-15s │\n",
-					fmt.Sprintf("%s Severity", severity),
-					r.colorize(fmt.Sprintf("%d", count), color),
-					fmt.Sprintf("SECURITY")))
-			}
-		}
-	}
-
-	return table.String()
-}
 
 func (r *TableReporter) formatActionableSummary(results *models.ScanResult) string {
 	var summary strings.Builder
@@ -1117,39 +895,13 @@ func (r *TableReporter) formatResourceGroupingTable(results *models.ScanResult) 
 
 // Helper methods for enhanced table formatting
 
-func (r *TableReporter) getStatusIcon(condition bool) string {
-	if condition {
-		return "✓"
-	}
-	return "✗"
-}
 
-func (r *TableReporter) getSuccessRateColor(rate float64) string {
-	if rate >= 95 {
-		return r.colorize(fmt.Sprintf("%.1f%%", rate), "green")
-	} else if rate >= 80 {
-		return r.colorize(fmt.Sprintf("%.1f%%", rate), "yellow")
-	}
-	return r.colorize(fmt.Sprintf("%.1f%%", rate), "red")
-}
 
-func (r *TableReporter) getSuccessRateIcon(rate float64) string {
-	if rate >= 95 {
-		return "EXCELLENT"
-	} else if rate >= 80 {
-		return "GOOD"
-	}
-	return "POOR"
-}
 
-func (r *TableReporter) getSuccessRateColorName(rate float64) string {
-	if rate >= 95 {
-		return "green"
-	} else if rate >= 80 {
-		return "yellow"
-	}
-	return "red"
-}
+
+
+
+
 
 func (r *TableReporter) getScoreColor(score float64) string {
 	if score >= 90 {
@@ -1173,14 +925,7 @@ func (r *TableReporter) getGradeColor(grade string) string {
 	}
 }
 
-func (r *TableReporter) getRiskImpactColor(riskScore float64) string {
-	if riskScore >= 8.0 {
-		return "red"
-	} else if riskScore >= 5.0 {
-		return "yellow"
-	}
-	return "green"
-}
+
 
 func (r *TableReporter) getRiskLevelColor(riskLevel string) string {
 	switch strings.ToLower(riskLevel) {

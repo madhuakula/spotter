@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -13,6 +14,8 @@ import (
 	"github.com/madhuakula/spotter/pkg/models"
 	"gopkg.in/yaml.v3"
 )
+
+var logger = slog.Default()
 
 // YAMLParser implements RuleParser for YAML files
 type YAMLParser struct {
@@ -87,7 +90,11 @@ func (p *YAMLParser) ParseRuleFromFile(ctx context.Context, filePath string) (*m
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file %s: %w", filePath, err)
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			logger.Error("Failed to close file", "path", filePath, "error", err)
+		}
+	}()
 
 	rule, err := p.ParseRule(ctx, file)
 	if err != nil {
@@ -160,7 +167,11 @@ func (p *YAMLParser) ParseRulesFromFS(ctx context.Context, fsys fs.FS, dirPath s
 		if err != nil {
 			return fmt.Errorf("failed to open embedded file %s: %w", path, err)
 		}
-		defer file.Close()
+		defer func() {
+			if err := file.Close(); err != nil {
+				logger.Error("Failed to close embedded file", "path", path, "error", err)
+			}
+		}()
 
 		rule, err := p.ParseRule(ctx, file)
 		if err != nil {

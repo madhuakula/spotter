@@ -129,7 +129,11 @@ func (pb *ProgressBar) Finish() {
 	pb.render()
 
 	if pb.isTerminal {
-		fmt.Fprint(pb.writer, "\n")
+		if _, err := fmt.Fprint(pb.writer, "\n"); err != nil {
+			// We can't use the logger here as it might cause a recursive loop
+			// if the logger is writing to the same writer
+			fmt.Fprintf(os.Stderr, "Error writing progress bar newline: %v\n", err)
+		}
 	}
 }
 
@@ -138,7 +142,11 @@ func (pb *ProgressBar) render() {
 	if !pb.isTerminal {
 		// For non-terminal output, just show periodic updates
 		if pb.current%10 == 0 || pb.current == pb.total {
-			fmt.Fprintf(pb.writer, "%s: %d/%d\n", pb.prefix, pb.current, pb.total)
+			if _, err := fmt.Fprintf(pb.writer, "%s: %d/%d\n", pb.prefix, pb.current, pb.total); err != nil {
+				// We can't use the logger here as it might cause a recursive loop
+				// if the logger is writing to the same writer
+				fmt.Fprintf(os.Stderr, "Error writing progress update: %v\n", err)
+			}
 		}
 		return
 	}
@@ -175,7 +183,11 @@ func (pb *ProgressBar) render() {
 		pb.prefix, bar, pb.current, pb.total, percentage, eta)
 
 	// Clear line and write progress
-	fmt.Fprint(pb.writer, "\r\033[K"+output)
+	if _, err := fmt.Fprint(pb.writer, "\r\033[K"+output); err != nil {
+		// We can't use the logger here as it might cause a recursive loop
+		// if the logger is writing to the same writer
+		fmt.Fprintf(os.Stderr, "Error writing progress bar: %v\n", err)
+	}
 }
 
 // formatDuration formats a duration in a human-readable way

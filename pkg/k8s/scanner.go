@@ -12,7 +12,6 @@ import (
 	"sync"
 	"time"
 
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/yaml"
 )
@@ -103,11 +102,19 @@ func (c *ResourceCache) Clear() {
 	c.data = make(map[string]CacheEntry)
 }
 
-// GetMetrics returns current scan metrics
+// GetMetrics returns current scan metrics without the mutex
 func (s *Scanner) GetMetrics() ScanMetrics {
 	s.metrics.mu.RLock()
 	defer s.metrics.mu.RUnlock()
-	return *s.metrics
+	// Create a new ScanMetrics without the mutex to avoid the govet copylocks warning
+	return ScanMetrics{
+		ResourcesScanned: s.metrics.ResourcesScanned,
+		BatchesProcessed: s.metrics.BatchesProcessed,
+		CacheHits:        s.metrics.CacheHits,
+		CacheMisses:      s.metrics.CacheMisses,
+		ScanDuration:     s.metrics.ScanDuration,
+		MemoryUsage:      s.metrics.MemoryUsage,
+	}
 }
 
 // updateMemoryUsage updates the current memory usage metric
@@ -586,11 +593,6 @@ func (s *Scanner) isClusterScopedResource(gvk schema.GroupVersionKind, resourceI
 	return false
 }
 
-func (s *Scanner) determineResourceTypes(ctx context.Context, options ScanOptions) ([]schema.GroupVersionKind, error) {
-	_, gvks, err := s.determineResourceTypesWithScope(ctx, options)
-	return gvks, err
-}
-
 func (s *Scanner) determineResourceTypesWithScope(ctx context.Context, options ScanOptions) ([]ResourceInfo, []schema.GroupVersionKind, error) {
 	if len(options.ResourceTypes) > 0 {
 		// If specific resource types are provided, we still need to get their scope info
@@ -793,12 +795,8 @@ func (p *FileManifestParser) ValidateManifest(ctx context.Context, manifest map[
 		return fmt.Errorf("missing kind field")
 	}
 
-	// Convert to unstructured for further validation
-	unstructuredObj := &unstructured.Unstructured{Object: manifest}
-	if unstructuredObj.GetName() == "" && unstructuredObj.GetGenerateName() == "" {
-		// Some resources like ConfigMaps might not have names in templates
-		// This is a soft validation
-	}
+	// Skip validation for resources without names or generateNames
+	// Some resources like ConfigMaps might not have names in templates
 
 	return nil
 }

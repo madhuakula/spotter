@@ -408,7 +408,7 @@ func runHelmScan(cmd *cobra.Command, args []string) error {
 	// Execute Helm scan
 	scanResult, err := executeHelmScan(ctx, scanner, engine, rules, args, scanConfig)
 	if err != nil {
-		return fmt.Errorf("Helm scan failed: %w", err)
+		return fmt.Errorf("helm scan failed: %w", err)
 	}
 
 	// Generate and output report
@@ -1086,7 +1086,11 @@ func generateReport(scanResult *models.ScanResult, config *ScanConfig) error {
 		if err != nil {
 			return fmt.Errorf("failed to create output file: %w", err)
 		}
-		defer file.Close()
+		defer func() {
+			if err := file.Close(); err != nil {
+				logger.Error("Failed to close output file", "error", err)
+			}
+		}()
 
 		if err := reporter.WriteReport(ctx, scanResult, file); err != nil {
 			return fmt.Errorf("failed to write report: %w", err)

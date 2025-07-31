@@ -20,7 +20,7 @@ type CELEngine struct {
 	env      *cel.Env
 	matcher  ResourceMatcher
 	compiler RuleCompiler
-	mu       sync.RWMutex
+
 }
 
 // NewCELEngine creates a new CEL evaluation engine with Kubernetes-specific extensions

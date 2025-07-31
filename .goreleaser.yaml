@@ -1,0 +1,81 @@
+# GoReleaser configuration for Spotter
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+    - go generate ./...
+
+builds:
+  - env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/madhuakula/spotter/pkg/version.Version={{.Version}}
+      - -X github.com/madhuakula/spotter/pkg/version.Commit={{.Commit}}
+      - -X github.com/madhuakula/spotter/pkg/version.Date={{.Date}}
+    binary: spotter
+
+archives:
+  - format: tar.gz
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+      - LICENSE
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+      - '^ci:'
+
+dockers:
+  - image_templates:
+      - "ghcr.io/madhuakula/spotter:{{ .Tag }}"
+      - "ghcr.io/madhuakula/spotter:v{{ .Major }}"
+      - "ghcr.io/madhuakula/spotter:v{{ .Major }}.{{ .Minor }}"
+      - "ghcr.io/madhuakula/spotter:latest"
+    dockerfile: Dockerfile
+    build_flag_templates:
+      - "--platform=linux/amd64"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+      - "--label=org.opencontainers.image.source={{.GitURL}}"
+    extra_files:
+      - go.mod
+      - go.sum
+
+release:
+  github:
+    owner: madhuakula
+    name: spotter
+  draft: false
+  prerelease: auto
+  name_template: "{{.ProjectName}} v{{.Version}}"

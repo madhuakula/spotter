@@ -77,18 +77,31 @@ func init() {
 	rootCmd.PersistentFlags().String("timeout", "5m", "timeout for operations")
 
 	// Bind flags to viper
-	viper.BindPFlag("verbose", rootCmd.PersistentFlags().Lookup("verbose"))
-	viper.BindPFlag("log-level", rootCmd.PersistentFlags().Lookup("log-level"))
-	viper.BindPFlag("log-format", rootCmd.PersistentFlags().Lookup("log-format"))
-	viper.BindPFlag("kubeconfig", rootCmd.PersistentFlags().Lookup("kubeconfig"))
-	viper.BindPFlag("context", rootCmd.PersistentFlags().Lookup("context"))
-	viper.BindPFlag("namespace", rootCmd.PersistentFlags().Lookup("namespace"))
-	viper.BindPFlag("rules-path", rootCmd.PersistentFlags().Lookup("rules-path"))
-	viper.BindPFlag("output", rootCmd.PersistentFlags().Lookup("output"))
-	viper.BindPFlag("output-file", rootCmd.PersistentFlags().Lookup("output-file"))
-	viper.BindPFlag("no-color", rootCmd.PersistentFlags().Lookup("no-color"))
-	viper.BindPFlag("max-concurrency", rootCmd.PersistentFlags().Lookup("max-concurrency"))
-	viper.BindPFlag("timeout", rootCmd.PersistentFlags().Lookup("timeout"))
+	bindFlags := []struct {
+		name string
+		flag string
+	}{
+		{"verbose", "verbose"},
+		{"log-level", "log-level"},
+		{"log-format", "log-format"},
+		{"kubeconfig", "kubeconfig"},
+		{"context", "context"},
+		{"namespace", "namespace"},
+		{"rules-path", "rules-path"},
+		{"output", "output"},
+		{"output-file", "output-file"},
+		{"no-color", "no-color"},
+		{"max-concurrency", "max-concurrency"},
+	}
+
+	for _, bf := range bindFlags {
+		if err := viper.BindPFlag(bf.name, rootCmd.PersistentFlags().Lookup(bf.flag)); err != nil {
+			logger.Error("Failed to bind flag", "name", bf.name, "error", err)
+		}
+	}
+	if err := viper.BindPFlag("timeout", rootCmd.PersistentFlags().Lookup("timeout")); err != nil {
+		logger.Error("Failed to bind timeout flag", "error", err)
+	}
 }
 
 // initConfig reads in config file and ENV variables if set.

@@ -2,7 +2,6 @@ package reporter
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"strings"
 )
@@ -94,18 +93,7 @@ func ParseReporterType(s string) (ReporterType, error) {
 }
 
 // getWriter creates the appropriate writer based on options
-func (f *Factory) getWriter(options *ReportOptions) (io.Writer, error) {
-	if options.OutputFile == "" {
-		return os.Stdout, nil
-	}
 
-	file, err := os.Create(options.OutputFile)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create output file %s: %w", options.OutputFile, err)
-	}
-
-	return file, nil
-}
 
 // ValidateReportOptions validates the report options
 func ValidateReportOptions(options *ReportOptions) error {
