@@ -13,6 +13,8 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 	"gopkg.in/yaml.v3"
 
 	"github.com/madhuakula/spotter/pkg/engine"
@@ -255,14 +257,9 @@ func runListRules(cmd *cobra.Command, args []string) error {
 	filteredRules := filterRules(rules, cmd)
 
 	// Convert to SecurityRule slice for export
-	var securityRules []*models.SecurityRule
-	for _, rule := range filteredRules {
-		securityRules = append(securityRules, rule.SecurityRule)
-	}
-
 	// Sort rules by ID
 	sort.Slice(filteredRules, func(i, j int) bool {
-		return filteredRules[i].SecurityRule.Spec.ID < filteredRules[j].SecurityRule.Spec.ID
+		return filteredRules[i].Spec.ID < filteredRules[j].Spec.ID
 	})
 
 	// Output rules
@@ -615,32 +612,38 @@ func outputRulesTable(rules []*RuleWithSource, showDescription bool, showSource 
 	if showDescription {
 		header += "\tDESCRIPTION"
 	}
-	fmt.Fprintln(w, header)
+	if _, err := fmt.Fprintln(w, header); err != nil {
+		logger.Error("Failed to write header", "error", err)
+	}
 
 	// Build rows
 	for _, rule := range rules {
 		row := fmt.Sprintf("%s\t%s\t%s\t%s",
-			rule.SecurityRule.Spec.ID,
-			rule.SecurityRule.Spec.Name,
-			string(rule.SecurityRule.Spec.Severity.Level),
-			rule.SecurityRule.Spec.Category)
+			rule.Spec.ID,
+			rule.Spec.Name,
+			string(rule.Spec.Severity.Level),
+			rule.Spec.Category)
 
 		if showSource {
 			row += "\t" + rule.Source
 		}
 
 		if showDescription {
-			desc := rule.SecurityRule.Spec.Description
+			desc := rule.Spec.Description
 			if len(desc) > 50 {
 				desc = desc[:47] + "..."
 			}
 			row += "\t" + desc
 		}
 
-		fmt.Fprintln(w, row)
+		if _, err := fmt.Fprintln(w, row); err != nil {
+			logger.Error("Failed to write row", "error", err)
+		}
 	}
 
-	w.Flush()
+	if err := w.Flush(); err != nil {
+		logger.Error("Failed to flush writer", "error", err)
+	}
 }
 
 func outputRulesJSON(rules []*RuleWithSource) error {
@@ -664,48 +667,54 @@ func outputRulesYAML(rules []*RuleWithSource) error {
 func outputRuleInfoTable(rule *models.SecurityRule, cmd *cobra.Command) error {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 
-	fmt.Fprintf(w, "ID:\t%s\n", rule.Spec.ID)
-	fmt.Fprintf(w, "Name:\t%s\n", rule.Spec.Name)
-	fmt.Fprintf(w, "Version:\t%s\n", rule.Spec.Version)
-	fmt.Fprintf(w, "Severity:\t%s\n", rule.Spec.Severity.Level)
-	fmt.Fprintf(w, "Category:\t%s\n", rule.Spec.Category)
+	printField := func(field, value string) {
+		if _, err := fmt.Fprintf(w, "%s:\t%s\n", field, value); err != nil {
+			logger.Error("Failed to write field", "field", field, "error", err)
+		}
+	}
+
+	printField("ID", rule.Spec.ID)
+	printField("Name", rule.Spec.Name)
+	printField("Version", rule.Spec.Version)
+	printField("Severity", string(rule.Spec.Severity.Level))
+	printField("Category", rule.Spec.Category)
 	if rule.Spec.Subcategory != "" {
-		fmt.Fprintf(w, "Subcategory:\t%s\n", rule.Spec.Subcategory)
+		printField("Subcategory", rule.Spec.Subcategory)
 	}
 	if rule.Spec.CWE != "" {
-		fmt.Fprintf(w, "CWE:\t%s\n", rule.Spec.CWE)
+		printField("CWE", rule.Spec.CWE)
 	}
-	fmt.Fprintf(w, "Description:\t%s\n", rule.Spec.Description)
+	printField("Description", rule.Spec.Description)
 
 	showCEL, _ := cmd.Flags().GetBool("show-cel")
 	if showCEL {
-		fmt.Fprintf(w, "CEL Expression:\t%s\n", rule.Spec.CEL)
+		printField("CEL Expression", rule.Spec.CEL)
 	}
 
 	if len(rule.Spec.RegulatoryStandards) > 0 {
-		fmt.Fprintf(w, "Regulatory Standards:\t")
+		var standards strings.Builder
 		for i, std := range rule.Spec.RegulatoryStandards {
 			if i > 0 {
-				fmt.Fprintf(w, ", ")
+				standards.WriteString(", ")
 			}
-			fmt.Fprintf(w, "%s (%s)", std.Name, std.Reference)
+			standards.WriteString(fmt.Sprintf("%s (%s)", std.Name, std.Reference))
 		}
-		fmt.Fprintf(w, "\n")
+		printField("Regulatory Standards", standards.String())
 	}
 
 	if rule.Spec.Remediation != nil && rule.Spec.Remediation.Manual != "" {
-		fmt.Fprintf(w, "Remediation:\t%s\n", rule.Spec.Remediation.Manual)
+		printField("Remediation", rule.Spec.Remediation.Manual)
 	}
 
 	if len(rule.Spec.References) > 0 {
-		fmt.Fprintf(w, "References:\t")
+		var references strings.Builder
 		for i, ref := range rule.Spec.References {
 			if i > 0 {
-				fmt.Fprintf(w, ", ")
+				references.WriteString(", ")
 			}
-			fmt.Fprintf(w, "%s (%s)", ref.Title, ref.URL)
+			references.WriteString(fmt.Sprintf("%s (%s)", ref.Title, ref.URL))
 		}
-		fmt.Fprintf(w, "\n")
+		printField("References", references.String())
 	}
 
 	return w.Flush()
@@ -952,109 +961,11 @@ type TestCaseFile struct {
 	Description string `yaml:"description"`
 }
 
-func runTestCaseValidation(rules []*models.SecurityRule, testDataDir string) ([]string, []string) {
-	logger := GetLogger()
-	var errors []string
-	var warnings []string
 
-	// Load test configuration
-	testConfigPath := filepath.Join(testDataDir, "test-config.yaml")
-	testConfig, err := loadTestConfig(testConfigPath)
-	if err != nil {
-		errors = append(errors, fmt.Sprintf("Failed to load test config: %v", err))
-		return errors, warnings
-	}
 
-	// Create rule lookup map
-	ruleMap := make(map[string]*models.SecurityRule)
-	for _, rule := range rules {
-		ruleMap[rule.Spec.ID] = rule
-	}
 
-	// Validate each test case
-	for testName, testCase := range testConfig.TestCases {
-		logger.Debug("Running test cases", "test_name", testName)
 
-		// Find the rule
-		rule, exists := ruleMap[testCase.RuleID]
-		if !exists {
-			errors = append(errors, fmt.Sprintf("Test %s: Rule %s not found", testName, testCase.RuleID))
-			continue
-		}
 
-		// Test good cases (should NOT trigger the rule)
-		for _, goodCase := range testCase.Good {
-			if err := validateTestCase(rule, testName, goodCase, testDataDir, "good", false); err != nil {
-				errors = append(errors, err.Error())
-			}
-		}
-
-		// Test bad cases (should trigger the rule)
-		for _, badCase := range testCase.Bad {
-			if err := validateTestCase(rule, testName, badCase, testDataDir, "bad", true); err != nil {
-				errors = append(errors, err.Error())
-			}
-		}
-	}
-
-	logger.Info("Test case validation completed", "tested_configurations", len(testConfig.TestCases))
-	return errors, warnings
-}
-
-func loadTestConfig(configPath string) (*TestConfig, error) {
-	data, err := os.ReadFile(configPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read test config file: %w", err)
-	}
-
-	var config TestConfig
-	if err := yaml.Unmarshal(data, &config); err != nil {
-		return nil, fmt.Errorf("failed to parse test config: %w", err)
-	}
-
-	return &config, nil
-}
-
-func validateTestCase(rule *models.SecurityRule, testName string, testCase TestCaseFile, testDataDir, caseType string, expectedTrigger bool) error {
-	logger := GetLogger()
-	ctx := context.Background()
-
-	// Load test file
-	testFilePath := filepath.Join(testDataDir, testName, caseType, testCase.File)
-	testData, err := os.ReadFile(testFilePath)
-	if err != nil {
-		return fmt.Errorf("Test %s/%s/%s: Failed to read test file: %v", testName, caseType, testCase.File, err)
-	}
-
-	// Parse Kubernetes resource
-	var resource map[string]interface{}
-	if err := yaml.Unmarshal(testData, &resource); err != nil {
-		return fmt.Errorf("Test %s/%s/%s: Failed to parse test file: %v", testName, caseType, testCase.File, err)
-	}
-
-	// Create CEL engine for evaluation
-	celEngine, err := engine.NewCELEngine()
-	if err != nil {
-		return fmt.Errorf("Test %s/%s/%s: Failed to create CEL engine: %v", testName, caseType, testCase.File, err)
-	}
-
-	// Evaluate the rule against the resource
-	result, err := celEngine.EvaluateRule(ctx, rule, resource)
-	if err != nil {
-		return fmt.Errorf("Test %s/%s/%s: CEL evaluation failed: %v", testName, caseType, testCase.File, err)
-	}
-
-	// Check if result matches expectation
-	// If expectedTrigger is true, we expect the rule to fail (result.Passed = false)
-	// If expectedTrigger is false, we expect the rule to pass (result.Passed = true)
-	actualTrigger := !result.Passed
-	if actualTrigger != expectedTrigger {
-		return fmt.Errorf("Test %s/%s/%s: Expected trigger=%v but got trigger=%v - %s", testName, caseType, testCase.File, expectedTrigger, actualTrigger, testCase.Description)
-	}
-
-	logger.Debug("Test PASSED", "test_name", testName, "case_type", caseType, "file", testCase.File, "trigger", actualTrigger, "description", testCase.Description)
-	return nil
-}
 
 // runNewTestCaseValidation validates rules using the new _test.yaml file approach
 func runNewTestCaseValidation(rules []*models.SecurityRule, rulePaths []string, testCasesDir string) ([]string, []string) {
@@ -1261,7 +1172,7 @@ spec:
   metadata:
     author: "Security Team"
     created: "%s"
-`, ruleName, category, strings.ToLower(severity), ruleID, strings.Title(strings.ReplaceAll(ruleName, "-", " ")), severity, category, "2024-01-01")
+`, ruleName, category, strings.ToLower(severity), ruleID, cases.Title(language.Und).String(strings.ReplaceAll(ruleName, "-", " ")), severity, category, "2024-01-01")
 
 	return template, nil
 }
