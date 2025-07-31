@@ -31,8 +31,8 @@ var serverCmd = &cobra.Command{
 	Long: `Run Spotter as a Kubernetes admission controller server.
 
 This command starts an HTTPS server that acts as a ValidatingAdmissionWebhook
-or MutatingAdmissionWebhook to scan resources as they are created/updated in
-the cluster and either allow, deny, or evaluate them based on security rules.
+to scan resources as they are created/updated in the cluster and either 
+allow, deny, or evaluate them based on security rules.
 
 The server uses embedded built-in security rules and provides health check
 endpoints for monitoring.
@@ -51,15 +51,15 @@ Examples:
 
 // ServerConfig holds the server configuration
 type ServerConfig struct {
-	Mode           string   // "validating" or "evaluating"
-	Port           int
-	TLSCertFile    string
-	TLSKeyFile     string
-	Namespaces     []string
-	ResourceTypes  []string
-	MinSeverity    string
-	LogFormat      string
-	LogLevel       string
+	Mode          string // "validating" or "evaluating"
+	Port          int
+	TLSCertFile   string
+	TLSKeyFile    string
+	Namespaces    []string
+	ResourceTypes []string
+	MinSeverity   string
+	LogFormat     string
+	LogLevel      string
 }
 
 var (
@@ -91,7 +91,7 @@ func init() {
 
 func runServer(cmd *cobra.Command, args []string) error {
 	logger := GetLogger()
-	
+
 	// Build server configuration
 	config, err := buildServerConfig(cmd)
 	if err != nil {
@@ -120,10 +120,10 @@ func runServer(cmd *cobra.Command, args []string) error {
 
 	// Create admission server
 	server := &AdmissionServer{
-		Config:     config,
-		Rules:      rules,
-		Engine:     evalEngine,
-		Logger:     logger,
+		Config: config,
+		Rules:  rules,
+		Engine: evalEngine,
+		Logger: logger,
 	}
 
 	// Setup HTTP routes
@@ -141,9 +141,9 @@ func runServer(cmd *cobra.Command, args []string) error {
 
 	// Create HTTPS server
 	httpServer := &http.Server{
-		Addr:      fmt.Sprintf(":%d", config.Port),
-		Handler:   mux,
-		TLSConfig: tlsConfig,
+		Addr:         fmt.Sprintf(":%d", config.Port),
+		Handler:      mux,
+		TLSConfig:    tlsConfig,
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  60 * time.Second,
@@ -165,7 +165,7 @@ func runServer(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("server error: %w", err)
 	case sig := <-interrupt:
 		logger.Info("Received shutdown signal", "signal", sig)
-		
+
 		// Graceful shutdown
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
@@ -186,13 +186,16 @@ type AdmissionServer struct {
 	Config *ServerConfig
 	Rules  []*models.SecurityRule
 	Engine engine.EvaluationEngine
-	Logger interface{ Info(string, ...interface{}); Error(string, ...interface{}) }
+	Logger interface {
+		Info(string, ...interface{})
+		Error(string, ...interface{})
+	}
 }
 
 // admitHandler handles admission webhook requests
 func (s *AdmissionServer) admitHandler(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
-	
+
 	// Log request
 	s.Logger.Info("Received admission request",
 		"method", r.Method,
@@ -222,7 +225,7 @@ func (s *AdmissionServer) admitHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Process admission request
 	response := s.processAdmissionRequest(admissionReview.Request)
-	
+
 	// Build response
 	admissionResponse := &admissionv1.AdmissionReview{
 		TypeMeta: metav1.TypeMeta{
@@ -303,7 +306,7 @@ func (s *AdmissionServer) processAdmissionRequest(req *admissionv1.AdmissionRequ
 			"kind", req.Kind.Kind,
 			"namespace", req.Namespace,
 			"name", req.Name)
-		
+
 		return &admissionv1.AdmissionResponse{
 			UID:     req.UID,
 			Allowed: true,
@@ -385,6 +388,10 @@ func (s *AdmissionServer) filterViolationsBySeverity(results []models.Validation
 		"medium":   2,
 		"high":     3,
 		"critical": 4,
+		"LOW":      1,
+		"MEDIUM":   2,
+		"HIGH":     3,
+		"CRITICAL": 4,
 	}
 
 	minLevel := severityLevels[s.Config.MinSeverity]
@@ -402,15 +409,39 @@ func (s *AdmissionServer) filterViolationsBySeverity(results []models.Validation
 	return violations
 }
 
-// logViolations logs security violations
+// logViolations logs security violations summary
 func (s *AdmissionServer) logViolations(req *admissionv1.AdmissionRequest, violations []models.ValidationResult) {
+	if len(violations) == 0 {
+		return
+	}
+
+	// Count violations by severity
+	severityCount := make(map[string]int)
+	criticalViolations := []models.ValidationResult{}
+
 	for _, violation := range violations {
-		s.Logger.Info("Security violation detected",
-			"kind", req.Kind.Kind,
-			"namespace", req.Namespace,
-			"name", req.Name,
+		severityStr := string(violation.Severity)
+		severityCount[severityStr]++
+		if violation.Severity == models.SeverityCritical {
+			criticalViolations = append(criticalViolations, violation)
+		}
+	}
+
+	// Log summary
+	s.Logger.Error("Security violations detected",
+		"kind", req.Kind.Kind,
+		"namespace", req.Namespace,
+		"name", req.Name,
+		"total_violations", len(violations),
+		"critical", severityCount["CRITICAL"],
+		"high", severityCount["HIGH"],
+		"medium", severityCount["MEDIUM"],
+		"low", severityCount["LOW"])
+
+	// Log critical violations with details
+	for _, violation := range criticalViolations {
+		s.Logger.Error("Critical security violation",
 			"rule_id", violation.RuleID,
-			"severity", violation.Severity,
 			"message", violation.Message,
 			"category", violation.Category)
 	}

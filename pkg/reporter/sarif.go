@@ -47,17 +47,17 @@ func (r *SARIFReporter) WriteReport(ctx context.Context, results *models.ScanRes
 
 // SARIF format structures
 type SARIFReport struct {
-	Version string    `json:"version"`
-	Schema  string    `json:"$schema"`
+	Version string     `json:"version"`
+	Schema  string     `json:"$schema"`
 	Runs    []SARIFRun `json:"runs"`
 }
 
 type SARIFRun struct {
-	Tool         SARIFTool         `json:"tool"`
-	Results      []SARIFResult     `json:"results"`
-	Artifacts    []SARIFArtifact   `json:"artifacts,omitempty"`
-	Invocations  []SARIFInvocation `json:"invocations,omitempty"`
-	Properties   map[string]interface{} `json:"properties,omitempty"`
+	Tool        SARIFTool              `json:"tool"`
+	Results     []SARIFResult          `json:"results"`
+	Artifacts   []SARIFArtifact        `json:"artifacts,omitempty"`
+	Invocations []SARIFInvocation      `json:"invocations,omitempty"`
+	Properties  map[string]interface{} `json:"properties,omitempty"`
 }
 
 type SARIFTool struct {
@@ -65,20 +65,20 @@ type SARIFTool struct {
 }
 
 type SARIFDriver struct {
-	Name            string      `json:"name"`
-	Version         string      `json:"version"`
-	InformationUri  string      `json:"informationUri,omitempty"`
-	Rules           []SARIFRule `json:"rules"`
+	Name           string      `json:"name"`
+	Version        string      `json:"version"`
+	InformationUri string      `json:"informationUri,omitempty"`
+	Rules          []SARIFRule `json:"rules"`
 }
 
 type SARIFRule struct {
-	ID               string                 `json:"id"`
-	Name             string                 `json:"name,omitempty"`
-	ShortDescription SARIFMessage           `json:"shortDescription"`
-	FullDescription  SARIFMessage           `json:"fullDescription,omitempty"`
-	Help             SARIFMessage           `json:"help,omitempty"`
-	Properties       map[string]interface{} `json:"properties,omitempty"`
-	DefaultConfiguration SARIFConfiguration `json:"defaultConfiguration,omitempty"`
+	ID                   string                 `json:"id"`
+	Name                 string                 `json:"name,omitempty"`
+	ShortDescription     SARIFMessage           `json:"shortDescription"`
+	FullDescription      SARIFMessage           `json:"fullDescription,omitempty"`
+	Help                 SARIFMessage           `json:"help,omitempty"`
+	Properties           map[string]interface{} `json:"properties,omitempty"`
+	DefaultConfiguration SARIFConfiguration     `json:"defaultConfiguration,omitempty"`
 }
 
 type SARIFConfiguration struct {
@@ -90,16 +90,16 @@ type SARIFMessage struct {
 }
 
 type SARIFResult struct {
-	RuleID    string           `json:"ruleId"`
-	RuleIndex int              `json:"ruleIndex"`
-	Level     string           `json:"level"`
-	Message   SARIFMessage     `json:"message"`
-	Locations []SARIFLocation  `json:"locations"`
+	RuleID     string                 `json:"ruleId"`
+	RuleIndex  int                    `json:"ruleIndex"`
+	Level      string                 `json:"level"`
+	Message    SARIFMessage           `json:"message"`
+	Locations  []SARIFLocation        `json:"locations"`
 	Properties map[string]interface{} `json:"properties,omitempty"`
 }
 
 type SARIFLocation struct {
-	PhysicalLocation SARIFPhysicalLocation `json:"physicalLocation"`
+	PhysicalLocation SARIFPhysicalLocation  `json:"physicalLocation"`
 	LogicalLocations []SARIFLogicalLocation `json:"logicalLocations,omitempty"`
 }
 
@@ -120,8 +120,8 @@ type SARIFRegion struct {
 }
 
 type SARIFLogicalLocation struct {
-	Name             string `json:"name"`
-	Kind             string `json:"kind,omitempty"`
+	Name               string `json:"name"`
+	Kind               string `json:"kind,omitempty"`
 	FullyQualifiedName string `json:"fullyQualifiedName,omitempty"`
 }
 
@@ -131,9 +131,9 @@ type SARIFArtifact struct {
 
 type SARIFInvocation struct {
 	ExecutionSuccessful bool   `json:"executionSuccessful"`
-	ExitCode           int    `json:"exitCode,omitempty"`
-	StartTimeUtc       string `json:"startTimeUtc,omitempty"`
-	EndTimeUtc         string `json:"endTimeUtc,omitempty"`
+	ExitCode            int    `json:"exitCode,omitempty"`
+	StartTimeUtc        string `json:"startTimeUtc,omitempty"`
+	EndTimeUtc          string `json:"endTimeUtc,omitempty"`
 }
 
 // GetFormat returns the format name
@@ -227,8 +227,8 @@ func (r *SARIFReporter) buildSARIFReport(results *models.ScanResult) *SARIFRepor
 					},
 					LogicalLocations: []SARIFLogicalLocation{
 						{
-							Name: r.getResourceName(result.Resource),
-							Kind: "resource",
+							Name:               r.getResourceName(result.Resource),
+							Kind:               "resource",
 							FullyQualifiedName: r.getResourceFQN(result.Resource),
 						},
 					},
@@ -263,7 +263,7 @@ func (r *SARIFReporter) buildSARIFReport(results *models.ScanResult) *SARIFRepor
 						Rules:          sarifRules,
 					},
 				},
-				Results: sarifResults,
+				Results:     sarifResults,
 				Invocations: []SARIFInvocation{invocation},
 				Properties: map[string]interface{}{
 					"summary": map[string]interface{}{
@@ -274,7 +274,7 @@ func (r *SARIFReporter) buildSARIFReport(results *models.ScanResult) *SARIFRepor
 						"overall_grade":      overallGrade,
 						"overall_risk_score": overallRiskScore,
 					},
-					"category_scoring": categoryStats,
+					"category_scoring":  categoryStats,
 					"severity_analysis": severityStats,
 					"resource_grouping": resourceStats,
 				},

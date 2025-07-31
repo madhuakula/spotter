@@ -1,58 +1,41 @@
 # Build stage
-FROM golang:1.21-alpine AS builder
+FROM golang:1.24-alpine AS builder
 
 # Set working directory
 WORKDIR /app
 
-# Install git and ca-certificates (needed for go modules)
-RUN apk add --no-cache git ca-certificates
+# Install git (needed for go modules)
+RUN apk add --no-cache git
 
-# Copy go mod files
+# Copy go mod files first for better caching
 COPY go.mod go.sum ./
 
 # Download dependencies
 RUN go mod download
 
-# Copy source code
-COPY . .
+# Copy only necessary source files
+COPY main.go embed.go ./
+COPY cmd/ ./cmd/
+COPY pkg/ ./pkg/
+COPY rules/ ./rules/
 
 # Build the binary
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o spotter .
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags='-w -s' -o spotter .
 
-# Final stage
-FROM alpine:latest
-
-# Install ca-certificates for HTTPS
-RUN apk --no-cache add ca-certificates
-
-# Create non-root user
-RUN addgroup -g 1001 spotter && \
-    adduser -D -s /bin/sh -u 1001 -G spotter spotter
-
-# Set working directory
-WORKDIR /app
+# Final stage - use distroless for minimal attack surface
+FROM gcr.io/distroless/static:nonroot
 
 # Copy binary from builder stage
-COPY --from=builder /app/spotter .
+COPY --from=builder /app/spotter /spotter
 
-# Create directory for TLS certificates
-RUN mkdir -p /etc/certs && chown spotter:spotter /etc/certs
-
-# Change ownership of the app directory
-RUN chown -R spotter:spotter /app
-
-# Switch to non-root user
-USER spotter
+# Use non-root user (distroless nonroot user is 65532)
+USER 65532:65532
 
 # Expose the admission controller port
 EXPOSE 8443
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider https://localhost:8443/healthz --no-check-certificate || exit 1
-
 # Set entrypoint
-ENTRYPOINT ["./spotter"]
+ENTRYPOINT ["/spotter"]
 
 # Default command
 CMD ["server", "--mode=validating", "--port=8443"]

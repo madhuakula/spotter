@@ -18,17 +18,17 @@ import (
 
 // Scanner implements the ResourceScanner interface
 type Scanner struct {
-	client Client
-	parser ManifestParser
-	cache  *ResourceCache
+	client  Client
+	parser  ManifestParser
+	cache   *ResourceCache
 	metrics *ScanMetrics
 }
 
 // ResourceCache provides caching for scanned resources
 type ResourceCache struct {
-	mu    sync.RWMutex
-	data  map[string]CacheEntry
-	ttl   time.Duration
+	mu   sync.RWMutex
+	data map[string]CacheEntry
+	ttl  time.Duration
 }
 
 // CacheEntry represents a cached resource entry
@@ -39,21 +39,21 @@ type CacheEntry struct {
 
 // ScanMetrics tracks scanning performance metrics
 type ScanMetrics struct {
-	mu              sync.RWMutex
+	mu               sync.RWMutex
 	ResourcesScanned int64
 	BatchesProcessed int64
-	CacheHits       int64
-	CacheMisses     int64
-	ScanDuration    time.Duration
-	MemoryUsage     int64
+	CacheHits        int64
+	CacheMisses      int64
+	ScanDuration     time.Duration
+	MemoryUsage      int64
 }
 
 // NewScanner creates a new resource scanner
 func NewScanner(client Client) ResourceScanner {
 	return &Scanner{
-		client: client,
-		parser: NewManifestParser(),
-		cache:  NewResourceCache(5 * time.Minute),
+		client:  client,
+		parser:  NewManifestParser(),
+		cache:   NewResourceCache(5 * time.Minute),
 		metrics: &ScanMetrics{},
 	}
 }
@@ -70,17 +70,17 @@ func NewResourceCache(ttl time.Duration) *ResourceCache {
 func (c *ResourceCache) Get(key string) ([]map[string]interface{}, bool) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	
+
 	entry, exists := c.data[key]
 	if !exists {
 		return nil, false
 	}
-	
+
 	if time.Since(entry.timestamp) > c.ttl {
 		delete(c.data, key)
 		return nil, false
 	}
-	
+
 	return entry.resources, true
 }
 
@@ -88,7 +88,7 @@ func (c *ResourceCache) Get(key string) ([]map[string]interface{}, bool) {
 func (c *ResourceCache) Set(key string, resources []map[string]interface{}) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	
+
 	c.data[key] = CacheEntry{
 		resources: resources,
 		timestamp: time.Now(),
@@ -148,12 +148,12 @@ func (s *Scanner) processBatch(ctx context.Context, resources []map[string]inter
 		batch := resources[i:end]
 		processedBatch := s.filterResources(batch, options)
 		result = append(result, processedBatch...)
-		
+
 		s.metrics.mu.Lock()
 		s.metrics.BatchesProcessed++
 		s.metrics.ResourcesScanned += int64(len(batch))
 		s.metrics.mu.Unlock()
-		
+
 		// Check memory limits and trigger GC if needed
 		if options.MemoryLimit > 0 {
 			s.checkMemoryLimit(options.MemoryLimit)
@@ -368,57 +368,57 @@ func (s *Scanner) ScanHelmCharts(ctx context.Context, chartPaths []string, optio
 func (s *Scanner) renderHelmChart(ctx context.Context, chartPath string, options ScanOptions) (string, error) {
 	// Build helm template command
 	args := []string{"template"}
-	
+
 	// Add release name if specified
 	if options.HelmOptions.ReleaseName != "" {
 		args = append(args, options.HelmOptions.ReleaseName)
 	}
-	
+
 	// Add chart path
 	args = append(args, chartPath)
-	
+
 	// Add namespace if specified
 	if options.HelmOptions.Namespace != "" {
 		args = append(args, "--namespace", options.HelmOptions.Namespace)
 	}
-	
+
 	// Add Kubernetes version if specified
 	if options.HelmOptions.KubeVersion != "" {
 		args = append(args, "--kube-version", options.HelmOptions.KubeVersion)
 	}
-	
+
 	// Add values files
 	for _, valuesFile := range options.HelmOptions.ValuesFiles {
 		args = append(args, "--values", valuesFile)
 	}
-	
+
 	// Add set values
 	for _, setValue := range options.HelmOptions.SetValues {
 		args = append(args, "--set", setValue)
 	}
-	
+
 	// Add set-string values
 	for _, setStringValue := range options.HelmOptions.SetStringValues {
 		args = append(args, "--set-string", setStringValue)
 	}
-	
+
 	// Add other flags
 	if options.HelmOptions.SkipCRDs {
 		args = append(args, "--skip-crds")
 	}
-	
+
 	if options.HelmOptions.SkipTests {
 		args = append(args, "--skip-tests")
 	}
-	
+
 	if options.HelmOptions.ValidateSchema {
 		args = append(args, "--validate")
 	}
-	
+
 	if options.HelmOptions.IncludeCRDs {
 		args = append(args, "--include-crds")
 	}
-	
+
 	// Execute helm template command
 	cmd := exec.CommandContext(ctx, "helm", args...)
 	output, err := cmd.Output()
@@ -428,7 +428,7 @@ func (s *Scanner) renderHelmChart(ctx context.Context, chartPath string, options
 		}
 		return "", fmt.Errorf("failed to execute helm template: %w", err)
 	}
-	
+
 	return string(output), nil
 }
 
@@ -480,23 +480,23 @@ func (s *Scanner) isSystemNamespace(namespace string, config NamespaceFilterConf
 				return true
 			}
 		}
-		
+
 		// Then use secure metadata-based validation
 		return s.isWellKnownSystemNamespace(namespace)
 	}
-	
+
 	// Legacy mode: if dynamic detection is disabled and no custom patterns provided, use minimal defaults
 	if !config.UseDynamicDetection && len(config.SystemPrefixes) == 0 && len(config.SystemNames) == 0 && len(config.SystemPatterns) == 0 {
 		return false
 	}
-	
+
 	// Check exact matches from config (highest priority)
 	for _, sysNs := range config.SystemNames {
 		if namespace == sysNs {
 			return true
 		}
 	}
-	
+
 	// Check prefixes from config (only if explicitly configured and secure validation is disabled)
 	if !config.UseSecureValidation {
 		for _, prefix := range config.SystemPrefixes {
@@ -504,7 +504,7 @@ func (s *Scanner) isSystemNamespace(namespace string, config NamespaceFilterConf
 				return true
 			}
 		}
-		
+
 		// Check patterns from config (only if explicitly configured and secure validation is disabled)
 		for _, pattern := range config.SystemPatterns {
 			if strings.Contains(namespace, pattern) {
@@ -512,12 +512,12 @@ func (s *Scanner) isSystemNamespace(namespace string, config NamespaceFilterConf
 			}
 		}
 	}
-	
+
 	// Dynamic detection - use secure validation if available
 	if config.UseDynamicDetection {
 		return s.isWellKnownSystemNamespace(namespace)
 	}
-	
+
 	return false
 }
 
@@ -527,17 +527,17 @@ func (s *Scanner) isWellKnownSystemNamespace(namespace string) bool {
 	// Core Kubernetes system namespaces that are created by the system
 	// These cannot be created by regular users and are managed by Kubernetes
 	wellKnownSystemNamespaces := map[string]bool{
-		"kube-system":      true, // Core Kubernetes components
-		"kube-public":      true, // Publicly readable cluster info
-		"kube-node-lease":  true, // Node heartbeat leases
+		"kube-system":          true, // Core Kubernetes components
+		"kube-public":          true, // Publicly readable cluster info
+		"kube-node-lease":      true, // Node heartbeat leases
 		"kubernetes-dashboard": true, // Official Kubernetes dashboard
 	}
-	
+
 	// Check exact matches for well-known system namespaces
 	if wellKnownSystemNamespaces[namespace] {
 		return true
 	}
-	
+
 	// Additional validation: check if namespace has system-managed labels/annotations
 	// This provides a more secure way to identify system namespaces
 	return s.hasSystemManagedMetadata(namespace)
@@ -547,14 +547,14 @@ func (s *Scanner) isWellKnownSystemNamespace(namespace string) bool {
 func (s *Scanner) hasSystemManagedMetadata(namespace string) bool {
 	// Try to get namespace metadata to check for system indicators
 	ctx := context.Background()
-	namespaceResource, err := s.client.GetResource(ctx, 
-		schema.GroupVersionKind{Group: "", Version: "v1", Kind: "Namespace"}, 
+	namespaceResource, err := s.client.GetResource(ctx,
+		schema.GroupVersionKind{Group: "", Version: "v1", Kind: "Namespace"},
 		"", namespace)
 	if err != nil {
 		// If we can't get the namespace, assume it's not system-managed
 		return false
 	}
-	
+
 	// Check for system-managed labels
 	if labels, ok := namespaceResource["metadata"].(map[string]interface{})["labels"].(map[string]interface{}); ok {
 		// Check for Kubernetes system labels
@@ -570,7 +570,7 @@ func (s *Scanner) hasSystemManagedMetadata(namespace string) bool {
 			}
 		}
 	}
-	
+
 	// Check for system-managed annotations
 	if annotations, ok := namespaceResource["metadata"].(map[string]interface{})["annotations"].(map[string]interface{}); ok {
 		// Check for system annotations
@@ -578,7 +578,7 @@ func (s *Scanner) hasSystemManagedMetadata(namespace string) bool {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -636,7 +636,7 @@ func (s *Scanner) shouldIncludeResource(info ResourceInfo, config ResourceFilter
 	if len(requiredVerbs) == 0 && config.UseDynamicFiltering {
 		requiredVerbs = []string{"list"}
 	}
-	
+
 	for _, requiredVerb := range requiredVerbs {
 		hasVerb := false
 		for _, verb := range info.Verbs {
@@ -655,7 +655,7 @@ func (s *Scanner) shouldIncludeResource(info ResourceInfo, config ResourceFilter
 	if len(excludedCategories) == 0 && config.UseDynamicFiltering {
 		excludedCategories = []string{"events", "metrics"}
 	}
-	
+
 	for _, category := range info.Categories {
 		for _, excluded := range excludedCategories {
 			if category == excluded {
@@ -674,7 +674,7 @@ func (s *Scanner) shouldIncludeResource(info ResourceInfo, config ResourceFilter
 			"AccessReview", "SubjectReview", "metrics",
 		}
 	}
-	
+
 	for _, pattern := range excludedPatterns {
 		if strings.Contains(strings.ToLower(info.GVK.Kind), strings.ToLower(pattern)) {
 			return false

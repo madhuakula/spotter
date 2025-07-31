@@ -1,0 +1,39 @@
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: spotter-validating-webhook
+  labels:
+    app: spotter
+webhooks:
+- name: security.spotter.io
+  clientConfig:
+    service:
+      name: spotter-admission-controller
+      namespace: spotter-system
+      path: "/admit"
+    caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURCekNDQWUrZ0F3SUJBZ0lVTHdzTmxDRHl1Zm1aMXpwY3IrRVFRMWlLbk1Zd0RRWUpLb1pJaHZjTkFRRUwKQlFBd0V6RVJNQThHQTFVRUF3d0lURzlqWVd3dFEwRXdIaGNOTWpVd056TXhNakl5TURFeFdoY05Nall3TnpNeApNakl5TURFeFdqQVRNUkV3RHdZRFZRUUREQWhNYjJOaGJDMURRVENDQVNJd0RRWUpLb1pJaHZjTkFRRUJCUUFECmdnRVBBRENDQVFvQ2dnRUJBTHNpZi9HL2JUcFkvTEJPblp0ZGtLUTRic05veklmcDB4d3JhWVh1aGszZHVUREcKMmdWODg1NFRZd0RCcXFxR05XYUdFSHpoQngwTFNGdmx0RGtKMVRCcXgweGZZbzAyZnpBaGZDSEQxVnFGa0d4ZwpjTjJZblJRZ2RXajFKZGd6dWpKbGthU1R0eVJYODhiOGtKOXVkT0UxNmVNWDZLM1cvaGNOQWdjNVFDYklGOXBVCk1PRktvV0tEVFlVbkEzYnZNM3lOcEVhY25SL3BjRlVkNXpSTUJPN1IxUDhHQm9FN004U3NrY05IdndQR3NpS2oKNE5WY3ZWblVkZnFvMEVsVCttMTIyWGNXU3E0a1FmZFd1SkpqTWt6UG1KZjlnR2wrRnZSMGdoeDBNVkJxV2R5cApsS3RGRlFydEwxdit6ejZQSXlrUy9WUkdPYlp2eGhmcVJsalVzWmNDQXdFQUFhTlRNRkV3SFFZRFZSME9CQllFCkZNY1ZmYzdUZnduVjJQTlRqYUJCdGhmUDZFci9NQjhHQTFVZEl3UVlNQmFBRk1jVmZjN1Rmd25WMlBOVGphQkIKdGhmUDZFci9NQThHQTFVZEV3RUIvd1FGTUFNQkFmOHdEUVlKS29aSWh2Y05BUUVMQlFBRGdnRUJBQjROY3d1TgpxUWpGdmtIMGZnb1NPUXFuWG5WbVh1SllTYzJYS0x1dE9NUUV1RXJLYy93NHI4a25pdnZVdStaTjVya3daMlN4CmNEVHhUQzJwQTRwd2lUaVNMQVJJeStqbXBaZUFlUzFTVERnTEVzTW5RMjZOZFlyT1REdmhUTVlvSWNLRXpEaHEKT2FSUlYyTnBMQWxsdUdDdjJkazYwMG5waHlQNjlOMUNXVXZrNDFWaTdWODdCS0Fkby9ZZ01hS2Fla0w0KzlJVApvWFJSLzFXMFFDNWErcVZJc2pyc09wTW4wVWN2V2psQWpNamFZbDZuUVJ2eUVTMWk5VWZuYzlYWVBnWkZCVCs1ClBLQk1BVVFUcWl2N2RmVU9qRityeTZLMFM2b29FY3ZuSWsxTjNxR3MwUnkrTXFpVTlVdVRQOFZKbzNYc0RNODYKYW9pcGtHZk15ZjdCY1FzPQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+  rules:
+  # Only validate CREATE operations, not updates
+  - operations: ["CREATE"]
+    apiGroups: [""]
+    apiVersions: ["v1"]
+    resources: ["pods"]
+  - operations: ["CREATE"]
+    apiGroups: ["apps"]
+    apiVersions: ["v1"]
+    resources: ["deployments", "replicasets", "daemonsets", "statefulsets"]
+  - operations: ["CREATE"]
+    apiGroups: ["batch"]
+    apiVersions: ["v1"]
+    resources: ["jobs", "cronjobs"]
+  # any extra CRDs can be added here
+  namespaceSelector:
+    matchExpressions:
+    - key: name
+      operator: NotIn
+      values: ["kube-system", "kube-public", "kube-node-lease", "spotter-system", "local-path-storage"]
+  admissionReviewVersions: ["v1", "v1beta1"]
+  sideEffects: None
+  failurePolicy: Ignore  # More lenient for local testing
+  timeoutSeconds: 10
