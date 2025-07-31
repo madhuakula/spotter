@@ -1,13 +1,13 @@
 apiVersion: rules.spotter.run/v1
 kind: SecurityRule
 metadata:
-  name: audit-log-maxage-missing
+  name: audit-log-maxage-not-properly-set
   labels:
     category: "Audit, Logging & Compliance"
     severity: medium
 spec:
   id: SPOTTER-AUDIT-004
-  name: "Audit Log Max Age Not Set"
+  name: "Audit Log Maxage Not Properly Set"
   version: "1.0.0"
   description: "The maximum age of the audit log files is not set. This can lead to excessive disk usage."
   severity:

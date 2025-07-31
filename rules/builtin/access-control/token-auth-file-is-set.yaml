@@ -1,36 +1,34 @@
 apiVersion: rules.spotter.run/v1
 kind: SecurityRule
 metadata:
-  name: service-account-name-empty
+  name: token-auth-file-is-set
   labels:
     category: "Access Control"
-    severity: medium
+    severity: critical
 spec:
-  id: SPOTTER-ACCESS-CONTROL-728
-  name: "Service Account Name Empty"
+  id: SPOTTER-ACCESS-CONTROL-182
+  name: "Token Auth File Is Set"
   version: "1.0.0"
-  description: "All pods must have a service account"
+  description: "Token auth file must be disabled"
   severity:
-    level: MEDIUM
-    score: 6.0
+    level: CRITICAL
+    score: 9.0
   category: "Access Control"
-  subcategory: "ServiceAccount"
-  cwe: "CWE-728"
+  subcategory: "API Server Flags"
+  cwe: "CWE-182"
   regulatoryStandards:
     - name: "CIS Kubernetes Benchmark v1.8.0"
       reference: "https://www.cisecurity.org/benchmark/kubernetes"
-      section: "5.1.5"
+      section: "1.2.5"
   match:
     resources:
       kubernetes:
         apiGroups:
-        - ''
-        - apps
+        - kubeadm.k8s.io
         versions:
-        - v1
+        - v1beta3
         kinds:
-        - Pod
-        - Deployment
+        - ClusterConfiguration
         namespaces:
           include:
           - '*'
@@ -38,9 +36,9 @@ spec:
           - kube-system
           - kube-public
   cel: |
-    !has(object.spec.serviceAccountName) || object.spec.serviceAccountName == ""
+    object.kind == "ClusterConfiguration" && has(object.apiServer.tokenAuthFile)
   remediation:
-    manual: "Define serviceAccountName for all pods"
+    manual: "Remove --token-auth-file flag"
   metadata:
     author: "Spotter AutoGen"
     created: "2025-07-29"

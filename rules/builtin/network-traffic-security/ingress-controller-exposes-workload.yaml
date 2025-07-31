@@ -1,25 +1,25 @@
 apiVersion: rules.spotter.run/v1
 kind: SecurityRule
 metadata:
-  name: networkpolicy-targets-no-pods
+  name: ingress-controller-exposes-workload
   labels:
     category: "Network & Traffic Security"
-    severity: low
+    severity: high
 spec:
-  id: SPOTTER-NETWORK-TRAFFIC-SECURITY-002
-  name: "NetworkPolicy With No Matching Pods"
+  id: SPOTTER-NETWORK-TRAFFIC-SECURITY-001
+  name: "Ingress Controller Exposes Workload"
   version: "1.0.0"
-  description: "A NetworkPolicy that does not select any pods is ineffective and provides no security."
+  description: "An Ingress Controller expose the workload, which is insecure."
   severity:
-    level: LOW
-    score: 3.1
+    level: HIGH
+    score: 7.4
   category: "Network & Traffic Security"
-  subcategory: "NetworkPolicy"
-  cwe: "CWE-665"
+  subcategory: "Ingress"
+  cwe: "CWE-319"
   regulatoryStandards:
     - name: "NIST SP 800-53"
       reference: "https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final"
-      section: "AC-4"
+      section: "SC-8"
   match:
     resources:
       kubernetes:
@@ -28,17 +28,17 @@ spec:
         versions:
           - "v1"
         kinds:
-          - NetworkPolicy
+          - Ingress
         namespaces:
           include: ["*"]
           exclude: ["kube-system", "kube-public"]
   cel: |
-    !has(object.spec.podSelector) || size(object.spec.podSelector.matchLabels) == 0
+    !has(object.spec.tls) || size(object.spec.tls) == 0
   remediation:
-    manual: "Ensure that the NetworkPolicy's podSelector matches the labels of the intended pods."
+    manual: "Configure TLS for the Ingress to encrypt traffic."
   references:
-    - title: "Network Policies"
-      url: "https://kubernetes.io/docs/concepts/services-networking/network-policies/"
+    - title: "Kubernetes Ingress"
+      url: "https://kubernetes.io/docs/concepts/services-networking/ingress"
   metadata:
     author: "Spotter Security Team"
     created: "2024-07-29"

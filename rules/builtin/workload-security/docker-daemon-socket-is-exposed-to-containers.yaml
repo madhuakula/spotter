@@ -1,7 +1,7 @@
 apiVersion: rules.spotter.run/v1
 kind: SecurityRule
 metadata:
-  name: docker-daemon-socket-exposed-to-containers
+  name: docker-daemon-socket-is-exposed-to-containers
   labels:
     category: "Workload Security"
     severity: critical

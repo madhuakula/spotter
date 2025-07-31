@@ -1,7 +1,7 @@
 apiVersion: rules.spotter.run/v1
 kind: SecurityRule
 metadata:
-  name: object-is-using-deprecated-api-version
+  name: object-is-using-a-deprecated-api-version
   labels:
     category: "Configuration & Resource Hygiene"
     severity: medium

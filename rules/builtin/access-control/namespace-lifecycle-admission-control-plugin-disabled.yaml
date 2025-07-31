@@ -1,13 +1,13 @@
 apiVersion: rules.spotter.run/v1
 kind: SecurityRule
 metadata:
-  name: namespace-lifecycle-plugin-disabled
+  name: namespace-lifecycle-admission-control-plugin-disabled
   labels:
     category: "Access Control"
     severity: high
 spec:
   id: SPOTTER-ACCESS-CONTROL-522
-  name: "Namespace Lifecycle Plugin Disabled"
+  name: "Namespace Lifecycle Admission Control Plugin Disabled"
   version: "1.0.0"
   description: "NamespaceLifecycle plugin must be enabled"
   severity:

@@ -1,7 +1,7 @@
 apiVersion: rules.spotter.run/v1
 kind: SecurityRule
 metadata:
-  name: kubelet-not-managing-iptables
+  name: kubelet-not-managing-ip-tables
   labels:
     category: "Platform & Infrastructure Security"
     severity: high

@@ -1,13 +1,13 @@
 apiVersion: rules.spotter.run/v1
 kind: SecurityRule
 metadata:
-  name: pod-with-host-ipc
+  name: shared-host-ipc-namespace
   labels:
     category: "Platform & Infrastructure Security"
     severity: high
 spec:
   id: SPOTTER-PLATFORM-INFRASTRUCTURE-SECURITY-003
-  name: "Pod Uses Host IPC"
+  name: "Shared Host IPC Namespace"
   version: "1.0.0"
   description: "Pods that use the host IPC namespace can access the node's IPC, which can be a security risk."
   severity:

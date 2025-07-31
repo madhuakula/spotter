@@ -1,0 +1,44 @@
+apiVersion: rules.spotter.run/v1
+kind: SecurityRule
+metadata:
+  name: pod-security-policy-admission-control-plugin-not-set
+  labels:
+    category: "Access Control"
+    severity: high
+spec:
+  id: SPOTTER-ACCESS-CONTROL-119
+  name: "Pod Security Policy Admission Control Plugin Not Set"
+  version: "1.0.0"
+  description: "The API server should use `PodSecurityPolicy` plugin to ensure pod security policy work in cluster."
+  severity:
+    level: HIGH
+    score: 8.0
+  category: "Access Control"
+  subcategory: "Authorization"
+  cwe: "CWE-284"
+  regulatoryStandards:
+    - name: "CIS Kubernetes Benchmark v1.8.0"
+      reference: "https://www.cisecurity.org/benchmark/kubernetes"
+      section: "1.2.3"
+  match:
+    resources:
+      kubernetes:
+        apiGroups:
+          - ""
+        versions:
+          - v1
+        kinds:
+          - Pod
+        namespaces:
+          include: ["kube-system"]
+          exclude: ["*"]
+  cel: |
+    has(object.spec.containers) && object.spec.containers.exists(c, has(c.command) && c.command.exists(cmd, cmd == "kube-apiserver") && (!has(c.args) || !c.args.exists(arg, arg.contains("--enable-admission-plugins=") && "PodSecurityPolicy" in arg.split("=")[1].split(","))))
+  remediation:
+    manual: "Set `--enable-admission-plugins=PodSecurityPolicy` for the kube-apiserver."
+  references:
+    - title: "Kubernetes PodSecurityPolicy"
+      url: "https://kubernetes.io/docs/reference"
+  metadata:
+    author: "Spotter Security Team"
+    created: "2025-07-29"

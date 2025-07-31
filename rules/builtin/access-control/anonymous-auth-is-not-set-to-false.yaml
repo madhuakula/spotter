@@ -1,25 +1,25 @@
 apiVersion: rules.spotter.run/v1
 kind: SecurityRule
 metadata:
-  name: always-admit-admission-plugin-enabled
+  name: anonymous-auth-is-not-set-to-false
   labels:
     category: "Access Control"
     severity: critical
 spec:
-  id: SPOTTER-ACCESS-CONTROL-001
-  name: "AlwaysAdmit Admission Plugin Enabled"
+  id: SPOTTER-ACCESS-CONTROL-002
+  name: "Anonymous Auth Is Not Set To False"
   version: "1.0.0"
-  description: "The AlwaysAdmit admission controller allows all requests, effectively bypassing other admission controls. It should not be enabled."
+  description: "Anonymous authentication allows unauthenticated users to make requests to the API server. This should be disabled."
   severity:
     level: CRITICAL
-    score: 9.8
+    score: 9.1
   category: "Access Control"
-  subcategory: "Admission Control"
-  cwe: "CWE-284"
+  subcategory: "Authentication"
+  cwe: "CWE-306"
   regulatoryStandards:
     - name: "CIS Kubernetes Benchmark v1.8.0"
       reference: "https://www.cisecurity.org/benchmark/kubernetes"
-      section: "1.2.14"
+      section: "1.2.1"
   match:
     resources:
       kubernetes:
@@ -35,13 +35,13 @@ spec:
   cel: |
     has(object.spec.containers) && object.spec.containers.exists(c,
       has(c.command) && c.command.exists(cmd, cmd == "kube-apiserver") &&
-      has(c.args) && c.args.exists(arg, arg.contains("--enable-admission-plugins") && "AlwaysAdmit" in arg.split("=")[1].split(","))
+      has(c.args) && c.args.exists(arg, arg == "--anonymous-auth=true")
     )
   remediation:
-    manual: "Edit the kube-apiserver pod specification file and remove 'AlwaysAdmit' from the --enable-admission-plugins flag."
+    manual: "Edit the kube-apiserver pod specification file and set the --anonymous-auth flag to false."
   references:
-    - title: "Kubernetes Admission Controllers"
-      url: "https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#alwaysadmit"
+    - title: "Controlling Access to the Kubernetes API"
+      url: "https://kubernetes.io/docs/concepts/security/controlling-access/"
   metadata:
     author: "Spotter Security Team"
     created: "2024-07-29"

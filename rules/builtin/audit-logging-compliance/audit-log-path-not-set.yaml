@@ -1,21 +1,21 @@
 apiVersion: rules.spotter.run/v1
 kind: SecurityRule
 metadata:
-  name: audit-log-maxsize-missing
+  name: audit-log-path-not-set
   labels:
     category: "Audit, Logging & Compliance"
-    severity: medium
+    severity: high
 spec:
-  id: SPOTTER-AUDIT-002
-  name: "Audit Log Max Size Not Set"
+  id: SPOTTER-AUDIT-001
+  name: "Audit Log Path Not Set"
   version: "1.0.0"
-  description: "The maximum size of the audit log file is not set. This can lead to excessive disk usage."
+  description: "The audit log path is not set, which means that no audit logs will be generated. Auditing should be enabled to track all activities in the cluster."
   severity:
-    level: MEDIUM
-    score: 5.3
+    level: HIGH
+    score: 7.5
   category: "Audit, Logging & Compliance"
   subcategory: "Logging"
-  cwe: "CWE-770"
+  cwe: "CWE-778"
   regulatoryStandards:
     - name: "CIS Kubernetes Benchmark v1.8.0"
       reference: "https://www.cisecurity.org/benchmark/kubernetes"
@@ -35,11 +35,10 @@ spec:
   cel: |
     has(object.spec.containers) && object.spec.containers.exists(c,
       has(c.command) && c.command.exists(cmd, cmd == "kube-apiserver") &&
-      has(c.args) && c.args.exists(arg, arg.startsWith("--audit-log-path=")) &&
-      !c.args.exists(arg, arg.startsWith("--audit-log-maxsize="))
+      (!has(c.args) || !c.args.exists(arg, arg.startsWith("--audit-log-path=")))
     )
   remediation:
-    manual: "Edit the kube-apiserver pod specification file and add the --audit-log-maxsize flag, setting it to a suitable value (e.g., 100)."
+    manual: "Edit the kube-apiserver pod specification file and add the --audit-log-path flag, setting it to a suitable path."
   references:
     - title: "Kubernetes Auditing"
       url: "https://kubernetes.io/docs/tasks/debug/debug-cluster/audit/"

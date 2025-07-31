@@ -1,13 +1,13 @@
 apiVersion: rules.spotter.run/v1
 kind: SecurityRule
 metadata:
-  name: service-exposes-external-lb
+  name: service-with-external-load-balancer
   labels:
     category: "Network & Traffic Security"
     severity: high
 spec:
   id: SPOTTER-NETWORK-TRAFFIC-SECURITY-003
-  name: "Service Exposed via External Load Balancer"
+  name: "Service With External Load Balancer"
   version: "1.0.0"
   description: "Services of type LoadBalancer are exposed externally. This may be unintentional and could expose internal services to the internet."
   severity:

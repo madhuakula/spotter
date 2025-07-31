@@ -1,7 +1,7 @@
 apiVersion: rules.spotter.run/v1
 kind: SecurityRule
 metadata:
-  name: kubelet-read-only-port-not-set-to-zero
+  name: kubelet-read-only-port-is-not-set-to-zero
   labels:
     category: "Platform & Infrastructure Security"
     severity: critical

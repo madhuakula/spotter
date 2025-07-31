@@ -1,7 +1,7 @@
 apiVersion: rules.spotter.run/v1
 kind: SecurityRule
 metadata:
-  name: tiller-is-deployed
+  name: tiller-helm-v2-is-deployed
   labels:
     category: "Supply Chain & Image Security"
     severity: critical

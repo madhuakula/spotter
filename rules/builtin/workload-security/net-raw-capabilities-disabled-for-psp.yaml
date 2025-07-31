@@ -1,13 +1,13 @@
 apiVersion: rules.spotter.run/v1
 kind: SecurityRule
 metadata:
-  name: psp-disallows-net-raw-capability
+  name: net-raw-capabilities-disabled-for-psp
   labels:
     category: "Workload Security"
     severity: high
 spec:
   id: SPOTTER-WORKLOAD-SECURITY-107
-  name: "PSP Disallows NET_RAW Capability"
+  name: "NET_RAW Capabilities Disabled for PSP"
   version: "1.0.0"
   description: "Pod Security Policies (PSPs) should disallow the `NET_RAW` capability, which allows a container to perform raw socket operations, potentially leading to network attacks."
   severity:

@@ -1,15 +1,15 @@
 apiVersion: rules.spotter.run/v1
 kind: SecurityRule
 metadata:
-  name: workload-host-port-specified
+  name: workload-host-port-not-specified
   labels:
     category: "Platform & Infrastructure Security"
     severity: high
 spec:
   id: SPOTTER-PLATFORM-INFRASTRUCTURE-SECURITY-006
-  name: "Workload Specifies Host Port"
+  name: "Workload Host Port Not Specified"
   version: "1.0.0"
-  description: "Binding a pod to a host port can create security vulnerabilities and limit scheduling flexibility."
+  description: "Binding a pod to a hostIP without hostPort can create security vulnerabilities."
   severity:
     level: HIGH
     score: 7.9
@@ -37,10 +37,10 @@ spec:
           include: ["*"]
           exclude: ["kube-system", "kube-public"]
   cel: |
-    (object.kind == 'Pod' && has(object.spec.containers) && object.spec.containers.exists(c, has(c.ports) && c.ports.exists(p, has(p.hostPort) && p.hostPort > 0))) ||
-    (object.kind != 'Pod' && has(object.spec.template.spec.containers) && object.spec.template.spec.containers.exists(c, has(c.ports) && c.ports.exists(p, has(p.hostPort) && p.hostPort > 0)))
+    (object.kind == 'Pod' && has(object.spec.containers) && object.spec.containers.exists(c, has(c.ports) && c.ports.exists(p, has(p.hostIP) && !(p.hostPort) )) ||
+    (object.kind != 'Pod' && has(object.spec.template.spec.containers) && object.spec.template.spec.containers.exists(c, has(c.ports) && c.ports.exists(p, has(p.hostIP) && !(p.hostPort) )))
   remediation:
-    manual: "Avoid using host ports. Use services to expose applications."
+    manual: "If you are using hostIP, make sure you have hostPorts. Use services to expose applications."
   references:
     - title: "Pod Security Standards"
       url: "https://kubernetes.io/docs/concepts/security/pod-security-standards/#host-namespaces"

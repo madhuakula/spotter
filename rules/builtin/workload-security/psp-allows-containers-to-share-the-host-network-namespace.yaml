@@ -1,7 +1,7 @@
 apiVersion: rules.spotter.run/v1
 kind: SecurityRule
 metadata:
-  name: psp-allows-containers-to-share-host-network-namespace
+  name: psp-allows-containers-to-share-the-host-network-namespace
   labels:
     category: "Workload Security"
     severity: high

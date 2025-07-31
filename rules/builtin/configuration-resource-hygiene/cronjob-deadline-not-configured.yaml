@@ -1,13 +1,13 @@
 apiVersion: rules.spotter.run/v1
 kind: SecurityRule
 metadata:
-  name: cronjob-without-deadline
+  name: cronjob-deadline-not-configured
   labels:
     category: "Configuration & Resource Hygiene"
     severity: medium
 spec:
   id: SPOTTER-CONFIGURATION-RESOURCE-HYGIENE-006
-  name: "CronJob Without Starting Deadline"
+  name: "CronJob Deadline Not Configured"
   version: "1.0.0"
   description: "A starting deadline for a CronJob is important to prevent jobs from running at unexpected times, for example, after a long downtime."
   severity:
