@@ -57,12 +57,12 @@ func (r *YAMLReporter) WriteReport(ctx context.Context, results *models.ScanResu
 
 // YAML report structures
 type YAMLReport struct {
-	Metadata         YAMLMetadata                   `yaml:"metadata"`
-	Summary          YAMLSummary                    `yaml:"summary"`
-	CategoryScoring  map[string]CategoryStat        `yaml:"category_scoring"`
-	SeverityAnalysis map[string]SeverityStat        `yaml:"severity_analysis"`
-	ResourceGrouping map[string]ResourceStat        `yaml:"resource_grouping"`
-	Results          []YAMLResult                   `yaml:"results"`
+	Metadata         YAMLMetadata            `yaml:"metadata"`
+	Summary          YAMLSummary             `yaml:"summary"`
+	CategoryScoring  map[string]CategoryStat `yaml:"category_scoring"`
+	SeverityAnalysis map[string]SeverityStat `yaml:"severity_analysis"`
+	ResourceGrouping map[string]ResourceStat `yaml:"resource_grouping"`
+	Results          []YAMLResult            `yaml:"results"`
 }
 
 type YAMLMetadata struct {
@@ -73,28 +73,28 @@ type YAMLMetadata struct {
 }
 
 type YAMLSummary struct {
-	TotalResources    int     `yaml:"total_resources"`
-	TotalRules        int     `yaml:"total_rules"`
-	TotalEvaluations  int     `yaml:"total_evaluations"`
-	PassedEvaluations int     `yaml:"passed_evaluations"`
-	FailedEvaluations int     `yaml:"failed_evaluations"`
-	SuccessRate       float64 `yaml:"success_rate"`
-	OverallGrade      string  `yaml:"overall_grade"`
-	RiskScore         float64 `yaml:"risk_score"`
+	TotalResources    int            `yaml:"total_resources"`
+	TotalRules        int            `yaml:"total_rules"`
+	TotalEvaluations  int            `yaml:"total_evaluations"`
+	PassedEvaluations int            `yaml:"passed_evaluations"`
+	FailedEvaluations int            `yaml:"failed_evaluations"`
+	SuccessRate       float64        `yaml:"success_rate"`
+	OverallGrade      string         `yaml:"overall_grade"`
+	RiskScore         float64        `yaml:"risk_score"`
 	SeverityBreakdown map[string]int `yaml:"severity_breakdown"`
 	CategoryBreakdown map[string]int `yaml:"category_breakdown"`
 }
 
 type YAMLResult struct {
-	RuleID      string                 `yaml:"rule_id"`
-	RuleName    string                 `yaml:"rule_name"`
-	Category    string                 `yaml:"category"`
-	Severity    string                 `yaml:"severity"`
-	Passed      bool                   `yaml:"passed"`
-	Message     string                 `yaml:"message"`
-	Remediation string                 `yaml:"remediation,omitempty"`
-	Resource    YAMLResource           `yaml:"resource"`
-	Timestamp   time.Time              `yaml:"timestamp"`
+	RuleID      string       `yaml:"rule_id"`
+	RuleName    string       `yaml:"rule_name"`
+	Category    string       `yaml:"category"`
+	Severity    string       `yaml:"severity"`
+	Passed      bool         `yaml:"passed"`
+	Message     string       `yaml:"message"`
+	Remediation string       `yaml:"remediation,omitempty"`
+	Resource    YAMLResource `yaml:"resource"`
+	Timestamp   time.Time    `yaml:"timestamp"`
 }
 
 type YAMLResource struct {

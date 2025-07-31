@@ -67,35 +67,35 @@ type JSONReport struct {
 
 // JSONMetadata contains metadata about the scan
 type JSONMetadata struct {
-	Timestamp   time.Time `json:"timestamp"`
-	Version     string    `json:"version"`
-	Duration    string    `json:"duration"`
+	Timestamp time.Time `json:"timestamp"`
+	Version   string    `json:"version"`
+	Duration  string    `json:"duration"`
 }
 
 // JSONSummary contains summary statistics
 type JSONSummary struct {
-	TotalResources     int            `json:"total_resources"`
-	TotalRules         int            `json:"total_rules"`
-	Passed             int            `json:"passed"`
-	Failed             int            `json:"failed"`
-	SuccessRate        float64        `json:"success_rate"`
-	OverallGrade       string         `json:"overall_grade"`
-	RiskScore          float64        `json:"risk_score"`
-	SeverityBreakdown  map[string]int `json:"severity_breakdown"`
-	CategoryBreakdown  map[string]int `json:"category_breakdown"`
+	TotalResources    int            `json:"total_resources"`
+	TotalRules        int            `json:"total_rules"`
+	Passed            int            `json:"passed"`
+	Failed            int            `json:"failed"`
+	SuccessRate       float64        `json:"success_rate"`
+	OverallGrade      string         `json:"overall_grade"`
+	RiskScore         float64        `json:"risk_score"`
+	SeverityBreakdown map[string]int `json:"severity_breakdown"`
+	CategoryBreakdown map[string]int `json:"category_breakdown"`
 }
 
 // JSONResult represents a single validation result
 type JSONResult struct {
-	RuleID      string                `json:"rule_id"`
-	RuleName    string                `json:"rule_name"`
-	Severity    models.SeverityLevel  `json:"severity"`
-	Category    string                `json:"category"`
-	Passed      bool                  `json:"passed"`
-	Message     string                `json:"message"`
-	Remediation string                `json:"remediation,omitempty"`
-	Resource    JSONResource          `json:"resource"`
-	Timestamp   time.Time             `json:"timestamp"`
+	RuleID      string               `json:"rule_id"`
+	RuleName    string               `json:"rule_name"`
+	Severity    models.SeverityLevel `json:"severity"`
+	Category    string               `json:"category"`
+	Passed      bool                 `json:"passed"`
+	Message     string               `json:"message"`
+	Remediation string               `json:"remediation,omitempty"`
+	Resource    JSONResource         `json:"resource"`
+	Timestamp   time.Time            `json:"timestamp"`
 }
 
 // JSONResource represents the resource information

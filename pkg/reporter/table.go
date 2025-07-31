@@ -120,8 +120,6 @@ func (r *TableReporter) formatHeader(title string) string {
 	return fmt.Sprintf("%s\n  %s  \n%s\n", line, title, line)
 }
 
-
-
 func (r *TableReporter) formatFindings(results []models.ValidationResult) string {
 	var output strings.Builder
 
@@ -207,8 +205,6 @@ func (r *TableReporter) formatCELErrorBrief(result *models.ValidationResult, ind
 	return output.String()
 }
 
-
-
 func (r *TableReporter) formatCELError(result *models.ValidationResult, index int) string {
 	var finding strings.Builder
 
@@ -258,8 +254,6 @@ func (r *TableReporter) formatCELError(result *models.ValidationResult, index in
 
 	return finding.String()
 }
-
-
 
 // formatHierarchicalSecurityFindings creates a hierarchical view of security findings
 // organized by category > severity > rule with concise, actionable data
@@ -591,8 +585,6 @@ func (r *TableReporter) categorizeFindingsByType(results []models.ValidationResu
 	return celErrors, securityFindings
 }
 
-
-
 func (r *TableReporter) getSeverityColor(severity models.SeverityLevel) string {
 	switch severity {
 	case models.SeverityCritical:
@@ -607,8 +599,6 @@ func (r *TableReporter) getSeverityColor(severity models.SeverityLevel) string {
 		return "white"
 	}
 }
-
-
 
 func (r *TableReporter) getSeverityEmoji(severity models.SeverityLevel) string {
 	switch severity {
@@ -639,10 +629,6 @@ func (r *TableReporter) severityWeight(severity models.SeverityLevel) int {
 		return 0
 	}
 }
-
-
-
-
 
 func (r *TableReporter) formatActionableSummary(results *models.ScanResult) string {
 	var summary strings.Builder
@@ -895,14 +881,6 @@ func (r *TableReporter) formatResourceGroupingTable(results *models.ScanResult) 
 
 // Helper methods for enhanced table formatting
 
-
-
-
-
-
-
-
-
 func (r *TableReporter) getScoreColor(score float64) string {
 	if score >= 90 {
 		return "green"
@@ -924,8 +902,6 @@ func (r *TableReporter) getGradeColor(grade string) string {
 		return "red"
 	}
 }
-
-
 
 func (r *TableReporter) getRiskLevelColor(riskLevel string) string {
 	switch strings.ToLower(riskLevel) {
