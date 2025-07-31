@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -426,13 +425,21 @@ func runHelmScan(cmd *cobra.Command, args []string) error {
 func loadSecurityRules() ([]*models.SecurityRule, error) {
 	parser := parser.NewYAMLParser(true)
 	var allRules []*models.SecurityRule
+	ruleIDMap := make(map[string]bool) // Track rule IDs to prevent duplicates
 
 	// Always load built-in rules first
 	builtinRules, err := loadBuiltinRules(parser)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load built-in rules: %w", err)
 	}
-	allRules = append(allRules, builtinRules...)
+	
+	// Add builtin rules and track their IDs
+	for _, rule := range builtinRules {
+		if !ruleIDMap[rule.Spec.ID] {
+			allRules = append(allRules, rule)
+			ruleIDMap[rule.Spec.ID] = true
+		}
+	}
 
 	// Load external rules if specified
 	rulesPaths := viper.GetStringSlice("rules-path")
@@ -441,7 +448,14 @@ func loadSecurityRules() ([]*models.SecurityRule, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to load external rules: %w", err)
 		}
-		allRules = append(allRules, externalRules...)
+		
+		// Add external rules only if their IDs are not already present
+		for _, rule := range externalRules {
+			if !ruleIDMap[rule.Spec.ID] {
+				allRules = append(allRules, rule)
+				ruleIDMap[rule.Spec.ID] = true
+			}
+		}
 	}
 
 	return allRules, nil
@@ -913,125 +927,46 @@ func executeHelmScan(ctx context.Context, scanner k8s.ResourceScanner, engine en
 // evaluateResourcesConcurrently evaluates rules against resources with controlled concurrency
 func evaluateResourcesConcurrently(ctx context.Context, engine engine.EvaluationEngine, rules []*models.SecurityRule, resources []map[string]interface{}, config *ScanConfig) (*models.ScanResult, error) {
 	logger := GetLogger()
-	startTime := time.Now()
 
 	// Initialize progress bar
 	progressBar := progress.NewProgressBar(len(resources), "🔍 Scanning resources")
 	defer progressBar.Finish()
 
-	// Create worker pool for concurrent evaluation
-	resourceChan := make(chan map[string]interface{}, len(resources))
-	resultChan := make(chan *models.ScanResult, config.MaxConcurrency)
-	errorChan := make(chan error, config.MaxConcurrency)
-
-	// Start workers
-	var wg sync.WaitGroup
-	for i := 0; i < config.MaxConcurrency; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for resource := range resourceChan {
-				select {
-				case <-ctx.Done():
-					errorChan <- ctx.Err()
-					return
-				default:
-					result, err := engine.EvaluateRulesAgainstResources(ctx, rules, []map[string]interface{}{resource})
-					if err != nil {
-						errorChan <- fmt.Errorf("failed to evaluate resource: %w", err)
-						return
-					}
-					resultChan <- result
-					// Update progress after processing each resource
-					progressBar.Increment()
-				}
-			}
-		}()
+	// Use the engine's built-in concurrency instead of creating another layer of workers
+	// This avoids the double worker pool issue that was causing duplicate evaluations
+	result, err := engine.EvaluateRulesAgainstResources(ctx, rules, resources)
+	if err != nil {
+		return nil, fmt.Errorf("failed to evaluate resources: %w", err)
 	}
 
-	// Send resources to workers
-	go func() {
-		defer close(resourceChan)
-		for _, resource := range resources {
-			select {
-			case <-ctx.Done():
-				return
-			case resourceChan <- resource:
+	// Update progress bar to completion
+	for i := 0; i < len(resources); i++ {
+		progressBar.Increment()
+	}
+
+	// Filter by severity if specified
+	if config.MinSeverity != "" {
+		result.Results = filterBySeverity(result.Results, config.MinSeverity)
+
+		// Recalculate passed/failed counts after filtering
+		failedCount := 0
+		passedCount := 0
+		for _, res := range result.Results {
+			if res.Passed {
+				passedCount++
+			} else {
+				failedCount++
 			}
 		}
-	}()
-
-	// Collect results
-	go func() {
-		wg.Wait()
-		close(resultChan)
-		close(errorChan)
-	}()
-
-	// Aggregate results
-	finalResult := &models.ScanResult{
-		TotalResources: len(resources),
-		TotalRules:     len(rules),
-		Results:        make([]models.ValidationResult, 0),
-		Timestamp:      startTime,
+		result.Failed = failedCount
+		result.Passed = passedCount
 	}
 
-	for {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case err := <-errorChan:
-			if err != nil {
-				return nil, err
-			}
-		case result, ok := <-resultChan:
-			if !ok {
-				// All results collected
-				endTime := time.Now()
-				finalResult.Duration = endTime.Sub(startTime)
-
-				// Count failed (violations) vs passed results correctly
-				failedCount := 0
-				passedCount := 0
-				for _, result := range finalResult.Results {
-					if result.Passed {
-						passedCount++
-					} else {
-						failedCount++
-					}
-				}
-				finalResult.Failed = failedCount
-				finalResult.Passed = passedCount
-
-				// Filter by severity if specified
-				if config.MinSeverity != "" {
-					finalResult.Results = filterBySeverity(finalResult.Results, config.MinSeverity)
-
-					// Recalculate passed/failed counts after filtering
-					failedCount = 0
-					passedCount = 0
-					for _, result := range finalResult.Results {
-						if result.Passed {
-							passedCount++
-						} else {
-							failedCount++
-						}
-					}
-					finalResult.Failed = failedCount
-					finalResult.Passed = passedCount
-				}
-
-				logLevel := viper.GetString("log-level")
-				if logLevel == "debug" {
-					logger.Info("Evaluation completed", "duration", finalResult.Duration)
-				}
-				return finalResult, nil
-			}
-			if result != nil {
-				finalResult.Results = append(finalResult.Results, result.Results...)
-			}
-		}
+	logLevel := viper.GetString("log-level")
+	if logLevel == "debug" {
+		logger.Info("Evaluation completed", "duration", result.Duration)
 	}
+	return result, nil
 }
 
 // filterBySeverity filters results by minimum severity level
