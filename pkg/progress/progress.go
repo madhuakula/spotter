@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -13,24 +14,25 @@ import (
 
 // ProgressBar represents a terminal progress bar
 type ProgressBar struct {
-	mu          sync.Mutex
-	total       int
-	current     int
-	width       int
-	prefix      string
-	writer      io.Writer
-	startTime   time.Time
-	lastUpdate  time.Time
-	updateRate  time.Duration
-	finished    bool
-	isTerminal  bool
+	mu         sync.Mutex
+	total      int
+	current    int
+	width      int
+	prefix     string
+	writer     io.Writer
+	startTime  time.Time
+	lastUpdate time.Time
+	updateRate time.Duration
+	finished   bool
+	isTerminal bool
+	testDelay  time.Duration // For testing purposes - can be set to slow down progress
 }
 
 // NewProgressBar creates a new progress bar
 func NewProgressBar(total int, prefix string) *ProgressBar {
 	writer := os.Stderr
 	isTerminal := term.IsTerminal(int(os.Stderr.Fd()))
-	
+
 	width := 50
 	if isTerminal {
 		if termWidth, _, err := term.GetSize(int(os.Stderr.Fd())); err == nil {
@@ -45,6 +47,17 @@ func NewProgressBar(total int, prefix string) *ProgressBar {
 		}
 	}
 
+	// Set test delay based on environment variable for demonstration
+	testDelay := time.Duration(0)
+	if delayStr := os.Getenv("SPOTTER_DEMO_DELAY_SECONDS"); delayStr != "" {
+		if delaySeconds, err := strconv.Atoi(delayStr); err == nil && delaySeconds > 0 {
+			testDelay = time.Duration(delaySeconds) * time.Second / time.Duration(total)
+			if testDelay > 2*time.Second {
+				testDelay = 2 * time.Second // Cap individual delay at 2 seconds
+			}
+		}
+	}
+
 	return &ProgressBar{
 		total:      total,
 		current:    0,
@@ -55,7 +68,15 @@ func NewProgressBar(total int, prefix string) *ProgressBar {
 		lastUpdate: time.Now(),
 		updateRate: 100 * time.Millisecond, // Update every 100ms
 		isTerminal: isTerminal,
+		testDelay:  testDelay,
 	}
+}
+
+// SetTestDelay sets a delay for testing purposes
+func (pb *ProgressBar) SetTestDelay(delay time.Duration) {
+	pb.mu.Lock()
+	defer pb.mu.Unlock()
+	pb.testDelay = delay
 }
 
 // Increment increases the progress by 1
@@ -71,6 +92,11 @@ func (pb *ProgressBar) Add(n int) {
 	pb.current += n
 	if pb.current > pb.total {
 		pb.current = pb.total
+	}
+
+	// Apply test delay if set
+	if pb.testDelay > 0 {
+		time.Sleep(pb.testDelay)
 	}
 
 	// Rate limit updates for performance
@@ -101,7 +127,7 @@ func (pb *ProgressBar) Finish() {
 	pb.current = pb.total
 	pb.finished = true
 	pb.render()
-	
+
 	if pb.isTerminal {
 		fmt.Fprint(pb.writer, "\n")
 	}
@@ -112,8 +138,7 @@ func (pb *ProgressBar) render() {
 	if !pb.isTerminal {
 		// For non-terminal output, just show periodic updates
 		if pb.current%10 == 0 || pb.current == pb.total {
-			percentage := float64(pb.current) / float64(pb.total) * 100
-			fmt.Fprintf(pb.writer, "%s: %d/%d (%.1f%%)\n", pb.prefix, pb.current, pb.total, percentage)
+			fmt.Fprintf(pb.writer, "%s: %d/%d\n", pb.prefix, pb.current, pb.total)
 		}
 		return
 	}
@@ -130,8 +155,10 @@ func (pb *ProgressBar) render() {
 		filledWidth = 0
 	}
 
-	// Build progress bar
-	bar := strings.Repeat("█", filledWidth) + strings.Repeat("░", pb.width-filledWidth)
+	// Build progress bar with nice characters
+	filled := strings.Repeat("█", filledWidth)
+	empty := strings.Repeat("░", pb.width-filledWidth)
+	bar := filled + empty
 
 	// Calculate ETA
 	elapsed := time.Since(pb.startTime)
@@ -143,7 +170,7 @@ func (pb *ProgressBar) render() {
 		eta = fmt.Sprintf(" Completed in %s", formatDuration(elapsed))
 	}
 
-	// Format output
+	// Format output with nice progress bar
 	output := fmt.Sprintf("\r%s [%s] %d/%d (%.1f%%)%s",
 		pb.prefix, bar, pb.current, pb.total, percentage, eta)
 
@@ -188,14 +215,16 @@ func (pt *ProgressTracker) AddBar(name string, total int, prefix string) *Progre
 	return bar
 }
 
-// GetBar returns a progress bar by name
-func (pt *ProgressTracker) GetBar(name string) *ProgressBar {
+// GetBar retrieves a progress bar by name
+func (pt *ProgressTracker) GetBar(name string) (*ProgressBar, bool) {
 	pt.mu.Lock()
 	defer pt.mu.Unlock()
-	return pt.bars[name]
+
+	bar, exists := pt.bars[name]
+	return bar, exists
 }
 
-// FinishAll finishes all progress bars
+// FinishAll completes all progress bars
 func (pt *ProgressTracker) FinishAll() {
 	pt.mu.Lock()
 	defer pt.mu.Unlock()
@@ -205,4 +234,13 @@ func (pt *ProgressTracker) FinishAll() {
 			bar.Finish()
 		}
 	}
+}
+
+// Clear removes all progress bars
+func (pt *ProgressTracker) Clear() {
+	pt.mu.Lock()
+	defer pt.mu.Unlock()
+
+	pt.bars = make(map[string]*ProgressBar)
+	pt.order = make([]string, 0)
 }
