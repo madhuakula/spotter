@@ -149,9 +149,7 @@ func init() {
 	clusterCmd.Flags().String("context", "", "kubernetes context to use")
 	clusterCmd.Flags().Bool("watch", false, "watch for resource changes and continuously scan")
 	clusterCmd.Flags().Duration("watch-interval", 30*time.Second, "interval for watch mode scanning")
-	clusterCmd.Flags().Bool("fail-on-violations", false, "exit with non-zero code if violations are found")
 	clusterCmd.Flags().Int("max-violations", 0, "maximum number of violations before stopping scan (0 = unlimited)")
-	clusterCmd.Flags().Bool("include-passed", false, "include passed rules in the report")
 	clusterCmd.Flags().String("label-selector", "", "label selector to filter resources (e.g., app=nginx,env=prod)")
 	clusterCmd.Flags().String("field-selector", "", "field selector to filter resources")
 	clusterCmd.Flags().Bool("dry-run", false, "show what would be scanned without actually scanning")
@@ -161,7 +159,6 @@ func init() {
 	// Performance optimization flags
 	clusterCmd.Flags().Int("batch-size", 50, "number of resources to process in each batch")
 	clusterCmd.Flags().Int("parallelism", 4, "number of parallel workers for scanning")
-	clusterCmd.Flags().Bool("streaming-mode", false, "enable streaming mode to reduce memory usage")
 	clusterCmd.Flags().Int64("memory-limit", 0, "maximum memory usage in MB (0 = unlimited)")
 	clusterCmd.Flags().Int("resource-pool-size", 100, "size of resource object pool for reuse")
 
@@ -177,25 +174,15 @@ func init() {
 	manifestsCmd.Flags().Bool("recursive", true, "recursively scan directories")
 	manifestsCmd.Flags().StringSlice("file-extensions", []string{".yaml", ".yml", ".json"}, "file extensions to scan")
 	manifestsCmd.Flags().Bool("validate-syntax", true, "validate YAML/JSON syntax before scanning")
-	manifestsCmd.Flags().StringSlice("exclude-paths", []string{}, "paths to exclude from scanning")
-	manifestsCmd.Flags().StringSlice("include-paths", []string{}, "paths to include in scanning (overrides exclude-paths)")
-	manifestsCmd.Flags().Bool("ignore-parse-errors", false, "continue scanning even if some files fail to parse")
-	manifestsCmd.Flags().String("baseline", "", "baseline file to compare against")
-	manifestsCmd.Flags().Bool("update-baseline", false, "update the baseline file with current scan results")
-	manifestsCmd.Flags().Bool("fail-on-violations", false, "exit with non-zero code if violations are found")
+	manifestsCmd.Flags().StringSlice("include-paths", []string{}, "paths to include in scanning")
 	manifestsCmd.Flags().Int("max-violations", 0, "maximum number of violations before stopping scan (0 = unlimited)")
-	manifestsCmd.Flags().Bool("include-passed", false, "include passed rules in the report")
 	manifestsCmd.Flags().Bool("follow-symlinks", false, "follow symbolic links when scanning directories")
-	manifestsCmd.Flags().String("git-repo", "", "git repository URL to clone and scan")
-	manifestsCmd.Flags().String("git-branch", "main", "git branch to scan")
-	manifestsCmd.Flags().String("git-commit", "", "specific git commit to scan")
 	manifestsCmd.Flags().Bool("exclude-system-namespaces", false, "exclude system namespaces (kube-system, kube-public, etc.)")
 	manifestsCmd.Flags().Bool("include-cluster-resources", true, "include cluster-scoped resources")
 
 	// Performance optimization flags for manifests
 	manifestsCmd.Flags().Int("batch-size", 50, "number of files to process in each batch")
 	manifestsCmd.Flags().Int("parallelism", 4, "number of parallel workers for scanning")
-	manifestsCmd.Flags().Bool("streaming-mode", false, "enable streaming mode to reduce memory usage")
 	manifestsCmd.Flags().Int64("memory-limit", 0, "maximum memory usage in MB (0 = unlimited)")
 
 	// Enhanced filtering flags for manifests
@@ -215,9 +202,7 @@ func init() {
 	helmCmd.Flags().Bool("include-dependencies", true, "include chart dependencies in scan")
 	helmCmd.Flags().Bool("validate-schema", true, "validate chart schema before scanning")
 	helmCmd.Flags().String("kube-version", "", "kubernetes version to use for rendering (e.g., 1.28.0)")
-	helmCmd.Flags().Bool("fail-on-violations", false, "exit with non-zero code if violations are found")
 	helmCmd.Flags().Int("max-violations", 0, "maximum number of violations before stopping scan (0 = unlimited)")
-	helmCmd.Flags().Bool("include-passed", false, "include passed rules in the report")
 	helmCmd.Flags().Bool("exclude-system-namespaces", false, "exclude system namespaces (kube-system, kube-public, etc.)")
 	helmCmd.Flags().Bool("include-cluster-resources", true, "include cluster-scoped resources")
 	helmCmd.Flags().Bool("skip-tests", false, "skip test templates when scanning")
@@ -235,8 +220,6 @@ func init() {
 		cmd.Flags().StringSlice("exclude-rules", []string{}, "specific rule IDs to exclude")
 		cmd.Flags().StringSlice("categories", []string{}, "rule categories to include")
 		cmd.Flags().StringToString("custom-filters", map[string]string{}, "custom filter expressions (key=value)")
-		cmd.Flags().Bool("fail-on-high", false, "exit with non-zero code if high severity issues found")
-		cmd.Flags().Bool("fail-on-critical", false, "exit with non-zero code if critical severity issues found")
 		cmd.Flags().Bool("continue-on-error", true, "continue scanning even if some resources fail")
 		// Note: 'no-color' flag is inherited from global persistent flags
 	}
@@ -432,7 +415,7 @@ func loadSecurityRules() ([]*models.SecurityRule, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to load built-in rules: %w", err)
 	}
-	
+
 	// Add builtin rules and track their IDs
 	for _, rule := range builtinRules {
 		if !ruleIDMap[rule.Spec.ID] {
@@ -448,7 +431,7 @@ func loadSecurityRules() ([]*models.SecurityRule, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to load external rules: %w", err)
 		}
-		
+
 		// Add external rules only if their IDs are not already present
 		for _, rule := range externalRules {
 			if !ruleIDMap[rule.Spec.ID] {
