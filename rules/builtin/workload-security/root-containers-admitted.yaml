@@ -7,7 +7,7 @@ metadata:
     severity: critical
 spec:
   id: SPOTTER-WORKLOAD-SECURITY-585
-  name: "Container Running As Root"
+  name: "Root Containers Admitted"
   version: "1.0.0"
   description: "Containers must not run as UID 0"
   severity:
