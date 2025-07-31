@@ -159,7 +159,6 @@ func init() {
 	// Performance optimization flags
 	clusterCmd.Flags().Int("batch-size", 50, "number of resources to process in each batch")
 	clusterCmd.Flags().Int("parallelism", 4, "number of parallel workers for scanning")
-	clusterCmd.Flags().Bool("streaming-mode", false, "enable streaming mode to reduce memory usage")
 	clusterCmd.Flags().Int64("memory-limit", 0, "maximum memory usage in MB (0 = unlimited)")
 	clusterCmd.Flags().Int("resource-pool-size", 100, "size of resource object pool for reuse")
 
@@ -184,7 +183,6 @@ func init() {
 	// Performance optimization flags for manifests
 	manifestsCmd.Flags().Int("batch-size", 50, "number of files to process in each batch")
 	manifestsCmd.Flags().Int("parallelism", 4, "number of parallel workers for scanning")
-	manifestsCmd.Flags().Bool("streaming-mode", false, "enable streaming mode to reduce memory usage")
 	manifestsCmd.Flags().Int64("memory-limit", 0, "maximum memory usage in MB (0 = unlimited)")
 
 	// Enhanced filtering flags for manifests

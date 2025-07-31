@@ -104,7 +104,6 @@ type ScanOptions struct {
 	Parallelism    int           // Number of parallel workers
 	
 	// Memory optimization
-	StreamingMode    bool  // Process resources in streaming mode to reduce memory usage
 	MemoryLimit      int64 // Maximum memory usage in bytes
 	ResourcePoolSize int   // Size of resource object pool for reuse
 	
