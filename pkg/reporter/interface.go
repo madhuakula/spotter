@@ -33,7 +33,7 @@ type ReporterFactory interface {
 
 // ReportOptions defines options for report generation
 type ReportOptions struct {
-	// Format specifies the output format (table, json, yaml, sarif, junit)
+	// Format specifies the output format (table, json, yaml, sarif)
 	Format string
 	
 	// OutputFile specifies the output file path
