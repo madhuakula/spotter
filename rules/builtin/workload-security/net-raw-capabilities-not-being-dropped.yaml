@@ -7,7 +7,7 @@ metadata:
     severity: high
 spec:
   id: SPOTTER-WORKLOAD-SECURITY-306
-  name: "Workload Uses NET_RAW Capability"
+  name: "NET_RAW Capabilities Not Being Dropped"
   version: "1.0.0"
   description: "NET_RAW capability must be dropped"
   severity:
