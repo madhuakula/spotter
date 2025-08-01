@@ -56,7 +56,7 @@ data:
     server:
       mode: validating
       port: 8443
-      min-severity: low
+      min-severity: high
     log-level: debug
     log-format: text
 ---

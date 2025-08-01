@@ -21,7 +21,7 @@ kind create cluster --name spotter-test
 
 # Build and load image  
 echo "🔨 Building and loading image..."
-docker build -f Dockerfile.admission -t spotter:latest .
+docker build --target admission -t spotter:latest .
 docker save spotter:latest | kind load image-archive --name spotter-test /dev/stdin
 
 # Generate certificates and deploy
@@ -33,7 +33,7 @@ kubectl apply -f local-webhook.yaml
 
 # Wait for ready
 echo "⏳ Waiting for ready..."
-kubectl wait --for=condition=ready pod -l app=spotter-admission-controller -n spotter-system --timeout=60s
+kubectl wait --for=condition=ready pod -l app=spotter-admission-controller -n spotter-system --timeout=15s
 
 echo "✅ Setup complete! Run tests below."
 '
