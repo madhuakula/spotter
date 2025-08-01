@@ -36,17 +36,6 @@ subjects:
   namespace: spotter-system
 ---
 apiVersion: v1
-kind: Secret
-metadata:
-  name: spotter-admission-controller-certs
-  namespace: spotter-system
-type: kubernetes.io/tls
-data:
-  # Will be populated by cert generation script
-  tls.crt: ""
-  tls.key: ""
----
-apiVersion: v1
 kind: ConfigMap
 metadata:
   name: spotter-admission-controller-config

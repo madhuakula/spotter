@@ -28,7 +28,10 @@ echo "✅ Certificates generated"
 
 # Create namespace and secret
 kubectl create namespace "$NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
-kubectl create secret tls "$SECRET_NAME" --cert=server.crt --key=server.key --namespace="$NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
+
+# Delete existing secret if it exists and create new one
+kubectl delete secret "$SECRET_NAME" --namespace="$NAMESPACE" --ignore-not-found=true
+kubectl create secret tls "$SECRET_NAME" --cert=server.crt --key=server.key --namespace="$NAMESPACE"
 
 # Update webhook with CA bundle  
 CA_BUNDLE=$(base64 -w 0 < ca.crt)
