@@ -70,7 +70,7 @@ func init() {
 	rootCmd.PersistentFlags().String("context", "", "kubernetes context to use")
 	rootCmd.PersistentFlags().String("namespace", "", "kubernetes namespace to scan (default: all namespaces)")
 	rootCmd.PersistentFlags().StringSlice("rules-path", []string{}, "paths to security rules directories or files")
-	rootCmd.PersistentFlags().String("output", "table", "output format (table, json, yaml, sarif, junit)")
+	rootCmd.PersistentFlags().String("output", "table", "output format (table, json, yaml, sarif)")
 	rootCmd.PersistentFlags().String("output-file", "", "output file path")
 	rootCmd.PersistentFlags().Bool("no-color", false, "disable colored output")
 	rootCmd.PersistentFlags().Int("max-concurrency", 10, "maximum number of concurrent operations")
