@@ -37,8 +37,8 @@ spec:
           include: ["*"]
           exclude: ["kube-system", "kube-public"]
   cel: |
-    (object.kind == 'Pod' && has(object.spec.containers) && object.spec.containers.exists(c, has(c.ports) && c.ports.exists(p, has(p.hostIP) && !(p.hostPort) )) ||
-    (object.kind != 'Pod' && has(object.spec.template.spec.containers) && object.spec.template.spec.containers.exists(c, has(c.ports) && c.ports.exists(p, has(p.hostIP) && !(p.hostPort) )))
+    (object.kind == 'Pod' && has(object.spec.containers) && object.spec.containers.exists(c, has(c.ports) && c.ports.exists(p, has(p.hostIP) && !has(p.hostPort)))) ||
+    (object.kind != 'Pod' && has(object.spec.template.spec.containers) && object.spec.template.spec.containers.exists(c, has(c.ports) && c.ports.exists(p, has(p.hostIP) && !has(p.hostPort))))
   remediation:
     manual: "If you are using hostIP, make sure you have hostPorts. Use services to expose applications."
   references:

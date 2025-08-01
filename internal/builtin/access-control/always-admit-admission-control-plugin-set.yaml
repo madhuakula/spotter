@@ -35,7 +35,7 @@ spec:
   cel: |
     has(object.spec.containers) && object.spec.containers.exists(c,
       has(c.command) && c.command.exists(cmd, cmd == "kube-apiserver") &&
-      has(c.args) && c.args.exists(arg, arg.contains("--enable-admission-plugins") && "AlwaysAdmit" in arg.split("=")[1].split(","))
+      has(c.args) && c.args.exists(arg, arg.contains("--enable-admission-plugins") && arg.contains("AlwaysAdmit"))
     )
   remediation:
     manual: "Edit the kube-apiserver pod specification file and remove 'AlwaysAdmit' from the --enable-admission-plugins flag."
