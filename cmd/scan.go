@@ -501,7 +501,7 @@ func loadBuiltinRules(parser *parser.YAMLParser) ([]*models.SecurityRule, error)
 	if BuiltinRulesFS == nil {
 		return nil, fmt.Errorf("built-in rules filesystem not initialized")
 	}
-	rules, err := parser.ParseRulesFromFS(context.Background(), BuiltinRulesFS, "rules/builtin")
+	rules, err := parser.ParseRulesFromFS(context.Background(), BuiltinRulesFS, "internal/builtin")
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse built-in rules: %w", err)
 	}
