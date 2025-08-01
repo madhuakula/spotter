@@ -16,8 +16,6 @@ import (
 	"github.com/spf13/viper"
 	admissionv1 "k8s.io/api/admission/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/serializer"
 
 	"github.com/madhuakula/spotter/pkg/engine"
 	"github.com/madhuakula/spotter/pkg/models"
@@ -62,10 +60,7 @@ type ServerConfig struct {
 	LogLevel      string
 }
 
-var (
-	scheme = runtime.NewScheme()
-	codecs = serializer.NewCodecFactory(scheme)
-)
+// Removed unused variables scheme and codecs
 
 func init() {
 	rootCmd.AddCommand(serverCmd)
@@ -80,13 +75,27 @@ func init() {
 	serverCmd.Flags().String("min-severity", "medium", "minimum severity level to act upon (low, medium, high, critical)")
 
 	// Bind flags to viper
-	viper.BindPFlag("server.mode", serverCmd.Flags().Lookup("mode"))
-	viper.BindPFlag("server.port", serverCmd.Flags().Lookup("port"))
-	viper.BindPFlag("server.tls-cert-file", serverCmd.Flags().Lookup("tls-cert-file"))
-	viper.BindPFlag("server.tls-key-file", serverCmd.Flags().Lookup("tls-key-file"))
-	viper.BindPFlag("server.namespaces", serverCmd.Flags().Lookup("namespaces"))
-	viper.BindPFlag("server.resource-types", serverCmd.Flags().Lookup("resource-types"))
-	viper.BindPFlag("server.min-severity", serverCmd.Flags().Lookup("min-severity"))
+	if err := viper.BindPFlag("server.mode", serverCmd.Flags().Lookup("mode")); err != nil {
+		panic(fmt.Sprintf("failed to bind server.mode flag: %v", err))
+	}
+	if err := viper.BindPFlag("server.port", serverCmd.Flags().Lookup("port")); err != nil {
+		panic(fmt.Sprintf("failed to bind server.port flag: %v", err))
+	}
+	if err := viper.BindPFlag("server.tls-cert-file", serverCmd.Flags().Lookup("tls-cert-file")); err != nil {
+		panic(fmt.Sprintf("failed to bind server.tls-cert-file flag: %v", err))
+	}
+	if err := viper.BindPFlag("server.tls-key-file", serverCmd.Flags().Lookup("tls-key-file")); err != nil {
+		panic(fmt.Sprintf("failed to bind server.tls-key-file flag: %v", err))
+	}
+	if err := viper.BindPFlag("server.namespaces", serverCmd.Flags().Lookup("namespaces")); err != nil {
+		panic(fmt.Sprintf("failed to bind server.namespaces flag: %v", err))
+	}
+	if err := viper.BindPFlag("server.resource-types", serverCmd.Flags().Lookup("resource-types")); err != nil {
+		panic(fmt.Sprintf("failed to bind server.resource-types flag: %v", err))
+	}
+	if err := viper.BindPFlag("server.min-severity", serverCmd.Flags().Lookup("min-severity")); err != nil {
+		panic(fmt.Sprintf("failed to bind server.min-severity flag: %v", err))
+	}
 }
 
 func runServer(cmd *cobra.Command, args []string) error {
@@ -246,7 +255,9 @@ func (s *AdmissionServer) admitHandler(w http.ResponseWriter, r *http.Request) {
 	// Send response
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write(responseBytes)
+	if _, err := w.Write(responseBytes); err != nil {
+		s.Logger.Error("Failed to write response", "error", err)
+	}
 
 	// Log response
 	duration := time.Since(start)
@@ -461,21 +472,27 @@ func (s *AdmissionServer) buildViolationMessage(violations []models.ValidationRe
 // healthzHandler handles health check requests
 func (s *AdmissionServer) healthzHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("OK"))
+	if _, err := w.Write([]byte("OK")); err != nil {
+		s.Logger.Error("Failed to write health check response", "error", err)
+	}
 }
 
 // readyzHandler handles readiness check requests
 func (s *AdmissionServer) readyzHandler(w http.ResponseWriter, r *http.Request) {
 	// TODO: Add more sophisticated readiness checks
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Ready"))
+	if _, err := w.Write([]byte("Ready")); err != nil {
+		s.Logger.Error("Failed to write readiness check response", "error", err)
+	}
 }
 
 // metricsHandler handles metrics requests
 func (s *AdmissionServer) metricsHandler(w http.ResponseWriter, r *http.Request) {
 	// TODO: Add Prometheus metrics
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("# Metrics endpoint - TODO: implement Prometheus metrics\n"))
+	if _, err := w.Write([]byte("# Metrics endpoint - TODO: implement Prometheus metrics\n")); err != nil {
+		s.Logger.Error("Failed to write metrics response", "error", err)
+	}
 }
 
 // buildServerConfig creates server configuration from command flags
