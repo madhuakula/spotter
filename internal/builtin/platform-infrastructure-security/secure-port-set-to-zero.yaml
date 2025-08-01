@@ -33,7 +33,7 @@ spec:
           include: ["kube-system"]
           exclude: ["*"]
   cel: |
-    has(object.spec.containers) && object.spec.containers.exists(c, has(c.command) && c.command.exists(cmd, cmd == "kube-apiserver") && has(c.args) && c.args.exists(arg, arg.startsWith("--secure-port=") && double(arg.split("=")[1]) == 0.0))
+    has(object.spec.containers) && object.spec.containers.exists(c, has(c.command) && c.command.exists(cmd, cmd == "kube-apiserver") && has(c.args) && c.args.exists(arg, arg.startsWith("--secure-port=") && arg.contains("=0")))
   remediation:
     manual: "Ensure `--secure-port` is set to a non-zero value (e.g., 6443) for the kube-apiserver."
   references:

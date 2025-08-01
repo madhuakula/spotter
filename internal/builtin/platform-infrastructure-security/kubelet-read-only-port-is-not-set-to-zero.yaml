@@ -33,7 +33,7 @@ spec:
           include: ["kube-system"]
           exclude: ["*"]
   cel: |
-    has(object.spec.containers) && object.spec.containers.exists(c, has(c.command) && c.command.exists(cmd, cmd == "kubelet") && has(c.args) && c.args.exists(arg, arg.startsWith("--read-only-port=") && double(arg.split("=")[1]) != 0.0))
+    has(object.spec.containers) && object.spec.containers.exists(c, has(c.command) && c.command.exists(cmd, cmd == "kubelet") && has(c.args) && c.args.exists(arg, arg.startsWith("--read-only-port=") && !arg.contains("=0")))
   remediation:
     manual: "Set `--read-only-port=0` for the Kubelet."
   references:

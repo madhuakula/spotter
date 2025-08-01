@@ -39,7 +39,8 @@ spec:
           include: ["*"]
           exclude: ["kube-system", "kube-public"]
   cel: |
-    (object.kind == 'Pod' && has(object.spec.containers) && object.spec.containers.exists(c, !has(c.resources) || !has(c.resources.requests) || !has(c.resources.requests.cpu))) || (object.kind != 'Pod' && has(object.spec.template.spec.containers) && object.spec.template.spec.containers.exists(c, !has(c.resources) || !has(c.resources.requests) || !has(c.resources.requests.cpu)))
+    (object.kind == 'Pod' && has(object.spec.containers) && object.spec.containers.exists(c, !has(c.resources) || !has(c.resources.requests) || !has(c.resources.requests.cpu))) ||
+    (object.kind != 'Pod' && has(object.spec.template.spec.containers) && object.spec.template.spec.containers.exists(c, !has(c.resources) || !has(c.resources.requests) || !has(c.resources.requests.cpu)))
   remediation:
     manual: "Set CPU requests for all containers in the pod spec."
   references:

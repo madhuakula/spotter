@@ -33,7 +33,7 @@ spec:
           include: ["kube-system"]
           exclude: ["*"]
   cel: |
-    has(object.spec.containers) && object.spec.containers.exists(c, has(c.command) && c.command.exists(cmd, cmd == "kube-apiserver") && (!has(c.args) || !c.args.exists(arg, arg.startsWith("--request-timeout=")) || c.args.exists(arg, arg.startsWith("--request-timeout=") && arg.split("=")[1].endsWith("s") && double(arg.split("=")[1].replace("s", "")) > 300)))
+    has(object.spec.containers) && object.spec.containers.exists(c, has(c.command) && c.command.exists(cmd, cmd == "kube-apiserver") && (!has(c.args) || !c.args.exists(arg, arg.startsWith("--request-timeout=")) || c.args.exists(arg, arg.startsWith("--request-timeout=") && arg.endsWith("s") && !arg.contains("300s"))))
   remediation:
     manual: "Set `--request-timeout` for the kube-apiserver to a reasonable value (e.g., 300s)."
   references:

@@ -33,7 +33,7 @@ spec:
           include: ["kube-system"]
           exclude: ["*"]
   cel: |
-    has(object.spec.containers) && object.spec.containers.exists(c, has(c.command) && c.command.exists(cmd, cmd == "kubelet") && (!has(c.args) || !c.args.exists(arg, arg.startsWith("--event-qps=")) || c.args.exists(arg, arg.startsWith("--event-qps=") && double(arg.split("=")[1]) > 50)))
+    has(object.spec.containers) && object.spec.containers.exists(c, has(c.command) && c.command.exists(cmd, cmd == "kubelet") && (!has(c.args) || !c.args.exists(arg, arg.startsWith("--event-qps=")) || c.args.exists(arg, arg.startsWith("--event-qps=") && !arg.contains("50"))))
   remediation:
     manual: "Set the `--event-qps` flag for the Kubelet to a reasonable value (e.g., 0 to 50)."
   references:
