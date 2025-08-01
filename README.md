@@ -1,7 +1,7 @@
+
 <div align="center">
-  <h1>Spotter</h1>
-  
-  <p><strong>⚡️Universal Kubernetes Security Engine</strong></p>
+  <p align="center"><a href="https://spotter.run" rel="spotter.run"><img src="img/spotter-horizontal.svg" alt="Spotter Logo" width="350"></a></p>
+  <p align="center">⚡️Universal Kubernetes Security Engine</p>
 </div>
 
 <div align="center">
@@ -9,36 +9,22 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/madhuakula/spotter)](https://goreportcard.com/report/github.com/madhuakula/spotter)
 [![License](https://img.shields.io/github/license/madhuakula/spotter)](https://github.com/madhuakula/spotter/blob/main/LICENSE)
 [![Release](https://img.shields.io/github/v/release/madhuakula/spotter)](https://github.com/madhuakula/spotter/releases)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/madhuakula/spotter)
+
 </div>
 
----
+**Spotter** is a comprehensive Kubernetes security scanner that helps identify security misconfigurations, vulnerabilities, and compliance issues in your Kubernetes clusters and manifests. Built with extensibility and performance in mind, Spotter uses the Common Expression Language (CEL) for flexible rule definitions and supports multiple output formats including SARIF for seamless CI/CD integration.
 
-Spotter is a comprehensive Kubernetes security scanner that helps identify security misconfigurations, vulnerabilities, and compliance issues in your Kubernetes clusters and manifests. Built with extensibility and performance in mind, Spotter uses the Common Expression Language (CEL) for flexible rule definitions and supports multiple output formats including SARIF for seamless CI/CD integration.
+## 📋 Table of Contents
 
-## 🚀 Features
-
-### 🔒 Security Scanning
-- **Comprehensive Rule Set**: Built-in security rules covering OWASP Kubernetes Top 10, CIS Kubernetes Benchmark, and NSA/CISA guidelines
-- **Custom Rules**: Define your own security rules using CEL expressions
-- **Multi-Resource Support**: Scan Pods, Deployments, Services, ConfigMaps, Secrets, and more
-- **Real-time Cluster Scanning**: Connect to live Kubernetes clusters for runtime security assessment
-
-### 🚀 Performance & Scalability
-- **Concurrent Processing**: Multi-threaded scanning for large clusters and manifest collections
-- **Memory Efficient**: Optimized for scanning large numbers of resources
-- **Configurable Workers**: Tune performance based on your environment
-
-### 📊 Flexible Output
-- **Multiple Formats**: Table, JSON, YAML, and SARIF output formats
-- **CI/CD Integration**: SARIF support for GitHub Security tab and other security platforms
-- **Detailed Reports**: Comprehensive violation details with remediation guidance
-- **Severity Levels**: CRITICAL, HIGH, MEDIUM, and LOW classifications
-
-### 🔧 Developer Experience
-- **CLI Interface**: Intuitive command-line interface with comprehensive help
-- **Configuration Files**: YAML-based configuration for consistent scanning
-- **Extensible Architecture**: Plugin-based design for custom scanners and reporters
-- **Rich Documentation**: Comprehensive guides for users and contributors
+- [Quick Start](#-quick-start)
+- [Architecture](#-architecture)
+- [Features](#-features)
+- [Configuration](#-configuration)
+- [Security Categories](#-security-categories)
+- [Rule Development](#-rule-development)
+- [Contributing](#-contributing)
+- [Documentation](#-documentation)
 
 ## 🚀 Quick Start
 
@@ -98,18 +84,6 @@ spotter rules validate --path ./custom-rules/
 spotter rules show --id SPOTTER-WORKLOAD-SECURITY-101
 ```
 
-## 📋 Table of Contents
-
-- [Installation](#installation)
-- [Quick Start](#quick-start)
-- [Architecture](#architecture)
-- [Commands](#commands)
-- [Configuration](#configuration)
-- [Security Categories](#security-categories)
-- [Rule Development](#rule-development)
-- [Contributing](#contributing)
-- [Documentation](#documentation)
-
 ## 📖 Documentation
 
 ### User Guides
@@ -153,6 +127,31 @@ Spotter follows a modular architecture designed for extensibility and performanc
 │ • Directories   │    │ • Validation    │    │ • Monitoring    │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
+
+## 🚀 Features
+
+### 🔒 Security Scanning
+- **Comprehensive Rule Set**: Built-in security rules covering OWASP Kubernetes Top 10, CIS Kubernetes Benchmark, and NSA/CISA guidelines
+- **Custom Rules**: Define your own security rules using CEL expressions
+- **Multi-Resource Support**: Scan Pods, Deployments, Services, ConfigMaps, Secrets, and more
+- **Real-time Cluster Scanning**: Connect to live Kubernetes clusters for runtime security assessment
+
+### 🚀 Performance & Scalability
+- **Concurrent Processing**: Multi-threaded scanning for large clusters and manifest collections
+- **Memory Efficient**: Optimized for scanning large numbers of resources
+- **Configurable Workers**: Tune performance based on your environment
+
+### 📊 Flexible Output
+- **Multiple Formats**: Table, JSON, YAML, and SARIF output formats
+- **CI/CD Integration**: SARIF support for GitHub Security tab and other security platforms
+- **Detailed Reports**: Comprehensive violation details with remediation guidance
+- **Severity Levels**: CRITICAL, HIGH, MEDIUM, and LOW classifications
+
+### 🔧 Developer Experience
+- **CLI Interface**: Intuitive command-line interface with comprehensive help
+- **Configuration Files**: YAML-based configuration for consistent scanning
+- **Extensible Architecture**: Plugin-based design for custom scanners and reporters
+- **Rich Documentation**: Comprehensive guides for users and contributors
 
 ### Key Components
 
@@ -202,16 +201,16 @@ Spotter includes comprehensive built-in security rules and supports custom rule 
 
 ### Built-in Rule Categories
 
-- **Workload Security**
-- **Access Control**
-- **Network & Traffic Security**
-- **Secrets & Data Protection**
-- **Configuration & Resource Hygiene**
-- **Supply Chain & Image Security**
-- **CI/CD & GitOps Security**
-- **Runtime Threat Detection**
-- **Audit, Logging & Compliance**
-- **Platform & Infrastructure Security**
+- Workload Security
+- Access Control
+- Network & Traffic Security
+- Secrets & Data Protection
+- Configuration & Resource Hygiene
+- Supply Chain & Image Security
+- CI/CD & GitOps Security
+- Runtime Threat Detection
+- Audit, Logging & Compliance
+- Platform & Infrastructure Security
 
 ### Custom Rule Example
 
