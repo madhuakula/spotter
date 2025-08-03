@@ -55,7 +55,7 @@ changelog:
       - '^ci:'
 
 dockers:
-  # CLI version
+  # Unified spotter image (CLI + admission controller)
   - image_templates:
       - "ghcr.io/madhuakula/spotter:{{ .Tag }}"
       - "ghcr.io/madhuakula/spotter:v{{ .Major }}"
@@ -63,34 +63,13 @@ dockers:
       - "ghcr.io/madhuakula/spotter:latest"
     dockerfile: Dockerfile
     build_flag_templates:
-      - "--target=cli"
       - "--platform=linux/amd64"
       - "--label=org.opencontainers.image.created={{.Date}}"
       - "--label=org.opencontainers.image.title={{.ProjectName}}"
       - "--label=org.opencontainers.image.revision={{.FullCommit}}"
       - "--label=org.opencontainers.image.version={{.Version}}"
       - "--label=org.opencontainers.image.source={{.GitURL}}"
-      - "--label=org.opencontainers.image.description=Spotter CLI - Kubernetes security scanner"
-    extra_files:
-      - go.mod
-      - go.sum
-  
-  # Admission controller version
-  - image_templates:
-      - "ghcr.io/madhuakula/spotter-admission:{{ .Tag }}"
-      - "ghcr.io/madhuakula/spotter-admission:v{{ .Major }}"
-      - "ghcr.io/madhuakula/spotter-admission:v{{ .Major }}.{{ .Minor }}"
-      - "ghcr.io/madhuakula/spotter-admission:latest"
-    dockerfile: Dockerfile
-    build_flag_templates:
-      - "--target=admission"
-      - "--platform=linux/amd64"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.title={{.ProjectName}}-admission"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-      - "--label=org.opencontainers.image.source={{.GitURL}}"
-      - "--label=org.opencontainers.image.description=Spotter Admission Controller - Kubernetes security admission controller"
+      - "--label=org.opencontainers.image.description=Spotter - Kubernetes security scanner and admission controller"
     extra_files:
       - go.mod
       - go.sum

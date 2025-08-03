@@ -556,7 +556,7 @@ func loadBuiltinSecurityRules() ([]*models.SecurityRule, error) {
 	}
 
 	parser := parser.NewYAMLParser(true)
-	rules, err := parser.ParseRulesFromFS(context.Background(), BuiltinRulesFS, "internal/builtin")
+	rules, err := parser.ParseRulesFromFS(context.Background(), BuiltinRulesFS, "builtin")
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse built-in rules: %w", err)
 	}

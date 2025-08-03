@@ -69,8 +69,6 @@ spec:
       - name: admission-controller
         image: spotter:latest
         imagePullPolicy: Never  # Use local image
-        command:
-        - /spotter
         args:
         - server
         - --config=/etc/spotter/config.yaml

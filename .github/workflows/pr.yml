@@ -1,0 +1,32 @@
+name: PR Validation and Build
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  validate:
+    name: Validate PR
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.24'
+        
+    - name: Setup development environment
+      run: make dev-setup
+    
+    - name: Run all checks
+      run: make check
+    
+    - name: Build binary
+      run: make build
+    
+    - name: Build container image
+      run: make image
+    
+    - name: Show build info
+      run: make info

@@ -1,4 +1,4 @@
-name: golangci-lint
+name: Lint
 
 on:
   push:
@@ -12,8 +12,8 @@ permissions:
   checks: write
 
 jobs:
-  golangci:
-    name: lint
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -22,8 +22,8 @@ jobs:
         with:
           go-version: '1.24'
           
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6
-        with:
-          version: latest
-          args: --timeout=5m
+      - name: Setup development environment
+        run: make dev-setup
+          
+      - name: Run all checks
+        run: make check

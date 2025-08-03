@@ -1,10 +1,13 @@
 package main
 
-import "github.com/madhuakula/spotter/cmd"
+import (
+	"github.com/madhuakula/spotter/cmd"
+	"github.com/madhuakula/spotter/internal"
+)
 
 func main() {
 	// Initialize built-in rules filesystem for cmd package
-	cmd.BuiltinRulesFS = BuiltinRules
+	cmd.BuiltinRulesFS = internal.BuiltinRules
 
 	cmd.Execute()
 }

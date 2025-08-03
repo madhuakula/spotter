@@ -1,6 +1,3 @@
-# Build arguments must be declared before first FROM
-ARG BUILD_TARGET=cli
-
 # Build stage
 FROM golang:1.24-alpine AS builder
 
@@ -20,7 +17,10 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 # Copy source code
-COPY . .
+COPY *.go ./
+COPY cmd/ cmd/
+COPY pkg/ pkg/
+COPY internal/ internal/
 
 # Build the application with conditional ldflags
 RUN if [ "$ENABLE_VERSIONING" = "true" ]; then \
@@ -33,26 +33,11 @@ RUN if [ "$ENABLE_VERSIONING" = "true" ]; then \
         CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags='-w -s' -o spotter .; \
     fi
 
-# CLI version (scratch-based for minimal size)
-FROM scratch AS cli
+# Final image (distroless for security and versatility)
+FROM gcr.io/distroless/static:nonroot
 
-# Copy ca-certificates from builder
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-
-# Copy timezone data
-COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
-
-# Copy the binary
-COPY --from=builder /app/spotter /usr/local/bin/spotter
-
-# Set entrypoint
-ENTRYPOINT ["/usr/local/bin/spotter"]
-
-# Default command
-CMD ["--help"]
-
-# Admission controller version (distroless for security)
-FROM gcr.io/distroless/static:nonroot AS admission
+# Copy ca-certificates from builder (already included in distroless)
+# Copy timezone data from builder (already included in distroless)
 
 # Copy binary from builder stage
 COPY --from=builder /app/spotter /spotter
@@ -60,11 +45,11 @@ COPY --from=builder /app/spotter /spotter
 # Use non-root user (distroless nonroot user is 65532)
 USER 65532:65532
 
-# Expose the admission controller port
+# Expose the admission controller port (useful when running as server)
 EXPOSE 8443
 
 # Set entrypoint
 ENTRYPOINT ["/spotter"]
 
-# Default command
-CMD ["server", "--mode=validating", "--port=8443"]
+# Default command (help)
+CMD ["--help"]
