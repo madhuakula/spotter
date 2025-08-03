@@ -158,7 +158,16 @@ func initializeLogger() {
 	if viper.GetString("log-format") == "json" {
 		handler = slog.NewJSONHandler(os.Stderr, handlerOpts)
 	} else {
-		handler = slog.NewTextHandler(os.Stderr, handlerOpts)
+		handler = slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+			Level: level,
+			ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+				// Remove only the timestamp attribute, keep level and msg
+				if a.Key == slog.TimeKey {
+					return slog.Attr{}
+				}
+				return a
+			},
+		})
 	}
 
 	// Create logger
