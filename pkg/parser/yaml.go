@@ -150,8 +150,14 @@ func (p *YAMLParser) ParseRulesFromFS(ctx context.Context, fsys fs.FS, dirPath s
 			return err
 		}
 
-		// Skip directories and non-YAML files
+		// Skip directories, non-YAML files, and test files
 		if d.IsDir() || (!strings.HasSuffix(path, ".yaml") && !strings.HasSuffix(path, ".yml")) {
+			return nil
+		}
+
+		// Skip test files (files ending with -test.yaml or -test.yml)
+		baseName := filepath.Base(path)
+		if strings.HasSuffix(baseName, "-test.yaml") || strings.HasSuffix(baseName, "-test.yml") {
 			return nil
 		}
 

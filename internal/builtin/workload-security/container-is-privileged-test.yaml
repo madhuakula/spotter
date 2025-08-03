@@ -1,0 +1,66 @@
+- name: "privileged pod should fail"
+  pass: false
+  input: |
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: privileged-pod
+      namespace: default
+    spec:
+      containers:
+      - name: test-container
+        image: nginx:1.20
+        securityContext:
+          privileged: true
+
+- name: "non-privileged pod should pass"
+  pass: true
+  input: |
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: secure-pod
+      namespace: default
+    spec:
+      containers:
+      - name: test-container
+        image: nginx:1.20
+        securityContext:
+          privileged: false
+
+- name: "deployment with privileged container should fail"
+  pass: false
+  input: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: privileged-deployment
+      namespace: default
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          app: test
+      template:
+        metadata:
+          labels:
+            app: test
+        spec:
+          containers:
+          - name: test-container
+            image: nginx:1.20
+            securityContext:
+              privileged: true
+
+- name: "pod without security context should pass"
+  pass: true
+  input: |
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: basic-pod
+      namespace: default
+    spec:
+      containers:
+      - name: test-container
+        image: nginx:1.20

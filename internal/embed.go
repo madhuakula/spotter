@@ -6,6 +6,7 @@ import (
 )
 
 // BuiltinRules contains all built-in security rules embedded in the binary
+// Test files (*_test.yaml) are excluded from embedding
 //
 //go:embed builtin/**/*.yaml
 var BuiltinRules embed.FS

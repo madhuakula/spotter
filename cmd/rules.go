@@ -18,6 +18,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/madhuakula/spotter/pkg/engine"
+	"github.com/madhuakula/spotter/pkg/k8s"
 	"github.com/madhuakula/spotter/pkg/models"
 	"github.com/madhuakula/spotter/pkg/parser"
 )
@@ -99,17 +100,16 @@ This command checks rule files for:
 - CEL expression syntax
 - Rule metadata completeness
 - Duplicate rule IDs
-- Test case validation (automatically looks for *_test.yaml files in same directory)
 
 Examples:
-  # Validate rules in a directory (automatically runs test cases if found)
+  # Validate rules in a directory (configuration and CEL validation only)
   spotter rules validate ./rules/
   
   # Validate specific rule files
   spotter rules validate rule1.yaml rule2.yaml
   
-  # Validate with additional test cases from specific directory
-  spotter rules validate ./rules/ --test-cases=./test-cases/
+  # Validate rules and run test cases using *_test.yaml files
+  spotter rules validate ./rules/ --test-cases
   
   # Validate with strict mode (all warnings as errors)
   spotter rules validate ./rules/ --strict
@@ -217,7 +217,7 @@ func init() {
 	validateCmd.Flags().StringSlice("file-extensions", []string{".yaml", ".yml"}, "file extensions to validate")
 	validateCmd.Flags().Bool("check-duplicates", true, "check for duplicate rule IDs")
 	validateCmd.Flags().Bool("validate-cel", true, "validate CEL expressions")
-	validateCmd.Flags().String("test-cases", "", "path to additional test cases directory")
+	validateCmd.Flags().Bool("test-cases", false, "validate test cases using *_test.yaml files in same directory as rules")
 
 	// Info command flags
 	infoCmd.Flags().Bool("show-cel", false, "show CEL expression in output")
@@ -292,6 +292,7 @@ func runValidateRules(cmd *cobra.Command, args []string) error {
 	checkDuplicates, _ := cmd.Flags().GetBool("check-duplicates")
 	validateCEL, _ := cmd.Flags().GetBool("validate-cel")
 	strict, _ := cmd.Flags().GetBool("strict")
+	runTestCases, _ := cmd.Flags().GetBool("test-cases")
 
 	// Collect and validate rule files
 	for _, path := range args {
@@ -335,16 +336,10 @@ func runValidateRules(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Always run test case validation for co-located test files
-	if testErrors, testWarnings := runNewTestCaseValidation(allRules, args, ""); len(testErrors) > 0 || len(testWarnings) > 0 {
-		validationErrors = append(validationErrors, testErrors...)
-		validationWarnings = append(validationWarnings, testWarnings...)
-	}
-
-	// Run additional test case validation if path provided
-	testCasesPath, _ := cmd.Flags().GetString("test-cases")
-	if testCasesPath != "" {
-		if testErrors, testWarnings := runNewTestCaseValidation(allRules, args, testCasesPath); len(testErrors) > 0 || len(testWarnings) > 0 {
+	// Run test case validation only if --test-cases flag is provided
+	if runTestCases {
+		logger.Info("Running test case validation")
+		if testErrors, testWarnings := runTestCaseValidation(allRules, args); len(testErrors) > 0 || len(testWarnings) > 0 {
 			validationErrors = append(validationErrors, testErrors...)
 			validationWarnings = append(validationWarnings, testWarnings...)
 		}
@@ -808,10 +803,10 @@ func collectRuleFiles(path string, recursive bool, extensions []string) ([]strin
 	return files, err
 }
 
-// isTestFile checks if the file is a test file (ends with _test.yaml or _test.yml)
+// isTestFile checks if the file is a test file (ends with -test.yaml or -test.yml)
 func isTestFile(filePath string) bool {
 	baseName := filepath.Base(filePath)
-	return strings.HasSuffix(baseName, "_test.yaml") || strings.HasSuffix(baseName, "_test.yml")
+	return strings.HasSuffix(baseName, "-test.yaml") || strings.HasSuffix(baseName, "-test.yml")
 }
 
 func validateRuleStructure(rule *models.SecurityRule, filePath string) []string {
@@ -986,8 +981,8 @@ type TestCaseFile struct {
 	Description string `yaml:"description"`
 }
 
-// runNewTestCaseValidation validates rules using the new _test.yaml file approach
-func runNewTestCaseValidation(rules []*models.SecurityRule, rulePaths []string, testCasesDir string) ([]string, []string) {
+// runTestCaseValidation validates rules using test case files and the scan manifests approach
+func runTestCaseValidation(rules []*models.SecurityRule, rulePaths []string) ([]string, []string) {
 	logger := GetLogger()
 	ctx := context.Background()
 	var errors []string
@@ -1001,7 +996,7 @@ func runNewTestCaseValidation(rules []*models.SecurityRule, rulePaths []string, 
 
 	// Find test files for each rule
 	for _, rulePath := range rulePaths {
-		testFiles, err := findTestFiles(rulePath, testCasesDir)
+		testFiles, err := findTestFiles(rulePath, "")
 		if err != nil {
 			errors = append(errors, fmt.Sprintf("failed to find test files for %s: %v", rulePath, err))
 			continue
@@ -1023,9 +1018,9 @@ func runNewTestCaseValidation(rules []*models.SecurityRule, rulePaths []string, 
 				continue
 			}
 
-			// Run each test case
+			// Run each test case using scan manifests approach
 			for i, testCase := range testSuite {
-				if err := validateNewTestCase(ctx, rule, testCase, i); err != nil {
+				if err := validateTestCaseWithScan(ctx, rule, testCase, i); err != nil {
 					errors = append(errors, fmt.Sprintf("test case '%s' in %s failed: %v", testCase.Name, testFile, err))
 				} else {
 					logger.Debug("Test case passed", "rule", ruleName, "test", testCase.Name)
@@ -1035,6 +1030,79 @@ func runNewTestCaseValidation(rules []*models.SecurityRule, rulePaths []string, 
 	}
 
 	return errors, warnings
+}
+
+// validateTestCaseWithScan validates a single test case using the scan manifests approach
+func validateTestCaseWithScan(ctx context.Context, rule *models.SecurityRule, testCase models.RuleTestCase, index int) error {
+	logger := GetLogger()
+	logger.Debug("Validating test case using scan manifest approach", "test_case", testCase.Name, "rule", rule.Spec.ID)
+
+	// Parse test input as Kubernetes resource to validate it's proper YAML/JSON
+	var resource map[string]interface{}
+	if err := yaml.Unmarshal([]byte(testCase.Input), &resource); err != nil {
+		return fmt.Errorf("failed to parse test input: %w", err)
+	}
+
+	// Create a temporary file with the test input
+	tempFile, err := os.CreateTemp("", fmt.Sprintf("spotter-test-case-%d-*.yaml", index))
+	if err != nil {
+		return fmt.Errorf("failed to create temp file: %w", err)
+	}
+	defer os.Remove(tempFile.Name())
+	defer tempFile.Close()
+
+	// Write the test input to the temp file
+	if _, err := tempFile.WriteString(testCase.Input); err != nil {
+		return fmt.Errorf("failed to write test input to temp file: %w", err)
+	}
+	tempFile.Close()
+
+	// Initialize scanner and engine
+	scanner := initializeFileScanner()
+	engine, err := initializeEngine()
+	if err != nil {
+		return fmt.Errorf("failed to initialize evaluation engine: %w", err)
+	}
+
+	// Scan the manifest file
+	scanOptions := k8s.ScanOptions{
+		Recursive:               false,
+		Parallelism:             1,
+		Timeout:                 "30s",
+		IncludeSystemNamespaces: true,
+		IncludeClusterResources: true,
+		NamespacePatterns: k8s.NamespaceFilterConfig{
+			UseDynamicDetection: false,
+			UseSecureValidation: false,
+		},
+		ResourceFilterConfig: k8s.ResourceFilterConfig{
+			UseDynamicFiltering: false,
+		},
+	}
+
+	resources, err := scanner.ScanManifests(ctx, []string{tempFile.Name()}, scanOptions)
+	if err != nil {
+		return fmt.Errorf("failed to scan test manifest: %w", err)
+	}
+
+	if len(resources) == 0 {
+		return fmt.Errorf("no resources found in test input")
+	}
+
+	// Evaluate the rule against the first resource
+	result, err := engine.EvaluateRule(ctx, rule, resources[0])
+	if err != nil {
+		return fmt.Errorf("failed to evaluate rule: %w", err)
+	}
+
+	// Check if result matches expectation
+	// testCase.Pass == true means the test should pass the security check (result.Passed = true)
+	// testCase.Pass == false means the test should fail the security check (result.Passed = false)
+	if result.Passed != testCase.Pass {
+		return fmt.Errorf("expected passed=%v, got passed=%v", testCase.Pass, result.Passed)
+	}
+
+	return nil
 }
 
 // findTestFiles finds corresponding test files for rule files
@@ -1048,20 +1116,18 @@ func findTestFiles(rulePath, testCasesDir string) (map[string]string, error) {
 	}
 
 	for _, ruleFile := range ruleFiles {
-		// Generate test file name
+		// Generate test file name: rule_file.yaml -> rule_test.yaml
 		ruleDir := filepath.Dir(ruleFile)
 		ruleBase := strings.TrimSuffix(filepath.Base(ruleFile), filepath.Ext(ruleFile))
-		testFileName := ruleBase + "_test.yaml"
 
-		// Determine test file path
-		var testFilePath string
-		if testCasesDir != "" {
-			// Use specified test cases directory
-			testFilePath = filepath.Join(testCasesDir, testFileName)
-		} else {
-			// Use same directory as rule file
-			testFilePath = filepath.Join(ruleDir, testFileName)
+		// Remove "_file" suffix if it exists and add "-test"
+		if strings.HasSuffix(ruleBase, "_file") {
+			ruleBase = strings.TrimSuffix(ruleBase, "_file")
 		}
+		testFileName := ruleBase + "-test.yaml"
+
+		// Use same directory as rule file (no separate test directory)
+		testFilePath := filepath.Join(ruleDir, testFileName)
 
 		// Check if test file exists
 		if _, err := os.Stat(testFilePath); err == nil {
@@ -1085,35 +1151,6 @@ func loadTestSuite(testFilePath string) (models.RuleTestSuite, error) {
 	}
 
 	return testSuite, nil
-}
-
-// validateNewTestCase validates a single test case against a rule
-func validateNewTestCase(ctx context.Context, rule *models.SecurityRule, testCase models.RuleTestCase, index int) error {
-	// Parse test input as Kubernetes resource
-	var resource map[string]interface{}
-	if err := yaml.Unmarshal([]byte(testCase.Input), &resource); err != nil {
-		return fmt.Errorf("failed to parse test input: %w", err)
-	}
-
-	// Create CEL engine and evaluate rule
-	celEngine, err := engine.NewCELEngine()
-	if err != nil {
-		return fmt.Errorf("failed to create CEL engine: %w", err)
-	}
-
-	result, err := celEngine.EvaluateRule(ctx, rule, resource)
-	if err != nil {
-		return fmt.Errorf("failed to evaluate rule: %w", err)
-	}
-
-	// Check if result matches expectation
-	// testCase.Pass == true means the test should pass the security check (result.Passed = true)
-	// testCase.Pass == false means the test should fail the security check (result.Passed = false)
-	if result.Passed != testCase.Pass {
-		return fmt.Errorf("expected passed=%v, got passed=%v", testCase.Pass, result.Passed)
-	}
-
-	return nil
 }
 
 func generateRuleTemplate(ruleName, category, severity string, interactive bool) (string, error) {
