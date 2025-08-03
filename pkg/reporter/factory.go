@@ -94,7 +94,6 @@ func ParseReporterType(s string) (ReporterType, error) {
 
 // getWriter creates the appropriate writer based on options
 
-
 // ValidateReportOptions validates the report options
 func ValidateReportOptions(options *ReportOptions) error {
 	if options == nil {

@@ -1,8 +1,13 @@
-name: PR Validation and Build
+name: Pull Request
 
 on:
   pull_request:
     branches: [ main ]
+
+permissions:
+  contents: read
+  pull-requests: read
+  checks: write
 
 jobs:
   validate:
@@ -19,7 +24,7 @@ jobs:
     - name: Setup development environment
       run: make dev-setup
     
-    - name: Run all checks
+    - name: Run all checks (lint, format, vet, test)
       run: make check
     
     - name: Build binary

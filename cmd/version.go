@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/spf13/cobra"
 	"github.com/madhuakula/spotter/pkg/version"
+	"github.com/spf13/cobra"
 )
 
 var (
@@ -80,7 +80,7 @@ func runVersion(cmd *cobra.Command, args []string) {
 		fallthrough
 	default:
 		fmt.Println(versionInfo.String())
-		
+
 		// Add development build warning
 		if version.IsDevBuild() {
 			fmt.Println("\n⚠️  This is a development build. Use official releases for production.")

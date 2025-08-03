@@ -55,7 +55,7 @@ clean: ## Clean build artifacts
 
 lint: ## Run golangci-lint
 	@echo "Running linter..."
-	golangci-lint run ./...
+	$(shell go env GOPATH)/bin/golangci-lint run ./...
 
 fmt: ## Format code
 	@echo "Formatting code..."

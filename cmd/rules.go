@@ -532,7 +532,7 @@ func loadRulesForCommand(cmd *cobra.Command) ([]*RuleWithSource, error) {
 					// Skip this rule as we already have one with the same name
 					continue
 				}
-				
+
 				ruleIDMap[rule.Spec.ID] = true
 				ruleNameMap[rule.Spec.Name] = rule.Spec.ID
 				allRules = append(allRules, &RuleWithSource{
@@ -560,7 +560,7 @@ func loadRulesForCommand(cmd *cobra.Command) ([]*RuleWithSource, error) {
 						// Skip this rule as we already have one with the same name
 						continue
 					}
-					
+
 					ruleIDMap[rule.Spec.ID] = true
 					ruleNameMap[rule.Spec.Name] = rule.Spec.ID
 					allRules = append(allRules, &RuleWithSource{
@@ -985,12 +985,6 @@ type TestCaseFile struct {
 	Expected    bool   `yaml:"expected"`
 	Description string `yaml:"description"`
 }
-
-
-
-
-
-
 
 // runNewTestCaseValidation validates rules using the new _test.yaml file approach
 func runNewTestCaseValidation(rules []*models.SecurityRule, rulePaths []string, testCasesDir string) ([]string, []string) {

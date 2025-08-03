@@ -10,13 +10,13 @@ import (
 var (
 	// Version is the semantic version of the build
 	Version = "dev"
-	
+
 	// CommitHash is the git commit hash of the build
 	CommitHash = "unknown"
-	
+
 	// BuildDate is the date when the binary was built
 	BuildDate = "unknown"
-	
+
 	// GoVersion is the Go version used to build the binary
 	GoVersion = "unknown"
 )

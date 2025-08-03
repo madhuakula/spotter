@@ -39,7 +39,7 @@ Examples:
 func init() {
 	// Add init command to root
 	rootCmd.AddCommand(initCmd)
-	
+
 	// Add flags specific to init command
 	initCmd.Flags().Bool("force", false, "force overwrite existing configuration file")
 }
@@ -50,7 +50,7 @@ func runInit(cmd *cobra.Command) error {
 	if configPath == "" {
 		configPath = ".spotter.yaml"
 	}
-	
+
 	// Check if file already exists
 	if _, err := os.Stat(configPath); err == nil {
 		force, _ := cmd.Flags().GetBool("force")
@@ -58,7 +58,7 @@ func runInit(cmd *cobra.Command) error {
 			return fmt.Errorf("configuration file already exists at %s. Use --force to overwrite", configPath)
 		}
 	}
-	
+
 	// Create directory if it doesn't exist
 	dir := filepath.Dir(configPath)
 	if dir != "." {
@@ -66,16 +66,16 @@ func runInit(cmd *cobra.Command) error {
 			return fmt.Errorf("failed to create directory %s: %w", dir, err)
 		}
 	}
-	
+
 	// Write the configuration file
 	if err := writeDefaultConfig(configPath); err != nil {
 		return fmt.Errorf("failed to write configuration file: %w", err)
 	}
-	
+
 	fmt.Printf("Configuration file created successfully at: %s\n", configPath)
 	fmt.Println("\nYou can now customize the configuration according to your needs.")
 	fmt.Println("Run 'spotter scan --help' to see how to use the configuration file.")
-	
+
 	return nil
 }
 
