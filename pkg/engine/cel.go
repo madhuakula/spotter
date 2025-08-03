@@ -206,6 +206,12 @@ func (e *CELEngine) EvaluateRules(ctx context.Context, rules []*models.SecurityR
 
 // EvaluateRulesAgainstResources evaluates multiple rules against multiple resources
 func (e *CELEngine) EvaluateRulesAgainstResources(ctx context.Context, rules []*models.SecurityRule, resources []map[string]interface{}) (*models.ScanResult, error) {
+	// Default parallelism
+	return e.EvaluateRulesAgainstResourcesConcurrent(ctx, rules, resources, 10)
+}
+
+// EvaluateRulesAgainstResourcesConcurrent evaluates multiple rules against multiple resources with specified parallelism
+func (e *CELEngine) EvaluateRulesAgainstResourcesConcurrent(ctx context.Context, rules []*models.SecurityRule, resources []map[string]interface{}, parallelism int) (*models.ScanResult, error) {
 	startTime := time.Now()
 	allResults := make([]models.ValidationResult, 0)
 	severityBreakdown := make(map[string]int)
@@ -228,7 +234,10 @@ func (e *CELEngine) EvaluateRulesAgainstResources(ctx context.Context, rules []*
 	results := make(chan result, len(rules)*len(resources))
 
 	// Start workers
-	numWorkers := 10 // Configurable
+	numWorkers := parallelism
+	if numWorkers <= 0 {
+		numWorkers = 10 // Default fallback
+	}
 	for i := 0; i < numWorkers; i++ {
 		go func() {
 			for j := range jobs {

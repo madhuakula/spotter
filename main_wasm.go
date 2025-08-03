@@ -43,7 +43,7 @@ func main() {
 func wasmScan(this js.Value, args []js.Value) interface{} {
 	// Capture the original arguments
 	scanArgs := args
-	
+
 	// Create a promise
 	handler := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		resolve := args[0]
@@ -69,7 +69,7 @@ func wasmScan(this js.Value, args []js.Value) interface{} {
 
 			scanType := scanArgs[0].String()
 			input := scanArgs[1].String()
-			
+
 			var options map[string]interface{}
 			if len(scanArgs) > 2 && !scanArgs[2].IsUndefined() {
 				optionsBytes := []byte(scanArgs[2].String())
@@ -121,7 +121,7 @@ func wasmScan(this js.Value, args []js.Value) interface{} {
 func wasmValidateRules(this js.Value, args []js.Value) interface{} {
 	// Capture the original arguments
 	validateArgs := args
-	
+
 	handler := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		resolve := args[0]
 		reject := args[1]
@@ -364,29 +364,29 @@ func extractRuleInfo(rule map[string]interface{}, path string) map[string]interf
 // performScan executes the actual scanning logic using the full rule engine
 func performScan(scanType, input string, options map[string]interface{}) (map[string]interface{}, error) {
 	ctx := context.Background()
-	
+
 	// Parse YAML input
 	var manifest map[string]interface{}
 	if err := yaml.Unmarshal([]byte(input), &manifest); err != nil {
 		return nil, fmt.Errorf("failed to parse YAML: %v", err)
 	}
-	
+
 	// Debug: log manifest info
 	fmt.Printf("WASM Debug: Processing manifest - Kind: %v, ApiVersion: %v\n", manifest["kind"], manifest["apiVersion"])
-	
+
 	// Load all built-in rules using the same method as CLI
 	rules, err := loadAllBuiltinRules()
 	if err != nil {
 		return nil, fmt.Errorf("failed to load built-in rules: %v", err)
 	}
-	
+
 	// Debug: log rules loaded
 	fmt.Printf("WASM Debug: Loaded %d built-in rules\n", len(rules))
-	
+
 	// Filter rules based on selected rules from options
 	selectedRules := make(map[string]bool)
 	hasSelectedRules := false
-	
+
 	if rulesList, ok := options["selectedRules"].([]interface{}); ok {
 		hasSelectedRules = true
 		fmt.Printf("WASM Debug: Found selectedRules option with %d rules\n", len(rulesList))
@@ -402,7 +402,7 @@ func performScan(scanType, input string, options map[string]interface{}) (map[st
 	} else {
 		fmt.Printf("WASM Debug: No selectedRules option found in options\n")
 	}
-	
+
 	// Filter rules based on selection
 	var filteredRules []*models.SecurityRule
 	if hasSelectedRules && len(selectedRules) > 0 {
@@ -423,17 +423,17 @@ func performScan(scanType, input string, options map[string]interface{}) (map[st
 		fmt.Printf("WASM Debug: No selectedRules option provided, using all %d rules\n", len(rules))
 		filteredRules = rules
 	}
-	
+
 	fmt.Printf("WASM Debug: Final filtered rules count: %d\n", len(filteredRules))
-	
+
 	// Initialize CEL engine
 	celEngine, err := engine.NewCELEngine()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create CEL engine: %v", err)
 	}
-	
+
 	fmt.Printf("WASM Debug: CEL engine created successfully\n")
-	
+
 	// Try to evaluate rules one by one to get better error handling
 	var results []*models.ValidationResult
 	for _, rule := range filteredRules {
@@ -446,7 +446,7 @@ func performScan(scanType, input string, options map[string]interface{}) (map[st
 			results = append(results, result)
 		}
 	}
-	
+
 	// Convert results to the expected format
 	findings := []map[string]interface{}{}
 	summary := map[string]interface{}{
@@ -456,14 +456,14 @@ func performScan(scanType, input string, options map[string]interface{}) (map[st
 		"medium":   0,
 		"low":      0,
 	}
-	
+
 	// Debug: log how many results we got
 	fmt.Printf("WASM Debug: Got %d results from %d rules\n", len(results), len(filteredRules))
-	
+
 	for _, result := range results {
 		// Debug: log each result
 		fmt.Printf("WASM Debug: Rule %s, Passed: %t, Message: %s\n", result.RuleID, result.Passed, result.Message)
-		
+
 		if !result.Passed {
 			finding := map[string]interface{}{
 				"rule":        result.RuleID,
@@ -474,7 +474,7 @@ func performScan(scanType, input string, options map[string]interface{}) (map[st
 				"remediation": result.Remediation,
 			}
 			findings = append(findings, finding)
-			
+
 			// Update summary
 			severityStr := strings.ToLower(string(result.Severity))
 			if count, exists := summary[severityStr].(int); exists {
@@ -482,9 +482,9 @@ func performScan(scanType, input string, options map[string]interface{}) (map[st
 			}
 		}
 	}
-	
+
 	summary["total"] = len(findings)
-	
+
 	result := map[string]interface{}{
 		"scanType":      scanType,
 		"findings":      findings,
@@ -495,8 +495,6 @@ func performScan(scanType, input string, options map[string]interface{}) (map[st
 
 	return result, nil
 }
-
-
 
 // getResourceName extracts the resource name from manifest
 func getResourceName(manifest map[string]interface{}) string {
@@ -522,13 +520,13 @@ func getNamespace(manifest map[string]interface{}) string {
 func loadAllBuiltinRules() ([]*models.SecurityRule, error) {
 	ctx := context.Background()
 	parser := parser.NewYAMLParser(true)
-	
+
 	rulesFS := internal.GetBuiltinRulesFS()
 	rules, err := parser.ParseRulesFromFS(ctx, rulesFS, "builtin")
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse built-in rules: %v", err)
 	}
-	
+
 	return rules, nil
 }
 
@@ -537,23 +535,23 @@ func validateRules(rulesContent string) (map[string]interface{}, error) {
 	var rules []map[string]interface{}
 	var errors []string
 	valid := true
-	
+
 	// Split multiple YAML documents
 	documents := strings.Split(rulesContent, "---")
-	
+
 	for i, doc := range documents {
 		doc = strings.TrimSpace(doc)
 		if doc == "" {
 			continue
 		}
-		
+
 		var rule map[string]interface{}
 		if err := yaml.Unmarshal([]byte(doc), &rule); err != nil {
 			errors = append(errors, fmt.Sprintf("Document %d: Invalid YAML: %v", i+1, err))
 			valid = false
 			continue
 		}
-		
+
 		// Basic rule validation
 		ruleName := "unknown"
 		if metadata, ok := rule["metadata"].(map[string]interface{}); ok {
@@ -561,7 +559,7 @@ func validateRules(rulesContent string) (map[string]interface{}, error) {
 				ruleName = name
 			}
 		}
-		
+
 		ruleErrors := validateRule(rule)
 		if len(ruleErrors) > 0 {
 			valid = false
@@ -569,9 +567,9 @@ func validateRules(rulesContent string) (map[string]interface{}, error) {
 				errors = append(errors, fmt.Sprintf("Rule '%s': %s", ruleName, err))
 			}
 		}
-		
+
 		rules = append(rules, map[string]interface{}{
-			"name":   ruleName,
+			"name": ruleName,
 			"status": func() string {
 				if len(ruleErrors) > 0 {
 					return "invalid"
@@ -581,7 +579,7 @@ func validateRules(rulesContent string) (map[string]interface{}, error) {
 			"errors": ruleErrors,
 		})
 	}
-	
+
 	result := map[string]interface{}{
 		"valid":  valid,
 		"rules":  rules,
@@ -594,16 +592,16 @@ func validateRules(rulesContent string) (map[string]interface{}, error) {
 // validateRule validates a single security rule
 func validateRule(rule map[string]interface{}) []string {
 	var errors []string
-	
+
 	// Check required fields
 	if _, ok := rule["apiVersion"]; !ok {
 		errors = append(errors, "missing required field: apiVersion")
 	}
-	
+
 	if _, ok := rule["kind"]; !ok {
 		errors = append(errors, "missing required field: kind")
 	}
-	
+
 	if metadata, ok := rule["metadata"].(map[string]interface{}); ok {
 		if _, ok := metadata["name"]; !ok {
 			errors = append(errors, "missing required field: metadata.name")
@@ -611,17 +609,17 @@ func validateRule(rule map[string]interface{}) []string {
 	} else {
 		errors = append(errors, "missing required field: metadata")
 	}
-	
+
 	if spec, ok := rule["spec"].(map[string]interface{}); ok {
 		// Check spec fields
 		if _, ok := spec["title"]; !ok {
 			errors = append(errors, "missing required field: spec.title")
 		}
-		
+
 		if _, ok := spec["description"]; !ok {
 			errors = append(errors, "missing required field: spec.description")
 		}
-		
+
 		if severity, ok := spec["severity"].(string); ok {
 			validSeverities := []string{"critical", "high", "medium", "low"}
 			isValid := false
@@ -637,13 +635,13 @@ func validateRule(rule map[string]interface{}) []string {
 		} else {
 			errors = append(errors, "missing or invalid field: spec.severity")
 		}
-		
+
 		if _, ok := spec["expression"]; !ok {
 			errors = append(errors, "missing required field: spec.expression")
 		}
 	} else {
 		errors = append(errors, "missing required field: spec")
 	}
-	
+
 	return errors
 }

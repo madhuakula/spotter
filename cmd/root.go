@@ -73,7 +73,6 @@ func init() {
 	rootCmd.PersistentFlags().String("output", "table", "output format (table, json, yaml, sarif)")
 	rootCmd.PersistentFlags().String("output-file", "", "output file path")
 	rootCmd.PersistentFlags().Bool("no-color", false, "disable colored output")
-	rootCmd.PersistentFlags().Int("max-concurrency", 10, "maximum number of concurrent operations")
 	rootCmd.PersistentFlags().String("timeout", "5m", "timeout for operations")
 
 	// Bind flags to viper
@@ -91,7 +90,6 @@ func init() {
 		{"output", "output"},
 		{"output-file", "output-file"},
 		{"no-color", "no-color"},
-		{"max-concurrency", "max-concurrency"},
 	}
 
 	for _, bf := range bindFlags {

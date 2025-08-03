@@ -91,17 +91,13 @@ type ScanOptions struct {
 	// Recursive enables recursive scanning of directories
 	Recursive bool
 
-	// MaxConcurrency limits the number of concurrent operations
-	MaxConcurrency int
-
 	// Timeout specifies the timeout for operations
 	Timeout string
 
 	// Performance optimization options
-	BatchSize    int    // Number of resources to process in each batch
 	CacheEnabled bool   // Enable resource caching
 	CacheTTL     string // Cache time-to-live
-	Parallelism  int    // Number of parallel workers
+	Parallelism  int    // Number of parallel workers for scanning and rule evaluation
 
 	// Memory optimization
 	MemoryLimit      int64 // Maximum memory usage in bytes

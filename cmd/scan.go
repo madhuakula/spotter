@@ -160,7 +160,6 @@ func init() {
 	// Manifests scan flags
 	manifestsCmd.Flags().Bool("recursive", true, "recursively scan directories")
 	manifestsCmd.Flags().StringSlice("file-extensions", []string{".yaml", ".yml", ".json"}, "file extensions to scan")
-	manifestsCmd.Flags().Bool("validate-syntax", true, "validate YAML/JSON syntax before scanning")
 	manifestsCmd.Flags().StringSlice("include-paths", []string{}, "paths to include in scanning")
 	manifestsCmd.Flags().Bool("follow-symlinks", false, "follow symbolic links when scanning directories")
 	manifestsCmd.Flags().Bool("exclude-system-namespaces", false, "exclude system namespaces (kube-system, kube-public, etc.)")
@@ -192,8 +191,7 @@ func init() {
 		cmd.Flags().StringToString("custom-filters", map[string]string{}, "custom filter expressions (key=value)")
 		cmd.Flags().Bool("continue-on-error", true, "continue scanning even if some resources fail")
 		cmd.Flags().Int("max-violations", 0, "maximum number of violations before stopping scan (0 = unlimited)")
-		cmd.Flags().Int("batch-size", 50, "number of resources/files to process in each batch")
-		cmd.Flags().Int("parallelism", 4, "number of parallel workers for scanning")
+		cmd.Flags().Int("parallelism", 4, "number of parallel workers for scanning and rule evaluation")
 		cmd.Flags().Int64("memory-limit", 0, "maximum memory usage in MB (0 = unlimited)")
 		cmd.Flags().Bool("interactive", false, "enable interactive mode with progress bars")
 		cmd.Flags().Bool("show-progress", true, "show progress indicators during scanning")
@@ -609,7 +607,7 @@ func parseDuration(s string) time.Duration {
 type ScanConfig struct {
 	Output                  string
 	OutputFile              string
-	MaxConcurrency          int
+	Parallelism             int
 	Timeout                 time.Duration
 	MinSeverity             string
 	IncludeNamespaces       []string
@@ -630,12 +628,12 @@ func buildScanConfig(cmd *cobra.Command) (*ScanConfig, error) {
 	cmdName := cmd.Name()
 
 	config := &ScanConfig{
-		Output:         viper.GetString("output"),
-		OutputFile:     viper.GetString("output-file"),
-		MaxConcurrency: viper.GetInt("max-concurrency"),
-		Timeout:        parseDuration(viper.GetString("timeout")),
-		NoColor:        viper.GetBool("no-color"),
-		Verbose:        viper.GetBool("verbose"),
+		Output:      viper.GetString("output"),
+		OutputFile:  viper.GetString("output-file"),
+		Parallelism: 4, // Default parallelism, will be overridden by flag
+		Timeout:     parseDuration(viper.GetString("timeout")),
+		NoColor:     viper.GetBool("no-color"),
+		Verbose:     viper.GetBool("verbose"),
 	}
 
 	// Set defaults based on config file for specific command types
@@ -680,13 +678,16 @@ func buildScanConfig(cmd *cobra.Command) (*ScanConfig, error) {
 	if cmd.Flags().Changed("include-cluster-resources") {
 		config.IncludeClusterResources, _ = cmd.Flags().GetBool("include-cluster-resources")
 	}
+	if cmd.Flags().Changed("parallelism") {
+		config.Parallelism, _ = cmd.Flags().GetInt("parallelism")
+	}
 
 	// Set defaults
 	if len(config.FileExtensions) == 0 {
 		config.FileExtensions = []string{".yaml", ".yml", ".json"}
 	}
-	if config.MaxConcurrency <= 0 {
-		config.MaxConcurrency = 10
+	if config.Parallelism <= 0 {
+		config.Parallelism = 4
 	}
 
 	return config, nil
@@ -755,7 +756,7 @@ func executeClusterScan(ctx context.Context, scanner k8s.ResourceScanner, engine
 		ResourceTypes:           gvks,
 		IncludeSystemNamespaces: !config.ExcludeSystemNamespaces, // Use the config value
 		IncludeClusterResources: config.IncludeClusterResources,  // Use the config value
-		MaxConcurrency:          config.MaxConcurrency,
+		Parallelism:             config.Parallelism,
 		Timeout:                 config.Timeout.String(),
 		NamespacePatterns: k8s.NamespaceFilterConfig{
 			UseDynamicDetection: true,
@@ -792,7 +793,7 @@ func executeManifestsScan(ctx context.Context, scanner k8s.ResourceScanner, engi
 	// Build scan options with dynamic filtering enabled
 	scanOptions := k8s.ScanOptions{
 		Recursive:               config.Recursive,
-		MaxConcurrency:          config.MaxConcurrency,
+		Parallelism:             config.Parallelism,
 		Timeout:                 config.Timeout.String(),
 		IncludeSystemNamespaces: !config.ExcludeSystemNamespaces, // Use the config value
 		IncludeClusterResources: config.IncludeClusterResources,  // Use the config value
@@ -841,7 +842,7 @@ func executeHelmScan(ctx context.Context, scanner k8s.ResourceScanner, engine en
 
 	// Build scan options with dynamic filtering enabled
 	scanOptions := k8s.ScanOptions{
-		MaxConcurrency:          config.MaxConcurrency,
+		Parallelism:             config.Parallelism,
 		Timeout:                 config.Timeout.String(),
 		IncludeSystemNamespaces: !config.ExcludeSystemNamespaces, // Use the config value
 		IncludeClusterResources: config.IncludeClusterResources,  // Use the config value
@@ -893,9 +894,9 @@ func evaluateResourcesConcurrently(ctx context.Context, engine engine.Evaluation
 	progressBar := progress.NewProgressBar(len(resources), "🔍 Scanning resources")
 	defer progressBar.Finish()
 
-	// Use the engine's built-in concurrency instead of creating another layer of workers
+	// Use the engine's built-in concurrency with configured parallelism
 	// This avoids the double worker pool issue that was causing duplicate evaluations
-	result, err := engine.EvaluateRulesAgainstResources(ctx, rules, resources)
+	result, err := engine.EvaluateRulesAgainstResourcesConcurrent(ctx, rules, resources, config.Parallelism)
 	if err != nil {
 		return nil, fmt.Errorf("failed to evaluate resources: %w", err)
 	}

@@ -133,33 +133,11 @@ func (s *Scanner) generateCacheKey(scanType string, options ScanOptions) string 
 	return key
 }
 
-// processBatch processes resources in batches for better performance
+// processBatch is deprecated and replaced by processParallel
+// Keeping for backward compatibility but not actively used
 func (s *Scanner) processBatch(ctx context.Context, resources []map[string]interface{}, batchSize int, options ScanOptions) []map[string]interface{} {
-	if batchSize <= 0 {
-		batchSize = 100 // Default batch size
-	}
-
-	var result []map[string]interface{}
-	for i := 0; i < len(resources); i += batchSize {
-		end := i + batchSize
-		if end > len(resources) {
-			end = len(resources)
-		}
-		batch := resources[i:end]
-		processedBatch := s.filterResources(batch, options)
-		result = append(result, processedBatch...)
-
-		s.metrics.mu.Lock()
-		s.metrics.BatchesProcessed++
-		s.metrics.ResourcesScanned += int64(len(batch))
-		s.metrics.mu.Unlock()
-
-		// Check memory limits and trigger GC if needed
-		if options.MemoryLimit > 0 {
-			s.checkMemoryLimit(options.MemoryLimit)
-		}
-	}
-	return result
+	// This method is now a passthrough to parallel processing
+	return s.processParallel(ctx, resources, options.Parallelism, options)
 }
 
 // checkMemoryLimit checks if memory usage exceeds limit and triggers GC
@@ -287,12 +265,10 @@ func (s *Scanner) ScanCluster(ctx context.Context, options ScanOptions) ([]map[s
 		allResources = append(allResources, namespacedResources...)
 	}
 
-	// Apply optimization based on options
+	// Apply optimization based on parallelism
 	var result []map[string]interface{}
 	if options.Parallelism > 1 {
 		result = s.processParallel(ctx, allResources, options.Parallelism, options)
-	} else if options.BatchSize > 0 {
-		result = s.processBatch(ctx, allResources, options.BatchSize, options)
 	} else {
 		result = s.filterResources(allResources, options)
 	}

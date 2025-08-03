@@ -18,6 +18,9 @@ type EvaluationEngine interface {
 	// EvaluateRulesAgainstResources evaluates multiple rules against multiple resources
 	EvaluateRulesAgainstResources(ctx context.Context, rules []*models.SecurityRule, resources []map[string]interface{}) (*models.ScanResult, error)
 
+	// EvaluateRulesAgainstResourcesConcurrent evaluates multiple rules against multiple resources with specified parallelism
+	EvaluateRulesAgainstResourcesConcurrent(ctx context.Context, rules []*models.SecurityRule, resources []map[string]interface{}, parallelism int) (*models.ScanResult, error)
+
 	// CompileRule pre-compiles a rule's CEL expression for better performance
 	CompileRule(ctx context.Context, rule *models.SecurityRule) error
 
