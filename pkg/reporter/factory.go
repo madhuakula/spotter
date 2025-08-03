@@ -47,6 +47,11 @@ func (f *Factory) CreateReporter(format string) (Reporter, error) {
 
 // CreateReporterWithOptions creates a reporter with specific options
 func (f *Factory) CreateReporterWithOptions(format string, noColor, verbose bool) (Reporter, error) {
+	return f.CreateReporterWithAdvancedOptions(format, noColor, verbose, false, false)
+}
+
+// CreateReporterWithAdvancedOptions creates a reporter with all available options
+func (f *Factory) CreateReporterWithAdvancedOptions(format string, noColor, verbose, quiet, summaryOnly bool) (Reporter, error) {
 	reporterType, err := ParseReporterType(format)
 	if err != nil {
 		return nil, err
@@ -54,7 +59,12 @@ func (f *Factory) CreateReporterWithOptions(format string, noColor, verbose bool
 
 	switch reporterType {
 	case ReporterTypeTable:
-		return NewTableReporter(noColor, verbose), nil
+		reporter := NewTableReporter(noColor, verbose)
+		if tr, ok := reporter.(*TableReporter); ok {
+			tr.SetQuiet(quiet)
+			tr.SetSummaryOnly(summaryOnly)
+		}
+		return reporter, nil
 	case ReporterTypeJSON:
 		return NewJSONReporter(), nil
 	case ReporterTypeYAML:

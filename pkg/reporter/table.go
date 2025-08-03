@@ -43,29 +43,56 @@ type ResourceGroupStat struct {
 
 // TableReporter generates reports in table format for console output
 type TableReporter struct {
-	noColor bool
-	verbose bool
+	noColor     bool
+	verbose     bool
+	quiet       bool
+	summaryOnly bool
 }
 
 // NewTableReporter creates a new table reporter
 func NewTableReporter(noColor, verbose bool) Reporter {
 	return &TableReporter{
-		noColor: noColor,
-		verbose: verbose,
+		noColor:     noColor,
+		verbose:     verbose,
+		quiet:       false,
+		summaryOnly: false,
 	}
+}
+
+// SetQuiet sets the quiet mode for the table reporter
+func (r *TableReporter) SetQuiet(quiet bool) {
+	r.quiet = quiet
+}
+
+// SetSummaryOnly sets the summary-only mode for the table reporter
+func (r *TableReporter) SetSummaryOnly(summaryOnly bool) {
+	r.summaryOnly = summaryOnly
 }
 
 // GenerateReport generates a table format report
 func (r *TableReporter) GenerateReport(ctx context.Context, results *models.ScanResult) ([]byte, error) {
 	var output strings.Builder
 
-	// Header
-	output.WriteString(r.formatHeader("Spotter Security Scan Report"))
-	output.WriteString("\n")
+	// If quiet mode, only show basic summary
+	if r.quiet {
+		output.WriteString(fmt.Sprintf("Scan completed: %d violations found in %d resources\n", results.Failed, results.TotalResources))
+		return []byte(output.String()), nil
+	}
 
-	// Enhanced Summary with scoring
+	// Header (unless summary-only)
+	if !r.summaryOnly {
+		output.WriteString(r.formatHeader("Spotter Security Scan Report"))
+		output.WriteString("\n")
+	}
+
+	// Enhanced Summary with scoring (always shown)
 	output.WriteString(r.formatEnhancedSummary(results))
 	output.WriteString("\n")
+
+	// If summary-only mode, stop here
+	if r.summaryOnly {
+		return []byte(output.String()), nil
+	}
 
 	// Category-wise scoring table (always shown)
 	output.WriteString(r.formatCategoryScoreTable(results))

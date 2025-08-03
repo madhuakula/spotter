@@ -47,7 +47,7 @@ Examples:
   spotter scan manifests ./k8s-manifests/
   
   # Scan with custom rules
-  spotter scan cluster --rules-path=./custom-rules/
+  spotter scan cluster --include-rules=SPOTTER-WORKLOAD-SECURITY-105
   
   # Output to file
   spotter scan cluster --output=json --output-file=results.json`,
@@ -73,7 +73,7 @@ Examples:
   spotter scan cluster --exclude-system-namespaces
   
   # Scan specific resource types
-  spotter scan cluster --resource-types=pods,deployments,services`,
+  spotter scan cluster --resource-types=apps/v1/Deployment,v1/Pod`,
 	RunE: runClusterScan,
 }
 
@@ -147,15 +147,6 @@ func init() {
 	clusterCmd.Flags().StringSlice("resource-types", []string{}, "specific resource types to scan (format: group/version/kind, e.g., apps/v1/Deployment)")
 	clusterCmd.Flags().Bool("include-cluster-resources", true, "include cluster-scoped resources")
 	clusterCmd.Flags().String("context", "", "kubernetes context to use")
-	clusterCmd.Flags().Bool("watch", false, "watch for resource changes and continuously scan")
-	clusterCmd.Flags().Duration("watch-interval", 30*time.Second, "interval for watch mode scanning")
-	clusterCmd.Flags().String("label-selector", "", "label selector to filter resources (e.g., app=nginx,env=prod)")
-	clusterCmd.Flags().String("field-selector", "", "field selector to filter resources")
-	clusterCmd.Flags().String("cache-dir", "", "directory to cache scan results")
-	clusterCmd.Flags().Duration("cache-ttl", 5*time.Minute, "cache time-to-live for scan results")
-
-	// Performance optimization flags
-	clusterCmd.Flags().Int("resource-pool-size", 100, "size of resource object pool for reuse")
 
 	// Manifests scan flags
 	manifestsCmd.Flags().Bool("recursive", true, "recursively scan directories")
@@ -184,18 +175,13 @@ func init() {
 
 	// Common scan flags
 	for _, cmd := range []*cobra.Command{clusterCmd, manifestsCmd, helmCmd} {
-		cmd.Flags().String("min-severity", "", "minimum severity level to report (low, medium, high, critical)")
 		cmd.Flags().StringSlice("include-rules", []string{}, "specific rule IDs to include")
 		cmd.Flags().StringSlice("exclude-rules", []string{}, "specific rule IDs to exclude")
 		cmd.Flags().StringSlice("categories", []string{}, "rule categories to include")
-		cmd.Flags().StringToString("custom-filters", map[string]string{}, "custom filter expressions (key=value)")
-		cmd.Flags().Bool("continue-on-error", true, "continue scanning even if some resources fail")
-		cmd.Flags().Int("max-violations", 0, "maximum number of violations before stopping scan (0 = unlimited)")
 		cmd.Flags().Int("parallelism", 4, "number of parallel workers for scanning and rule evaluation")
-		cmd.Flags().Int64("memory-limit", 0, "maximum memory usage in MB (0 = unlimited)")
-		cmd.Flags().Bool("interactive", false, "enable interactive mode with progress bars")
-		cmd.Flags().Bool("show-progress", true, "show progress indicators during scanning")
-		cmd.Flags().Bool("quiet", false, "suppress non-essential output")
+		cmd.Flags().String("min-severity", "", "minimum severity level to include (low, medium, high, critical)")
+		cmd.Flags().Int("max-violations", 0, "maximum number of violations before stopping scan (0 = no limit)")
+		cmd.Flags().Bool("quiet", false, "suppress non-error output")
 		cmd.Flags().Bool("summary-only", false, "show only summary statistics")
 		// Note: 'no-color' flag is inherited from global persistent flags
 	}
@@ -610,6 +596,9 @@ type ScanConfig struct {
 	Parallelism             int
 	Timeout                 time.Duration
 	MinSeverity             string
+	MaxViolations           int
+	Quiet                   bool
+	SummaryOnly             bool
 	IncludeNamespaces       []string
 	ExcludeNamespaces       []string
 	ResourceTypes           []string
@@ -652,6 +641,15 @@ func buildScanConfig(cmd *cobra.Command) (*ScanConfig, error) {
 	// Get command-specific flags (these override config file settings)
 	if cmd.Flags().Changed("min-severity") {
 		config.MinSeverity, _ = cmd.Flags().GetString("min-severity")
+	}
+	if cmd.Flags().Changed("max-violations") {
+		config.MaxViolations, _ = cmd.Flags().GetInt("max-violations")
+	}
+	if cmd.Flags().Changed("quiet") {
+		config.Quiet, _ = cmd.Flags().GetBool("quiet")
+	}
+	if cmd.Flags().Changed("summary-only") {
+		config.SummaryOnly, _ = cmd.Flags().GetBool("summary-only")
 	}
 	if cmd.Flags().Changed("namespace") {
 		namespaces, _ := cmd.Flags().GetStringSlice("namespace")
@@ -924,6 +922,31 @@ func evaluateResourcesConcurrently(ctx context.Context, engine engine.Evaluation
 		result.Passed = passedCount
 	}
 
+	// Apply max-violations limit if specified
+	if config.MaxViolations > 0 && result.Failed > config.MaxViolations {
+		// Keep only the first MaxViolations failures
+		filteredResults := []models.ValidationResult{}
+		violationCount := 0
+
+		for _, res := range result.Results {
+			if res.Passed {
+				filteredResults = append(filteredResults, res)
+			} else if violationCount < config.MaxViolations {
+				filteredResults = append(filteredResults, res)
+				violationCount++
+			}
+		}
+
+		result.Results = filteredResults
+		result.Failed = violationCount
+		result.Passed = len(filteredResults) - violationCount
+
+		logLevel := viper.GetString("log-level")
+		if logLevel == "debug" {
+			logger.Info("Applied max-violations limit", "limit", config.MaxViolations, "actual_violations", violationCount)
+		}
+	}
+
 	logLevel := viper.GetString("log-level")
 	if logLevel == "debug" {
 		logger.Info("Evaluation completed", "duration", result.Duration)
@@ -967,7 +990,7 @@ func generateReport(scanResult *models.ScanResult, config *ScanConfig) error {
 	factory := reporter.NewFactory()
 
 	// Create reporter based on output format
-	reporter, err := factory.CreateReporterWithOptions(config.Output, config.NoColor, config.Verbose)
+	reporter, err := factory.CreateReporterWithAdvancedOptions(config.Output, config.NoColor, config.Verbose, config.Quiet, config.SummaryOnly)
 	if err != nil {
 		return fmt.Errorf("failed to create reporter: %w", err)
 	}
