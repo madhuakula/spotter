@@ -38,3 +38,4 @@ go.work.sum
 /spotter
 dist/
 bin/
+spotter.wasm
