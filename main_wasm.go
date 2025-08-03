@@ -249,7 +249,7 @@ func getAllRules() (map[string]interface{}, error) {
 	categories := make(map[string][]map[string]interface{})
 	allRules := make([]map[string]interface{}, 0)
 
-	err := fs.WalkDir(rulesFS, "rules/builtin", func(path string, d fs.DirEntry, err error) error {
+	err := fs.WalkDir(rulesFS, "builtin", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -385,8 +385,14 @@ func performScan(scanType, input string, options map[string]interface{}) (map[st
 	
 	// Filter rules based on selected rules from options
 	selectedRules := make(map[string]bool)
+	hasSelectedRules := false
+	
 	if rulesList, ok := options["selectedRules"].([]interface{}); ok {
+		hasSelectedRules = true
 		fmt.Printf("WASM Debug: Found selectedRules option with %d rules\n", len(rulesList))
+		if len(rulesList) == 0 {
+			fmt.Printf("WASM Debug: selectedRules array is EMPTY - should run NO rules\n")
+		}
 		for _, rule := range rulesList {
 			if ruleStr, ok := rule.(string); ok {
 				selectedRules[ruleStr] = true
@@ -397,19 +403,24 @@ func performScan(scanType, input string, options map[string]interface{}) (map[st
 		fmt.Printf("WASM Debug: No selectedRules option found in options\n")
 	}
 	
-	// Filter rules if specific rules are selected
+	// Filter rules based on selection
 	var filteredRules []*models.SecurityRule
-	if len(selectedRules) > 0 {
+	if hasSelectedRules && len(selectedRules) > 0 {
 		fmt.Printf("WASM Debug: Filtering %d rules based on %d selected rules\n", len(rules), len(selectedRules))
 		for _, rule := range rules {
-			// Match against metadata.name instead of spec.id since frontend passes metadata names
+			// Match against metadata.name since frontend passes metadata names as rule IDs
 			if selectedRules[rule.Metadata.Name] {
 				filteredRules = append(filteredRules, rule)
 				fmt.Printf("WASM Debug: Selected rule: %s (ID: %s)\n", rule.Metadata.Name, rule.Spec.ID)
 			}
 		}
+	} else if hasSelectedRules && len(selectedRules) == 0 {
+		// If selectedRules array exists but is empty, run NO rules
+		fmt.Printf("WASM Debug: Empty selectedRules array provided, running NO rules\n")
+		filteredRules = []*models.SecurityRule{}
 	} else {
-		fmt.Printf("WASM Debug: No specific rules selected, using all %d rules\n", len(rules))
+		// If no selectedRules option provided at all, use all rules (backward compatibility)
+		fmt.Printf("WASM Debug: No selectedRules option provided, using all %d rules\n", len(rules))
 		filteredRules = rules
 	}
 	
@@ -513,7 +524,7 @@ func loadAllBuiltinRules() ([]*models.SecurityRule, error) {
 	parser := parser.NewYAMLParser(true)
 	
 	rulesFS := internal.GetBuiltinRulesFS()
-	rules, err := parser.ParseRulesFromFS(ctx, rulesFS, "rules/builtin")
+	rules, err := parser.ParseRulesFromFS(ctx, rulesFS, "builtin")
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse built-in rules: %v", err)
 	}
