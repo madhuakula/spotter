@@ -151,7 +151,6 @@ func init() {
 	clusterCmd.Flags().Duration("watch-interval", 30*time.Second, "interval for watch mode scanning")
 	clusterCmd.Flags().String("label-selector", "", "label selector to filter resources (e.g., app=nginx,env=prod)")
 	clusterCmd.Flags().String("field-selector", "", "field selector to filter resources")
-	clusterCmd.Flags().Bool("dry-run", false, "show what would be scanned without actually scanning")
 	clusterCmd.Flags().String("cache-dir", "", "directory to cache scan results")
 	clusterCmd.Flags().Duration("cache-ttl", 5*time.Minute, "cache time-to-live for scan results")
 
