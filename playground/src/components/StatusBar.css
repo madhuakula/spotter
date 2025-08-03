@@ -1,0 +1,28 @@
+.status {
+  padding: 8px 16px;
+  border-radius: 4px;
+  margin: 12px 16px;
+  font-size: 13px;
+  border-left: 3px solid;
+  position: fixed;
+  bottom: 0.5rem;
+  right: 0.5rem;
+}
+
+.status.loading {
+  background-color: #2d2a1f;
+  border-left-color: #ffcc02;
+  color: #ffcc02;
+}
+
+.status.success {
+  background-color: #1e2f1e;
+  border-left-color: #89d185;
+  color: #89d185;
+}
+
+.status.error {
+  background-color: #2d1e1e;
+  border-left-color: #f85149;
+  color: #f85149;
+}

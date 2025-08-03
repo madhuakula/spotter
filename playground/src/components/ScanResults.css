@@ -1,0 +1,234 @@
+.scan-results {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: #374151;
+  line-height: 1.5;
+}
+
+.results-summary {
+  background: #DDD;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.results-summary h3 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.summary-stats {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.stat-value {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.severity-breakdown {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.severity-badge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: white;
+}
+
+.severity-badge.critical {
+  background-color: #dc2626;
+}
+
+.severity-badge.high {
+  background-color: #ea580c;
+}
+
+.severity-badge.medium {
+  background-color: #d97706;
+}
+
+.severity-badge.low {
+  background-color: #65a30d;
+}
+
+.findings-section h3 {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #FFF;
+}
+
+.findings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.finding-item {
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: white;
+  overflow: hidden;
+}
+
+.finding-header {
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fafafa;
+  border-bottom: 1px solid #e5e7eb;
+  transition: background-color 0.2s;
+}
+
+.finding-header:hover {
+  background: #f3f4f6;
+}
+
+.finding-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.severity-icon {
+  font-size: 14px;
+}
+
+.findings-section .rule-name {
+  font-weight: 500;
+  color: #1f2937;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 13px;
+}
+
+.severity-label {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.resource-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.resource-name {
+  font-weight: 500;
+  color: #374151;
+}
+
+.namespace {
+  color: #9ca3af;
+  font-size: 12px;
+}
+
+.expand-icon {
+  color: #9ca3af;
+  font-size: 12px;
+  margin-left: 8px;
+}
+
+.finding-details {
+  padding: 16px;
+  background: white;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.detail-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.detail-row strong {
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.detail-row span {
+  color: #374151;
+  font-size: 14px;
+}
+
+.remediation {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  background: #f1f5f9;
+  padding: 8px;
+  border-radius: 4px;
+  border-left: 3px solid #3b82f6;
+  font-size: 13px;
+}
+
+.no-findings {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.success-message {
+  color: #059669;
+  font-size: 16px;
+  font-weight: 500;
+  background: #ecfdf5;
+  padding: 16px 24px;
+  border-radius: 8px;
+  border: 1px solid #a7f3d0;
+  display: inline-block;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .summary-stats {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .finding-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .finding-title {
+    width: 100%;
+  }
+  
+  .resource-info {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
