@@ -1,0 +1,69 @@
+- name: "pod running as root should fail"
+  pass: false
+  input: |
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: root-pod
+      namespace: default
+    spec:
+      containers:
+      - name: test-container
+        image: nginx:1.20
+        securityContext:
+          runAsUser: 0
+
+- name: "pod running as non-root should pass"
+  pass: true
+  input: |
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: secure-pod
+      namespace: default
+    spec:
+      containers:
+      - name: test-container
+        image: nginx:1.20
+        securityContext:
+          runAsUser: 1000
+          runAsNonRoot: true
+
+- name: "pod with runAsNonRoot false should fail"
+  pass: false
+  input: |
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: unsafe-pod
+      namespace: default
+    spec:
+      containers:
+      - name: test-container
+        image: nginx:1.20
+        securityContext:
+          runAsNonRoot: false
+
+- name: "deployment with root container should fail"
+  pass: false
+  input: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: root-deployment
+      namespace: default
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          app: test
+      template:
+        metadata:
+          labels:
+            app: test
+        spec:
+          containers:
+          - name: test-container
+            image: nginx:1.20
+            securityContext:
+              runAsUser: 0

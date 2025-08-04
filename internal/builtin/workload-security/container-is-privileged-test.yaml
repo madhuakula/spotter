@@ -28,6 +28,32 @@
         securityContext:
           privileged: false
 
+- name: "pod with privileged false explicitly should pass"
+  pass: true
+  input: |
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: security-context-demo
+    spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 3000
+        fsGroup: 2000
+      volumes:
+        - name: sec-ctx-vol
+          emptyDir: { }
+      containers:
+        - name: sec-ctx-demo
+          image: busybox
+          command: [ "sh", "-c", "sleep 1h" ]
+          volumeMounts:
+            - name: sec-ctx-vol
+              mountPath: /data/demo
+          securityContext:
+            privileged: false
+            allowPrivilegeEscalation: false
+
 - name: "deployment with privileged container should fail"
   pass: false
   input: |
@@ -51,6 +77,56 @@
             image: nginx:1.20
             securityContext:
               privileged: true
+
+- name: "deployment with multiple containers, one privileged should fail"
+  pass: false
+  input: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: mixed-deployment
+      labels:
+        app: redis
+    spec:
+      replicas: 3
+      selector:
+        matchLabels:
+          app: redis
+      template:
+        metadata:
+          labels:
+            app: redis
+        spec:
+          containers:
+          - name: redis
+            image: redis:6.2-alpine
+            securityContext:
+              privileged: false
+          - name: sidecar
+            image: busybox
+            securityContext:
+              privileged: true
+
+- name: "pod with init container privileged should fail"
+  pass: true
+  input: |
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: security-context-demo-5
+    spec:
+      initContainers:
+      - name: sec-ctx-4
+        image: gcr.io/google-samples/node-hello:1.0
+        securityContext:
+          privileged: true
+          capabilities:
+            add: ["NET_ADMIN", "SYS_TIME"]
+      containers:
+      - name: sec-ctx-4
+        image: gcr.io/google-samples/node-hello:1.0
+        securityContext:
+          privileged: false
 
 - name: "pod without security context should pass"
   pass: true
