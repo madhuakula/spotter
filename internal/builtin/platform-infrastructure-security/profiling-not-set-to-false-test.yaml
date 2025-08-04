@@ -1,0 +1,218 @@
+- name: insecure sample 1 should fail
+  pass: false
+  input: |-
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: command-demo
+      labels:
+        purpose: demonstrate-command
+    spec:
+      containers:
+        - name: command-demo-container
+          image: gcr.io/google_containers/kube-apiserver-amd64:v1.6.0
+          command: ["kube-apiserver"]
+          args: ["--profiling=true"]
+      restartPolicy: OnFailure
+- name: insecure sample 2 should fail
+  pass: false
+  input: |-
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: command-demo-1
+      labels:
+        purpose: demonstrate-command
+    spec:
+      containers:
+        - name: command-demo-container
+          image: gcr.io/google_containers/kube-apiserver-amd64:v1.6.0
+          command: ["kube-apiserver"]
+          args: []
+      restartPolicy: OnFailure
+- name: insecure sample 3 should fail
+  pass: false
+  input: |-
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      creationTimestamp: null
+      labels:
+        component: kube-controller-manager
+        tier: control-plane
+      name: kube-controller-manager-master-3
+      namespace: kube-system
+    spec:
+      selector:
+        matchLabels:
+          app: kube-controller-manager
+      template:
+        metadata:
+          labels:
+            app: kube-controller-manager
+      containers:
+        - name: command-demo-container
+          image: gcr.io/google_containers/kube-controller-manager-master-3
+          command: ["kube-controller-manager","--profiling=true"]
+          args: []
+      restartPolicy: OnFailure
+- name: insecure sample 4 should fail
+  pass: false
+  input: |-
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      creationTimestamp: null
+      labels:
+        component: kube-controller-manager
+        tier: control-plane
+      name: kube-controller-manager-master-4
+      namespace: kube-system
+    spec:
+      selector:
+        matchLabels:
+          app: kube-controller-manager
+      template:
+        metadata:
+          labels:
+            app: kube-controller-manager
+      containers:
+        - name: command-demo-container
+          image: gcr.io/google_containers/kube-controller-manager-master-4
+          command: ["kube-controller-manager"]
+          args: []
+      restartPolicy: OnFailure
+- name: insecure sample 5 should fail
+  pass: false
+  input: |-
+    apiVersion: kubescheduler.config.k8s.io/v1beta2
+    kind: KubeSchedulerConfiguration
+    profiles:
+      pluginConfig:
+        args:
+          scoringStrategy:
+            resources:
+              name: cpu
+              weight: 1
+            type: MostAllocated
+        name: NodeResourcesFit
+- name: insecure sample 6 should fail
+  pass: false
+  input: "apiVersion: kubescheduler.config.k8s.io/v1beta2\nkind: KubeSchedulerConfiguration\n\
+    enableProfiling: true\nprofiles: \n  pluginConfig: \n    args: \n      scoringStrategy:\
+    \ \n        resources:  \n          name: cpu\n          weight: 1\n        type:\
+    \ MostAllocated\n    name: NodeResourcesFit2"
+- name: insecure sample 7 should fail
+  pass: false
+  input: |-
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      creationTimestamp: null
+      labels:
+        component: kube-scheduler
+        tier: control-plane
+      name: kube-scheduler-master-2
+      namespace: kube-system
+    spec:
+      containers:
+        - name: command-demo-container
+          image: gcr.io/google_containers/kube-scheduler-master-2
+          command: ["kube-scheduler","--profiling=true"]
+          args: []
+      restartPolicy: OnFailure
+- name: secure sample 1 should pass
+  pass: true
+  input: |-
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: command-demo
+      labels:
+        purpose: demonstrate-command
+    spec:
+      containers:
+        - name: command-demo-container
+          image: gcr.io/google_containers/kube-apiserver-amd64:v1.6.0
+          command: ["kube-apiserver"]
+          args: ["--profiling=false"]
+      restartPolicy: OnFailure
+- name: secure sample 2 should pass
+  pass: true
+  input: |-
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      creationTimestamp: null
+      labels:
+        component: kube-controller-manager
+        tier: control-plane
+      name: kube-controller-manager-master-1
+      namespace: kube-system
+    spec:
+      selector:
+        matchLabels:
+          app: kube-controller-manager
+      template:
+        metadata:
+          labels:
+            app: kube-controller-manager
+      containers:
+        - name: command-demo-container
+          image: gcr.io/google_containers/kube-controller-manager-master-1
+          command: ["kube-controller-manager","--profiling=false"]
+          args: []
+      restartPolicy: OnFailure
+- name: secure sample 3 should pass
+  pass: true
+  input: |-
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      creationTimestamp: null
+      labels:
+        component: kube-scheduler
+        tier: control-plane
+      name: kube-scheduler-master-3
+      namespace: kube-system
+    spec:
+      containers:
+        - name: command-demo-container
+          image: gcr.io/google_containers/kube-scheduler-master-1
+          command: ["kube-scheduler","--profiling=false"]
+          args: []
+      restartPolicy: OnFailure
+- name: secure sample 4 should pass
+  pass: true
+  input: |-
+    apiVersion: kubescheduler.config.k8s.io/v1beta2
+    kind: KubeSchedulerConfiguration
+    enableProfiling: false
+    profiles:
+    - pluginConfig:
+      - args:
+          scoringStrategy:
+            resources:
+            - name: cpu
+              weight: 1
+            type: MostAllocated
+        name: NodeResourcesFit3
+- name: secure sample 5 should pass
+  pass: true
+  input: |-
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      creationTimestamp: null
+      labels:
+        component: kube-scheduler
+        tier: control-plane
+      name: kube-scheduler-master-1
+      namespace: kube-system
+    spec:
+      containers:
+        - name: command-demo-container
+          image: gcr.io/google_containers/kube-scheduler-master-1
+          command: ["kube-scheduler"]
+          args: []
+      restartPolicy: OnFailure

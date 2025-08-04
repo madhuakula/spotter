@@ -1,0 +1,35 @@
+- name: insecure sample 1 should fail
+  pass: false
+  input: "apiVersion: extensions/v1beta1\nkind: Deployment\nmetadata: \n  labels:\
+    \ \n    app: helm\n    name: tiller\n  name: tiller-deploy\nspec: \n  containers:\
+    \ \n    - \n      image: tiller-image\n      name: tiller-v1\n  template: \n \
+    \   metadata: \n      labels: \n        app: helm\n        name: tiller\n    spec:\
+    \ \n      containers: \n        - \n          args: \n            - \"--listen=10.7.2.8:44134\"\
+    \n          image: tiller-image\n          name: tiller-v2\n          ports: \n\
+    \            - \n              containerPort: 44134\n              name: tiller\n\
+    \              protocol: TCP\n            - \n              containerPort: 44135\n\
+    \              name: http\n              protocol: TCP\n      serviceAccountName:\
+    \ tiller"
+- name: secure sample 1 should pass
+  pass: true
+  input: |-
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: security-context-demo
+    spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 3000
+        fsGroup: 2000
+      volumes:
+        - name: sec-ctx-vol
+      containers:
+        - name: sec-ctx-demo
+          image: busybox
+          command: [ "sh", "-c", "sleep 1h" ]
+          volumeMounts:
+            - name: sec-ctx-vol
+              mountPath: /data/demo
+          securityContext:
+            allowPrivilegeEscalation: false

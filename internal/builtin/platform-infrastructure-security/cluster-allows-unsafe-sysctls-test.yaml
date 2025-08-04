@@ -1,0 +1,128 @@
+- name: insecure sample 1 should fail
+  pass: false
+  input: |-
+    #this is a problematic code where the query should report a result(s)
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: sysctl-example
+    spec:
+      securityContext:
+        sysctls:
+        - name: kernel.shm_rmid_forced
+          value: "0"
+        - name: net.core.somaxconn
+          value: "1024"
+        - name: kernel.msgmax
+          value: "65536"
+      containers:
+        - name: test1
+          image: nginx
+- name: insecure sample 2 should fail
+  pass: false
+  input: |-
+    apiVersion: policy/v1beta1
+    kind: PodSecurityPolicy
+    metadata:
+      name: sysctl-psp
+    spec:
+      allowedUnsafeSysctls:
+      - kernel.msg*
+      forbiddenSysctls:
+      - kernel.shm_rmid_forced
+      seLinux:
+        rule: RunAsAny
+      supplementalGroups:
+        rule: RunAsAny
+      runAsUser:
+        rule: RunAsAny
+      fsGroup:
+        rule: RunAsAny
+- name: insecure sample 3 should fail
+  pass: false
+  input: |-
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: test-app
+      labels:
+        app: test-app
+    spec:
+      selector:
+        matchLabels:
+          app: test-app
+      template:
+        metadata:
+          labels:
+            app: test-app
+        spec:
+          securityContext:
+            sysctls:
+            - name: kernel.sem
+              value: "128 32768 128 4096"
+          containers:
+          - name: test-ubuntu
+            image: ubuntu
+- name: secure sample 1 should pass
+  pass: true
+  input: |-
+    #this code is a correct code for which the query should not find any result
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: sysctl-example
+    spec:
+      securityContext:
+        sysctls:
+        - name: kernel.shm_rmid_forced
+          value: "0"
+        - name: net.ipv4.ip_local_port_range
+          value: "0"
+      containers:
+        - name: test1
+          image: nginx
+- name: secure sample 2 should pass
+  pass: true
+  input: |-
+    apiVersion: policy/v1beta1
+    kind: PodSecurityPolicy
+    metadata:
+      name: sysctl-psp
+    spec:
+      forbiddenSysctls:
+      - kernel.shm_rmid_forced
+      seLinux:
+        rule: RunAsAny
+      supplementalGroups:
+        rule: RunAsAny
+      runAsUser:
+        rule: RunAsAny
+      fsGroup:
+        rule: RunAsAny
+- name: secure sample 3 should pass
+  pass: true
+  input: |-
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: test-app-neg
+      labels:
+        app: test-app-neg
+    spec:
+      selector:
+        matchLabels:
+          app: test-app-neg
+      template:
+        metadata:
+          labels:
+            app: test-app-neg
+        spec:
+          securityContext:
+            sysctls:
+            - name: kernel.shm_rmid_forced
+              value: "0"
+            - name: net/ipv4/tcp_syncookies
+              value: "1"
+          containers:
+          - name: test-ubuntu
+            image: ubuntu

@@ -1,0 +1,34 @@
+- name: insecure sample 1 should fail
+  pass: false
+  input: |-
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: tiller-deploy
+      labels:
+        app: helm
+        name: tiller
+    spec:
+      type: ClusterIP
+      selector:
+        app: helm
+        name: tiller
+      ports:
+      - name: tiller
+        port: 44134
+        protocol: TCP
+        targetPort: tiller
+- name: secure sample 1 should pass
+  pass: true
+  input: |-
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: some-service
+      labels:
+        name: some-label
+    spec:
+      ports:
+        - protocol: TCP
+          port: 80
+          targetPort: 9376

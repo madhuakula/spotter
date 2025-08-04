@@ -1,0 +1,29 @@
+- name: insecure sample 1 should fail
+  pass: false
+  input: "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: app-etcd-deployment\n\
+    spec:\n  selector:\n    matchLabels:\n      app: app\n  replicas: 1\n  template:\n\
+    \    metadata:\n      labels:\n        app: app\n        version: v1\n    spec:\n\
+    \      serviceAccountName: database\n      containers:\n      - name: database\n\
+    \        image: gcr.io/google_containers/etcd:v3.2.18\n        imagePullPolicy:\
+    \ IfNotPresent\n        command: [\"etcd\"]\n        args: [\"--peer-client-cert-auth=false\"\
+    ]\n      nodeSelector:\n        kubernetes.io/hostname: worker02  \n    restartPolicy:\
+    \ OnFailure"
+- name: insecure sample 2 should fail
+  pass: false
+  input: "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: app-etcd-deployment\n\
+    spec:\n  selector:\n    matchLabels:\n      app: app\n  replicas: 1\n  template:\n\
+    \    metadata:\n      labels:\n        app: app\n        version: v1\n    spec:\n\
+    \      serviceAccountName: database\n      containers:\n      - name: database\n\
+    \        image: gcr.io/google_containers/etcd:v3.2.18\n        imagePullPolicy:\
+    \ IfNotPresent\n        command: [\"etcd\"]\n        args: []\n      nodeSelector:\n\
+    \        kubernetes.io/hostname: worker02  \n    restartPolicy: OnFailure"
+- name: secure sample 1 should pass
+  pass: true
+  input: "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: app-etcd-deployment\n\
+    spec:\n  selector:\n    matchLabels:\n      app: app\n  replicas: 1\n  template:\n\
+    \    metadata:\n      labels:\n        app: app\n        version: v1\n    spec:\n\
+    \      serviceAccountName: database\n      containers:\n      - name: database\n\
+    \        image: gcr.io/google_containers/etcd:v3.2.18\n        imagePullPolicy:\
+    \ IfNotPresent\n        command: [\"etcd\"]\n        args: [\"--peer-client-cert-auth=true\"\
+    ]\n      nodeSelector:\n        kubernetes.io/hostname: worker02  \n    restartPolicy:\
+    \ OnFailure"

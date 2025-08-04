@@ -1,0 +1,76 @@
+- name: insecure sample 1 should fail
+  pass: false
+  input: |-
+    kind: ConfigMap
+    apiVersion: v1
+    metadata:
+      name: kube-flannel-cfg
+      namespace: kube-system
+      labels:
+        tier: node
+        app: flannel
+    data:
+      cni-conf.json: |
+        {
+          "name": "cbr0",
+          "plugins": [
+            {
+              "type": "flannel",
+              "delegate": {
+                "hairpinMode": true,
+                "isDefaultGateway": true
+              }
+            },
+            {
+              "type": "portmap",
+              "capabilities": {
+                "portMappings": true
+              }
+            }
+          ]
+        }
+      net-conf.json: |
+        {
+          "Network": "10.244.0.0/16",
+          "Backend": {
+            "Type": "vxlan"
+          }
+        }
+- name: secure sample 1 should pass
+  pass: true
+  input: |-
+    kind: ConfigMap
+    apiVersion: v1
+    metadata:
+      name: kube-flannel-cfg
+      namespace: kube-system
+      labels:
+        tier: node
+        app: calico
+    data:
+      cni-conf.json: |
+        {
+          "name": "cbr0",
+          "plugins": [
+            {
+              "type": "calico",
+              "delegate": {
+                "hairpinMode": true,
+                "isDefaultGateway": true
+              }
+            },
+            {
+              "type": "portmap",
+              "capabilities": {
+                "portMappings": true
+              }
+            }
+          ]
+        }
+      net-conf.json: |
+        {
+          "Network": "10.244.0.0/16",
+          "Backend": {
+            "Type": "vxlan"
+          }
+        }

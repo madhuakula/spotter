@@ -1,0 +1,48 @@
+- name: insecure sample 1 should fail
+  pass: false
+  input: |-
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: command-demo
+      labels:
+        purpose: demonstrate-command
+    spec:
+      containers:
+        - name: command-demo-container
+          image: foo/bar
+          command: ["kubelet"]
+          args: ["--hostname-override=host"]
+      restartPolicy: OnFailure
+- name: insecure sample 2 should fail
+  pass: false
+  input: |-
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: command-demo
+      labels:
+        purpose: demonstrate-command
+    spec:
+      containers:
+        - name: command-demo-container
+          image: foo/bar
+          command: ["kubelet","--hostname-override=host"]
+          args: []
+      restartPolicy: OnFailure
+- name: secure sample 1 should pass
+  pass: true
+  input: |-
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: command-demo
+      labels:
+        purpose: demonstrate-command
+    spec:
+      containers:
+        - name: command-demo-container
+          image: foo/bar
+          command: ["kubelet"]
+          args: []
+      restartPolicy: OnFailure

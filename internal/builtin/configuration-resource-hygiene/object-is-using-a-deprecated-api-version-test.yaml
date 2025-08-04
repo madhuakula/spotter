@@ -1,0 +1,184 @@
+- name: insecure sample 1 should fail
+  pass: false
+  input: |-
+    apiVersion: apps/v1beta1
+    kind: Deployment
+    metadata:
+      name: nginx-deployment
+      labels:
+        app: nginx
+    spec:
+      replicas: 3
+      selector:
+        matchLabels:
+          app: nginx
+      template:
+        metadata:
+          labels:
+            app: nginx
+        spec:
+          containers:
+          - name: nginx
+            image: nginx:1.14.2
+            ports:
+            - containerPort: 80
+- name: insecure sample 2 should fail
+  pass: false
+  input: |-
+    apiVersion: apps/v1beta2
+    kind: DaemonSet
+    metadata:
+      name: fluentd-elasticsearch
+      namespace: kube-system
+      labels:
+        k8s-app: fluentd-logging
+    spec:
+      selector:
+        matchLabels:
+          name: fluentd-elasticsearch
+      template:
+        spec:
+          tolerations:
+            - key: node-role.kubernetes.io/master
+              effect: NoSchedule
+          containers:
+            - name: fluentd-elasticsearch
+              image: quay.io/fluentd_elasticsearch/fluentd:v2.5.2
+              resources:
+                limits:
+                  cpu: 500m
+                  memory: 200Mi
+                requests:
+                  cpu: 100m
+                  memory: 200Mi
+              volumeMounts:
+                - name: optmount
+                  mountPath: /opt
+          terminationGracePeriodSeconds: 30
+          volumes:
+            - name: optmount
+              hostPath:
+                path: /opt
+- name: insecure sample 3 should fail
+  pass: false
+  input: |-
+    apiVersion: extensions/v1beta1
+    kind: Ingress
+    metadata:
+      name: minimal-ingress
+      annotations:
+        nginx.ingress.kubernetes.io/rewrite-target: /
+    spec:
+      rules:
+      - http:
+          paths:
+          - path: /testpath
+            pathType: Prefix
+            backend:
+              service:
+                name: test
+                port:
+                  number: 80
+- name: insecure sample 4 should fail
+  pass: false
+  input: |-
+    apiVersion: networking.k8s.io/v1beta1
+    kind: Ingress
+    metadata:
+      name: minimal-ingress1
+      annotations:
+        nginx.ingress.kubernetes.io/rewrite-target: /
+    spec:
+      rules:
+      - http:
+          paths:
+          - path: /testpath
+            pathType: Prefix
+            backend:
+              service:
+                name: test
+                port:
+                  number: 80
+- name: insecure sample 5 should fail
+  pass: false
+  input: |-
+    apiVersion: batch/v1beta1
+    kind: CronJob
+    metadata:
+      name: hello
+    spec:
+      schedule: "* * * * *"
+      jobTemplate:
+        spec:
+          template:
+            spec:
+              containers:
+              - name: hello
+                image: busybox
+                imagePullPolicy: IfNotPresent
+                command:
+                - /bin/sh
+                - -c
+                - date; echo Hello from kics
+              restartPolicy: OnFailure
+- name: secure sample 1 should pass
+  pass: true
+  input: |-
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: nginx-deployment
+      labels:
+        app: nginx
+    spec:
+      replicas: 3
+      selector:
+        matchLabels:
+          app: nginx
+      template:
+        metadata:
+          labels:
+            app: nginx
+        spec:
+          containers:
+          - name: nginx
+            image: nginx:1.14.2
+            ports:
+            - containerPort: 80
+- name: secure sample 2 should pass
+  pass: true
+  input: |-
+    apiVersion: apps/v1
+    kind: DaemonSet
+    metadata:
+      name: fluentd-elasticsearch
+      namespace: kube-system
+      labels:
+        k8s-app: fluentd-logging
+    spec:
+      selector:
+        matchLabels:
+          name: fluentd-elasticsearch
+      template:
+        spec:
+          tolerations:
+            - key: node-role.kubernetes.io/master
+              effect: NoSchedule
+          containers:
+            - name: fluentd-elasticsearch
+              image: quay.io/fluentd_elasticsearch/fluentd:v2.5.2
+              resources:
+                limits:
+                  cpu: 500m
+                  memory: 200Mi
+                requests:
+                  cpu: 100m
+                  memory: 200Mi
+              volumeMounts:
+                - name: optmount
+                  mountPath: /opt
+          terminationGracePeriodSeconds: 30
+          volumes:
+            - name: optmount
+              hostPath:
+                path: /opt

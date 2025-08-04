@@ -1,0 +1,52 @@
+- name: insecure sample 1 should fail
+  pass: false
+  input: |-
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: firstpod
+    spec:
+      containers:
+      - name: container
+        image: nginx
+        ports:
+        - containerPort: 80
+          hostIP: 10.0.0.1
+          hostPort: 8080
+- name: insecure sample 2 should fail
+  pass: false
+  input: |-
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: secondpod
+    spec:
+      template:
+        spec:
+          containers:
+          - name: container2
+            image: nginx
+            ports:
+            - containerPort: 81
+              hostIP: 10.0.0.2
+              hostPort: 8081
+        metadata:
+          labels:
+            app: nginx
+      selector:
+        matchLabels:
+          app: nginx
+- name: secure sample 1 should pass
+  pass: true
+  input: |-
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: firstpod
+    spec:
+      containers:
+      - name: container
+        image: nginx
+        ports:
+        - containerPort: 80
+          hostIP: 10.0.0.1

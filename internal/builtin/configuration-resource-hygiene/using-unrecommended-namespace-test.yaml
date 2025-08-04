@@ -1,0 +1,151 @@
+- name: insecure sample 1 should fail
+  pass: false
+  input: |-
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: frontend
+      namespace: default
+    spec:
+      containers:
+      - name: app
+        image: images.my-company.example/app:v4
+        securityContext:
+          allowPrivilegeEscalation: false
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "250m"
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+
+      - name: log-aggregator
+        image: images.my-company.example/log-aggregator:v6
+        securityContext:
+          allowPrivilegeEscalation: false
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "250m"
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+- name: insecure sample 2 should fail
+  pass: false
+  input: |-
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: frontend2
+    spec:
+      containers:
+      - name: app
+        image: images.my-company.example/app:v4
+        securityContext:
+          allowPrivilegeEscalation: false
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "250m"
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+
+      - name: log-aggregator
+        image: images.my-company.example/log-aggregator:v6
+        securityContext:
+          allowPrivilegeEscalation: false
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "250m"
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+- name: insecure sample 3 should fail
+  pass: false
+  input: |-
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: mongo.db.collection.com
+      namespace: kube-public
+- name: insecure sample 4 should fail
+  pass: false
+  input: |-
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: mongo.db.collection.com
+      namespace: kube-system
+- name: insecure sample 5 should fail
+  pass: false
+  input: |-
+    apiVersion: serving.knative.dev/v1
+    kind: Configuration
+    metadata:
+      name: dummy-config
+      namespace: default
+    spec:
+      template:
+        spec:
+          automountServiceAccountToken: true
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 3000
+            fsGroup: 2000
+          volumes:
+            - name: sec-ctx-vol
+              emptyDir: { }
+          containers:
+            - name: sec-ctx-demo
+              image: busybox
+              command: [ "sh", "-c", "sleep 1h" ]
+              volumeMounts:
+                - name: sec-ctx-vol
+                  mountPath: /data/demo
+              securityContext:
+                allowPrivilegeEscalation: false
+- name: secure sample 1 should pass
+  pass: true
+  input: |-
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: frontend
+      namespace: cosmicPod
+    spec:
+      securityContext:
+        runAsUser: 1000
+      containers:
+      - name: app
+        image: images.my-company.example/app:v4
+        securityContext:
+          allowPrivilegeEscalation: false
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "250m"
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+
+      - name: log-aggregator
+        image: images.my-company.example/log-aggregator:v6
+        securityContext:
+          allowPrivilegeEscalation: false
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "250m"
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+- name: secure sample 2 should pass
+  pass: true
+  input: |-
+    apiVersion: v1
+    kind: CustomResourceDefinition
+    metadata:
+      name: mongo.db.collection.com

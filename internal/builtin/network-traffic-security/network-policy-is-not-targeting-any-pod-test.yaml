@@ -1,0 +1,127 @@
+- name: insecure sample 1 should fail
+  pass: false
+  input: |-
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: nopolicy
+      labels:
+        app: easy
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.14.2
+        ports:
+        - containerPort: 80
+- name: insecure sample 2 should fail
+  pass: false
+  input: |-
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: test-network-policy
+      namespace: default
+    spec:
+      podSelector:
+        matchLabels:
+          app: rarelabel
+      policyTypes:
+      - Ingress
+      ingress:
+      - from:
+        - ipBlock:
+            cidr: 172.17.0.0/16
+            except:
+            - 172.17.1.0/24
+        - namespaceSelector:
+            matchLabels:
+              project: myproject
+        - podSelector:
+            matchLabels:
+              role: frontend
+        ports:
+        - protocol: TCP
+          port: 6379
+      egress:
+      - to:
+        - ipBlock:
+            cidr: 10.0.0.0/24
+        ports:
+        - protocol: TCP
+          port: 5978
+- name: insecure sample 3 should fail
+  pass: false
+  input: |-
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: partialpolicy
+      labels:
+        app: easy
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.14.2
+        ports:
+        - containerPort: 80
+- name: secure sample 1 should pass
+  pass: true
+  input: |-
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: nginx-deployment
+      labels:
+        app: nginx
+    spec:
+      replicas: 3
+      selector:
+        matchLabels:
+          app: nginx
+      template:
+        metadata:
+          labels:
+            app: nginx
+        spec:
+          containers:
+          - name: nginx
+            image: nginx:1.14.2
+            ports:
+            - containerPort: 80
+- name: secure sample 2 should pass
+  pass: true
+  input: |-
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: test-network-policy
+      namespace: default
+    spec:
+      podSelector:
+        matchLabels:
+          app: nginx
+      policyTypes:
+      - Ingress
+      - Egress
+      ingress:
+      - from:
+        - ipBlock:
+            cidr: 172.17.0.0/16
+            except:
+            - 172.17.1.0/24
+        - namespaceSelector:
+            matchLabels:
+              project: myproject
+        - podSelector:
+            matchLabels:
+              role: frontend
+        ports:
+        - protocol: TCP
+          port: 6379
+      egress:
+      - to:
+        - ipBlock:
+            cidr: 10.0.0.0/24
+        ports:
+        - protocol: TCP
+          port: 5978

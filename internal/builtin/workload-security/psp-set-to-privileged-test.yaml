@@ -1,0 +1,25 @@
+- name: insecure sample 1 should fail
+  pass: false
+  input: "apiVersion: policy/v1beta1\nkind: PodSecurityPolicy\nmetadata:\n  name:\
+    \ example\nspec:\n  privileged: true \n  seLinux:\n    rule: RunAsAny\n  supplementalGroups:\n\
+    \    rule: RunAsAny\n  runAsUser:\n    rule: RunAsAny\n  fsGroup:\n    rule: RunAsAny\n\
+    \  volumes:\n  - '*'"
+- name: secure sample 1 should pass
+  pass: true
+  input: |-
+    apiVersion: policy/v1beta1
+    kind: PodSecurityPolicy
+    metadata:
+      name: example
+    spec:
+      privileged: false
+      seLinux:
+        rule: RunAsAny
+      supplementalGroups:
+        rule: RunAsAny
+      runAsUser:
+        rule: RunAsAny
+      fsGroup:
+        rule: RunAsAny
+      volumes:
+      - '*'
