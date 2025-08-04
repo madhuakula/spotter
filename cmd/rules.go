@@ -1095,6 +1095,16 @@ func validateTestCaseWithScan(ctx context.Context, rule *models.SecurityRule, te
 		return fmt.Errorf("failed to evaluate rule: %w", err)
 	}
 
+	// Handle case where resource doesn't match rule criteria (result is nil)
+	if result == nil {
+		// If the rule doesn't apply to this resource, treat it as "passed" (no violation)
+		// This means testCase.Pass should be true for the test to succeed
+		if !testCase.Pass {
+			return fmt.Errorf("expected rule to apply and fail, but rule criteria didn't match resource")
+		}
+		return nil
+	}
+
 	// Check if result matches expectation
 	// testCase.Pass == true means the test should pass the security check (result.Passed = true)
 	// testCase.Pass == false means the test should fail the security check (result.Passed = false)
