@@ -26,6 +26,7 @@ spec:
         apiGroups:
           - ""
           - "apps"
+          - "serving.knative.dev"
         versions:
           - "v1"
         kinds:
@@ -33,11 +34,45 @@ spec:
           - Deployment
           - StatefulSet
           - DaemonSet
+          - PersistentVolume
+          - Configuration
         namespaces:
           include: ["*"]
           exclude: ["kube-system", "kube-public"]
   cel: |
-    ((object.kind == 'Pod' && has(object.spec.volumes) && object.spec.volumes.exists(v, has(v.hostPath) && (v.hostPath.path.startsWith('/etc') || v.hostPath.path.startsWith('/var') || v.hostPath.path.startsWith('/usr')))) || (object.kind != 'Pod' && has(object.spec.template.spec.volumes) && object.spec.template.spec.volumes.exists(v, has(v.hostPath) && (v.hostPath.path.startsWith('/etc') || v.hostPath.path.startsWith('/var') || v.hostPath.path.startsWith('/usr')))))
+    (object.kind == 'PersistentVolume' && has(object.spec.hostPath) && (
+      object.spec.hostPath.path == '/' || 
+      object.spec.hostPath.path.startsWith('/etc') || 
+      object.spec.hostPath.path.startsWith('/var') || 
+      object.spec.hostPath.path.startsWith('/usr') || 
+      object.spec.hostPath.path.startsWith('/proc') || 
+      object.spec.hostPath.path.startsWith('/sys') || 
+      object.spec.hostPath.path.startsWith('/root') || 
+      object.spec.hostPath.path.startsWith('/dev') || 
+      object.spec.hostPath.path.startsWith('/boot')
+    )) ||
+    (object.kind == 'Pod' && has(object.spec.volumes) && object.spec.volumes.exists(v, has(v.hostPath) && (
+      v.hostPath.path == '/' || 
+      v.hostPath.path.startsWith('/etc') || 
+      v.hostPath.path.startsWith('/var') || 
+      v.hostPath.path.startsWith('/usr') || 
+      v.hostPath.path.startsWith('/proc') || 
+      v.hostPath.path.startsWith('/sys') || 
+      v.hostPath.path.startsWith('/root') || 
+      v.hostPath.path.startsWith('/dev') || 
+      v.hostPath.path.startsWith('/boot')
+    ))) ||
+    (object.kind != 'Pod' && object.kind != 'PersistentVolume' && has(object.spec.template.spec.volumes) && object.spec.template.spec.volumes.exists(v, has(v.hostPath) && (
+      v.hostPath.path == '/' || 
+      v.hostPath.path.startsWith('/etc') || 
+      v.hostPath.path.startsWith('/var') || 
+      v.hostPath.path.startsWith('/usr') || 
+      v.hostPath.path.startsWith('/proc') || 
+      v.hostPath.path.startsWith('/sys') || 
+      v.hostPath.path.startsWith('/root') || 
+      v.hostPath.path.startsWith('/dev') || 
+      v.hostPath.path.startsWith('/boot')
+    )))
   remediation:
     manual: "Avoid mounting sensitive host directories. If necessary, ensure they are mounted as read-only by setting `readOnly: true` in the volume mount."
   references:

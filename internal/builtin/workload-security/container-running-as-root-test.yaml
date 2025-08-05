@@ -1,4 +1,4 @@
-- name: "pod running as root should fail"
+- name: pod running as root should fail
   pass: false
   input: |
     apiVersion: v1
@@ -12,8 +12,7 @@
         image: nginx:1.20
         securityContext:
           runAsUser: 0
-
-- name: "pod running as non-root should pass"
+- name: pod running as non-root should pass
   pass: true
   input: |
     apiVersion: v1
@@ -28,8 +27,7 @@
         securityContext:
           runAsUser: 1000
           runAsNonRoot: true
-
-- name: "pod with runAsNonRoot false should fail"
+- name: pod with runAsNonRoot false should fail
   pass: false
   input: |
     apiVersion: v1
@@ -43,10 +41,9 @@
         image: nginx:1.20
         securityContext:
           runAsNonRoot: false
-
-- name: "deployment with root container should fail"
+- name: deployment with root container should fail
   pass: false
-  input: |
+  input: |-
     apiVersion: apps/v1
     kind: Deployment
     metadata:
@@ -67,3 +64,169 @@
             image: nginx:1.20
             securityContext:
               runAsUser: 0
+- name: insecure sample 1 should fail
+  pass: false
+  input: |-
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: security-context-demo-2
+    spec:
+      securityContext:
+        runAsUser: 1000
+        runAsNonRoot: false
+      containers:
+      - name: sec-ctx-demo-2
+        image: gcr.io/google-samples/node-hello:1.0
+        securityContext:
+          runAsUser: 0
+          allowPrivilegeEscalation: false
+          runAsNonRoot: false
+- name: insecure sample 2 should fail
+  pass: false
+  input: |-
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: security-context-demo-3
+    spec:
+      securityContext:
+        runAsUser: 1000
+        runAsNonRoot: false
+      containers:
+      - name: sec-ctx-demo-2
+        image: gcr.io/google-samples/node-hello:1.0
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: false
+- name: insecure sample 3 should fail
+  pass: false
+  input: |-
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: security-context-demo-4
+    spec:
+      securityContext:
+        runAsUser: 1000
+        runAsNonRoot: true
+      containers:
+      - name: sec-ctx-demo-2
+        image: gcr.io/google-samples/node-hello:1.0
+        securityContext:
+          runAsUser: 0
+          allowPrivilegeEscalation: false
+          runAsNonRoot: false
+- name: insecure sample 4 should fail
+  pass: false
+  input: |-
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: security-context-demo-2
+    spec:
+      securityContext:
+        runAsUser: 10
+        runAsNonRoot: false
+      containers:
+      - name: sec-ctx-demo-100
+        image: gcr.io/google-samples/node-hello:1.0
+        securityContext:
+          runAsUser: 0
+          runAsNonRoot: false
+      - name: sec-ctx-demo-200
+        image: gcr.io/google-samples/node-hedwfwllo:1.0
+        securityContext:
+          runAsUser: 0
+          runAsNonRoot: false
+- name: insecure sample 5 should fail
+  pass: false
+  input: |-
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: containers-runs-as-root
+    spec:
+      securityContext:
+        runAsUser: 0
+        runAsNonRoot: false
+      containers:
+      - name: sec-ctx-demo-100
+        image: gcr.io/google-samples/node-hello:1.0
+        securityContext:
+          runAsUser: 0
+          runAsNonRoot: false
+- name: insecure sample 6 should fail
+  pass: false
+  input: |-
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: security-context-demo-2
+    spec:
+      containers:
+      - name: sec-ctx-demo-1
+        image: gcr.io/google-samples/node-hello:1.0
+      - name: sec-ctx-demo-2
+        image: gcr.io/google-samples/node-hello:1.0
+        securityContext:
+          runAsUser: 0
+          allowPrivilegeEscalation: false
+          runAsNonRoot: false
+- name: secure sample 1 should pass
+  pass: true
+  input: |-
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: security-context-demo-2
+    spec:
+      securityContext:
+        runAsUser: 10000
+        runAsNonRoot: true
+      containers:
+      - name: sec-ctx-demo-2
+        image: gcr.io/google-samples/node-hello:1.0
+        securityContext:
+          runAsUser: 10100
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+- name: secure sample 2 should pass
+  pass: true
+  input: |-
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: security-context-demo-1
+    spec:
+      securityContext:
+        runAsUser: 1000
+        runAsNonRoot: true
+      containers:
+      - name: sec-ctx-demo-100
+        image: gcr.io/google-samples/node-hello:1.0
+        securityContext:
+          runAsUser: 1000
+          runAsNonRoot: false
+      - name: sec-ctx-demo-200
+        image: gcr.io/google-samples/node-hedwfwllo:1.0
+        securityContext:
+          runAsUser: 2000
+          runAsNonRoot: true
+- name: secure sample 3 should pass
+  pass: true
+  input: |-
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: containers-runs-as-root
+    spec:
+      securityContext:
+        runAsUser: 0
+        runAsNonRoot: false
+      containers:
+      - name: sec-ctx-demo-100
+        image: gcr.io/google-samples/node-hello:1.0
+        securityContext:
+          runAsUser: 1000
+          runAsNonRoot: false

@@ -40,11 +40,9 @@
     spec:
       privileged: true
       allowPrivilegeEscalation: true
-      allowedCapabilities:
-      - '*'
       volumes:
       - '*'
-      hostNetwork: false
+      hostNetwork: true
       hostPorts:
       - min: 0
         max: 65535

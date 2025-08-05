@@ -10,10 +10,31 @@
     spec:
       privileged: true
       allowPrivilegeEscalation: true
-      allowedCapabilities:
-      - '*'
-      volumes:
-      - '*'
+      hostNetwork: true
+      hostPorts:
+      - min: 0
+        max: 65535
+      hostIPC: true
+      hostPID: true
+      runAsUser:
+        rule: 'RunAsAny'
+      seLinux:
+        rule: 'RunAsAny'
+      supplementalGroups:
+        rule: 'RunAsAny'
+      fsGroup:
+        rule: 'RunAsAny'
+- name: insecure sample 2 should fail
+  pass: false
+  input: |-
+    apiVersion: policy/v1beta1
+    kind: PodSecurityPolicy
+    metadata:
+      name: privileged2
+      annotations:
+        seccomp.security.alpha.kubernetes.io/allowedProfileNames: '*'
+    spec:
+      privileged: true
       hostNetwork: true
       hostPorts:
       - min: 0
@@ -39,12 +60,10 @@
         seccomp.security.alpha.kubernetes.io/allowedProfileNames: '*'
     spec:
       privileged: true
-      allowPrivilegeEscalation: true
-      allowedCapabilities:
-      - '*'
+      allowPrivilegeEscalation: false
       volumes:
       - '*'
-      hostNetwork: false
+      hostNetwork: true
       hostPorts:
       - min: 0
         max: 65535

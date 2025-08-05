@@ -40,8 +40,22 @@ spec:
           - kube-system
           - kube-public
   cel: |
-    (object.kind == 'Pod' && has(object.spec.containers) && object.spec.containers.exists(c, has(c.securityContext) && has(c.securityContext.allowPrivilegeEscalation) && c.securityContext.allowPrivilegeEscalation == true)) ||
-    (object.kind != 'Pod' && has(object.spec.template.spec.containers) && object.spec.template.spec.containers.exists(c, has(c.securityContext) && has(c.securityContext.allowPrivilegeEscalation) && c.securityContext.allowPrivilegeEscalation == true))
+    (object.kind == 'Pod' && (
+      (has(object.spec.containers) && object.spec.containers.exists(c, 
+        (!has(c.securityContext) || !has(c.securityContext.allowPrivilegeEscalation) || c.securityContext.allowPrivilegeEscalation == true)
+      )) ||
+      (has(object.spec.initContainers) && object.spec.initContainers.exists(c, 
+        (!has(c.securityContext) || !has(c.securityContext.allowPrivilegeEscalation) || c.securityContext.allowPrivilegeEscalation == true)
+      ))
+    )) ||
+    (object.kind != 'Pod' && (
+      (has(object.spec.template.spec.containers) && object.spec.template.spec.containers.exists(c, 
+        (!has(c.securityContext) || !has(c.securityContext.allowPrivilegeEscalation) || c.securityContext.allowPrivilegeEscalation == true)
+      )) ||
+      (has(object.spec.template.spec.initContainers) && object.spec.template.spec.initContainers.exists(c, 
+        (!has(c.securityContext) || !has(c.securityContext.allowPrivilegeEscalation) || c.securityContext.allowPrivilegeEscalation == true)
+      ))
+    ))
   remediation:
     manual: "Set allowPrivilegeEscalation=false in securityContext"
   metadata:

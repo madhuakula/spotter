@@ -1,4 +1,4 @@
-- name: "privileged pod should fail"
+- name: privileged pod should fail
   pass: false
   input: |
     apiVersion: v1
@@ -12,8 +12,7 @@
         image: nginx:1.20
         securityContext:
           privileged: true
-
-- name: "non-privileged pod should pass"
+- name: non-privileged pod should pass
   pass: true
   input: |
     apiVersion: v1
@@ -27,8 +26,7 @@
         image: nginx:1.20
         securityContext:
           privileged: false
-
-- name: "pod with privileged false explicitly should pass"
+- name: pod with privileged false explicitly should pass
   pass: true
   input: |
     apiVersion: v1
@@ -53,8 +51,7 @@
           securityContext:
             privileged: false
             allowPrivilegeEscalation: false
-
-- name: "deployment with privileged container should fail"
+- name: deployment with privileged container should fail
   pass: false
   input: |
     apiVersion: apps/v1
@@ -77,8 +74,7 @@
             image: nginx:1.20
             securityContext:
               privileged: true
-
-- name: "deployment with multiple containers, one privileged should fail"
+- name: deployment with multiple containers, one privileged should fail
   pass: false
   input: |
     apiVersion: apps/v1
@@ -106,9 +102,8 @@
             image: busybox
             securityContext:
               privileged: true
-
-- name: "pod with init container privileged should fail"
-  pass: true
+- name: pod with init container privileged should fail
+  pass: false
   input: |
     apiVersion: v1
     kind: Pod
@@ -127,10 +122,9 @@
         image: gcr.io/google-samples/node-hello:1.0
         securityContext:
           privileged: false
-
-- name: "pod without security context should pass"
+- name: pod without security context should pass
   pass: true
-  input: |
+  input: |-
     apiVersion: v1
     kind: Pod
     metadata:
@@ -140,3 +134,75 @@
       containers:
       - name: test-container
         image: nginx:1.20
+- name: insecure sample 1 should fail
+  pass: false
+  input: |-
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: security-context-demo-4
+    spec:
+      containers:
+      - name: sec-ctx-4
+        image: gcr.io/google-samples/node-hello:1.0
+        securityContext:
+          privileged: true
+          capabilities:
+            add: ["NET_ADMIN", "SYS_TIME"]
+- name: insecure sample 2 should fail
+  pass: false
+  input: |-
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: security-context-demo-5
+    spec:
+      initContainers:
+      - name: sec-ctx-4
+        image: gcr.io/google-samples/node-hello:1.0
+        securityContext:
+          privileged: true
+          capabilities:
+            add: ["NET_ADMIN", "SYS_TIME"]
+      containers:
+      - name: sec-ctx-4
+        image: gcr.io/google-samples/node-hello:1.0
+- name: insecure sample 3 should fail
+  pass: false
+  input: |-
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: test-deployment
+      labels:
+        app: test
+    spec:
+      replicas: 3
+      selector:
+        matchLabels:
+          app: test
+      template:
+        metadata:
+          labels:
+            app: test
+        spec:
+          containers:
+            - name:  pause
+              image: k8s.gcr.io/pause
+              securityContext:
+                privileged: true
+- name: secure sample 1 should pass
+  pass: true
+  input: |-
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: security-context-demo-4
+    spec:
+      containers:
+      - name: sec-ctx-4
+        image: gcr.io/google-samples/node-hello:1.0
+        securityContext:
+          privileged: false
+          capabilities:
+            add: ["NET_ADMIN", "SYS_TIME"]
