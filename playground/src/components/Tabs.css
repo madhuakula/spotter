@@ -3,6 +3,7 @@
   display: flex;
   border-bottom: 1px solid #3e3e42;
   padding: 0 16px;
+  justify-content: flex-end;
 }
 
 .tab {
