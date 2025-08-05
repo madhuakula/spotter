@@ -37,8 +37,42 @@ spec:
           include: ["*"]
           exclude: ["kube-system", "kube-public"]
   cel: |
-    (object.kind == 'Pod' && has(object.spec.volumes) && object.spec.volumes.exists(v, has(v.hostPath) && (v.hostPath.path.startsWith('/etc') || v.hostPath.path.startsWith('/var') || v.hostPath.path.startsWith('/usr')))) ||
-    (object.kind != 'Pod' && has(object.spec.template.spec.volumes) && object.spec.template.spec.volumes.exists(v, has(v.hostPath) && (v.hostPath.path.startsWith('/etc') || v.hostPath.path.startsWith('/var') || v.hostPath.path.startsWith('/usr'))))
+    (object.kind == 'Pod' && (
+      (has(object.spec.containers) && object.spec.containers.exists(c, 
+        has(c.volumeMounts) && c.volumeMounts.exists(vm, 
+          (vm.mountPath.startsWith('/etc') || vm.mountPath.startsWith('/var') || vm.mountPath.startsWith('/usr') || vm.mountPath.startsWith('/bin')) &&
+          ((!has(vm.readOnly) || vm.readOnly == false) || (has(vm.recursiveReadOnly) && vm.recursiveReadOnly == 'Disabled')) &&
+          has(object.spec.volumes) && object.spec.volumes.exists(v, v.name == vm.name && 
+            (has(v.hostPath) || has(v.emptyDir) || has(v.scaleIO) || (!has(v.configMap) && !has(v.secret))))
+        )
+      )) ||
+      (has(object.spec.initContainers) && object.spec.initContainers.exists(c, 
+        has(c.volumeMounts) && c.volumeMounts.exists(vm, 
+          (vm.mountPath.startsWith('/etc') || vm.mountPath.startsWith('/var') || vm.mountPath.startsWith('/usr') || vm.mountPath.startsWith('/bin')) &&
+          ((!has(vm.readOnly) || vm.readOnly == false) || (has(vm.recursiveReadOnly) && vm.recursiveReadOnly == 'Disabled')) &&
+          has(object.spec.volumes) && object.spec.volumes.exists(v, v.name == vm.name && 
+            (has(v.hostPath) || has(v.emptyDir) || has(v.scaleIO) || (!has(v.configMap) && !has(v.secret))))
+        )
+      ))
+    )) ||
+    (object.kind != 'Pod' && (
+      (has(object.spec.template.spec.containers) && object.spec.template.spec.containers.exists(c, 
+        has(c.volumeMounts) && c.volumeMounts.exists(vm, 
+          (vm.mountPath.startsWith('/etc') || vm.mountPath.startsWith('/var') || vm.mountPath.startsWith('/usr') || vm.mountPath.startsWith('/bin')) &&
+          ((!has(vm.readOnly) || vm.readOnly == false) || (has(vm.recursiveReadOnly) && vm.recursiveReadOnly == 'Disabled')) &&
+          has(object.spec.template.spec.volumes) && object.spec.template.spec.volumes.exists(v, v.name == vm.name && 
+            (has(v.hostPath) || has(v.emptyDir) || has(v.scaleIO) || (!has(v.configMap) && !has(v.secret))))
+        )
+      )) ||
+      (has(object.spec.template.spec.initContainers) && object.spec.template.spec.initContainers.exists(c, 
+        has(c.volumeMounts) && c.volumeMounts.exists(vm, 
+          (vm.mountPath.startsWith('/etc') || vm.mountPath.startsWith('/var') || vm.mountPath.startsWith('/usr') || vm.mountPath.startsWith('/bin')) &&
+          ((!has(vm.readOnly) || vm.readOnly == false) || (has(vm.recursiveReadOnly) && vm.recursiveReadOnly == 'Disabled')) &&
+          has(object.spec.template.spec.volumes) && object.spec.template.spec.volumes.exists(v, v.name == vm.name && 
+            (has(v.hostPath) || has(v.emptyDir) || has(v.scaleIO) || (!has(v.configMap) && !has(v.secret))))
+        )
+      ))
+    ))
   remediation:
     manual: "Set `readOnly: true` for hostPath volume mounts that access sensitive OS directories."
   references:

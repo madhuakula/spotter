@@ -37,8 +37,30 @@ spec:
           include: ["*"]
           exclude: ["kube-system", "kube-public"]
   cel: |
-    (object.kind == 'Pod' && has(object.spec.containers) && object.spec.containers.exists(c, has(c.securityContext) && has(c.securityContext.runAsUser) && c.securityContext.runAsUser < 10000)) ||
-    (object.kind != 'Pod' && has(object.spec.template.spec.containers) && object.spec.template.spec.containers.exists(c, has(c.securityContext) && has(c.securityContext.runAsUser) && c.securityContext.runAsUser < 10000))
+    (object.kind == 'Pod' && (
+      (has(object.spec.containers) && object.spec.containers.exists(c, 
+        (has(c.securityContext) && has(c.securityContext.runAsUser) && c.securityContext.runAsUser < 10000) ||
+        ((!has(c.securityContext) || !has(c.securityContext.runAsUser)) && 
+         (!has(object.spec.securityContext) || !has(object.spec.securityContext.runAsUser) || object.spec.securityContext.runAsUser < 10000))
+      )) ||
+      (has(object.spec.initContainers) && object.spec.initContainers.exists(c, 
+        (has(c.securityContext) && has(c.securityContext.runAsUser) && c.securityContext.runAsUser < 10000) ||
+        ((!has(c.securityContext) || !has(c.securityContext.runAsUser)) && 
+         (!has(object.spec.securityContext) || !has(object.spec.securityContext.runAsUser) || object.spec.securityContext.runAsUser < 10000))
+      ))
+    )) ||
+    (object.kind != 'Pod' && (
+      (has(object.spec.template.spec.containers) && object.spec.template.spec.containers.exists(c, 
+        (has(c.securityContext) && has(c.securityContext.runAsUser) && c.securityContext.runAsUser < 10000) ||
+        ((!has(c.securityContext) || !has(c.securityContext.runAsUser)) && 
+         (!has(object.spec.template.spec.securityContext) || !has(object.spec.template.spec.securityContext.runAsUser) || object.spec.template.spec.securityContext.runAsUser < 10000))
+      )) ||
+      (has(object.spec.template.spec.initContainers) && object.spec.template.spec.initContainers.exists(c, 
+        (has(c.securityContext) && has(c.securityContext.runAsUser) && c.securityContext.runAsUser < 10000) ||
+        ((!has(c.securityContext) || !has(c.securityContext.runAsUser)) && 
+         (!has(object.spec.template.spec.securityContext) || !has(object.spec.template.spec.securityContext.runAsUser) || object.spec.template.spec.securityContext.runAsUser < 10000))
+      ))
+    ))
   remediation:
     manual: "Set runAsUser to a value greater than or equal to 10000 in the container's security context."
   references:

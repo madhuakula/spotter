@@ -25,9 +25,11 @@ spec:
       kubernetes:
         apiGroups:
           - ""
-          - "apps"
+          - "apps" 
+          - "extensions"
         versions:
           - "v1"
+          - "v1beta1"
         kinds:
           - Pod
           - Deployment
@@ -37,8 +39,26 @@ spec:
           include: ["*"]
           exclude: ["kube-system", "kube-public"]
   cel: |
-    (object.kind == 'Pod' && has(object.spec.containers) && object.spec.containers.exists(c, !has(c.securityContext) || !has(c.securityContext.capabilities) || !has(c.securityContext.capabilities.drop) || !c.securityContext.capabilities.drop.exists(cap, cap == "ALL"))) ||
-    (object.kind != 'Pod' && has(object.spec.template.spec.containers) && object.spec.template.spec.containers.exists(c, !has(c.securityContext) || !has(c.securityContext.capabilities) || !has(c.securityContext.capabilities.drop) || !c.securityContext.capabilities.drop.exists(cap, cap == "ALL")))
+    (object.kind == 'Pod' && (
+      (has(object.spec.containers) && object.spec.containers.exists(c, 
+        !has(c.securityContext) || !has(c.securityContext.capabilities) || !has(c.securityContext.capabilities.drop) || 
+        (!c.securityContext.capabilities.drop.exists(cap, cap == "ALL") && !c.securityContext.capabilities.drop.exists(cap, cap == "all"))
+      )) ||
+      (has(object.spec.initContainers) && object.spec.initContainers.exists(c, 
+        !has(c.securityContext) || !has(c.securityContext.capabilities) || !has(c.securityContext.capabilities.drop) || 
+        (!c.securityContext.capabilities.drop.exists(cap, cap == "ALL") && !c.securityContext.capabilities.drop.exists(cap, cap == "all"))
+      ))
+    )) ||
+    (object.kind != 'Pod' && (
+      (has(object.spec.template.spec.containers) && object.spec.template.spec.containers.exists(c, 
+        !has(c.securityContext) || !has(c.securityContext.capabilities) || !has(c.securityContext.capabilities.drop) || 
+        (!c.securityContext.capabilities.drop.exists(cap, cap == "ALL") && !c.securityContext.capabilities.drop.exists(cap, cap == "all"))
+      )) ||
+      (has(object.spec.template.spec.initContainers) && object.spec.template.spec.initContainers.exists(c, 
+        !has(c.securityContext) || !has(c.securityContext.capabilities) || !has(c.securityContext.capabilities.drop) || 
+        (!c.securityContext.capabilities.drop.exists(cap, cap == "ALL") && !c.securityContext.capabilities.drop.exists(cap, cap == "all"))
+      ))
+    ))
   remediation:
     manual: "Add capabilities.drop: [\"ALL\"] to the container's security context."
   references:

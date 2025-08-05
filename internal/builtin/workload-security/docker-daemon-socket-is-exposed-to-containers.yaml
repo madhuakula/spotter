@@ -26,18 +26,24 @@ spec:
         apiGroups:
           - ""
           - "apps"
+          - "batch"
         versions:
           - "v1"
+          - "v1beta1"
         kinds:
           - Pod
           - Deployment
           - StatefulSet
           - DaemonSet
+          - ReplicationController
+          - CronJob
         namespaces:
           include: ["*"]
           exclude: ["kube-system", "kube-public"]
   cel: |
-    (object.kind == 'Pod' && has(object.spec.volumes) && object.spec.volumes.exists(v, has(v.hostPath) && v.hostPath.path == '/var/run/docker.sock')) || (object.kind != 'Pod' && has(object.spec.template.spec.volumes) && object.spec.template.spec.volumes.exists(v, has(v.hostPath) && v.hostPath.path == '/var/run/docker.sock'))
+    (object.kind == 'Pod' && has(object.spec.volumes) && object.spec.volumes.exists(v, has(v.hostPath) && v.hostPath.path == '/var/run/docker.sock')) ||
+    (object.kind == 'CronJob' && has(object.spec.jobTemplate.spec.template.spec.volumes) && object.spec.jobTemplate.spec.template.spec.volumes.exists(v, has(v.hostPath) && v.hostPath.path == '/var/run/docker.sock')) ||
+    (object.kind != 'Pod' && object.kind != 'CronJob' && has(object.spec.template.spec.volumes) && object.spec.template.spec.volumes.exists(v, has(v.hostPath) && v.hostPath.path == '/var/run/docker.sock'))
   remediation:
     manual: "Do not mount the Docker daemon socket into containers."
   references:
