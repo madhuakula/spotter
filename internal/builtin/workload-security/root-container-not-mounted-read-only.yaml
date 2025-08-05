@@ -37,8 +37,34 @@ spec:
           include: ["*"]
           exclude: ["kube-system", "kube-public"]
   cel: |
-    (object.kind == 'Pod' && has(object.spec.containers) && object.spec.containers.exists(c, has(c.securityContext) && has(c.securityContext.runAsUser) && c.securityContext.runAsUser == 0 && (!has(c.securityContext.readOnlyRootFilesystem) || c.securityContext.readOnlyRootFilesystem == false))) ||
-    (object.kind != 'Pod' && has(object.spec.template.spec.containers) && object.spec.template.spec.containers.exists(c, has(c.securityContext) && has(c.securityContext.runAsUser) && c.securityContext.runAsUser == 0 && (!has(c.securityContext.readOnlyRootFilesystem) || c.securityContext.readOnlyRootFilesystem == false)))
+    (object.kind == 'Pod' && (
+      (has(object.spec.containers) && object.spec.containers.exists(c, 
+        ((has(c.securityContext) && has(c.securityContext.runAsUser) && c.securityContext.runAsUser == 0) ||
+         (!has(c.securityContext) || !has(c.securityContext.runAsUser)) ||
+         (!has(object.spec.securityContext) || !has(object.spec.securityContext.runAsUser))) &&
+        (!has(c.securityContext) || !has(c.securityContext.readOnlyRootFilesystem) || c.securityContext.readOnlyRootFilesystem == false)
+      )) ||
+      (has(object.spec.initContainers) && object.spec.initContainers.exists(c, 
+        ((has(c.securityContext) && has(c.securityContext.runAsUser) && c.securityContext.runAsUser == 0) ||
+         (!has(c.securityContext) || !has(c.securityContext.runAsUser)) ||
+         (!has(object.spec.securityContext) || !has(object.spec.securityContext.runAsUser))) &&
+        (!has(c.securityContext) || !has(c.securityContext.readOnlyRootFilesystem) || c.securityContext.readOnlyRootFilesystem == false)
+      ))
+    )) ||
+    (object.kind != 'Pod' && (
+      (has(object.spec.template.spec.containers) && object.spec.template.spec.containers.exists(c, 
+        ((has(c.securityContext) && has(c.securityContext.runAsUser) && c.securityContext.runAsUser == 0) ||
+         (!has(c.securityContext) || !has(c.securityContext.runAsUser)) ||
+         (!has(object.spec.template.spec.securityContext) || !has(object.spec.template.spec.securityContext.runAsUser))) &&
+        (!has(c.securityContext) || !has(c.securityContext.readOnlyRootFilesystem) || c.securityContext.readOnlyRootFilesystem == false)
+      )) ||
+      (has(object.spec.template.spec.initContainers) && object.spec.template.spec.initContainers.exists(c, 
+        ((has(c.securityContext) && has(c.securityContext.runAsUser) && c.securityContext.runAsUser == 0) ||
+         (!has(c.securityContext) || !has(c.securityContext.runAsUser)) ||
+         (!has(object.spec.template.spec.securityContext) || !has(object.spec.template.spec.securityContext.runAsUser))) &&
+        (!has(c.securityContext) || !has(c.securityContext.readOnlyRootFilesystem) || c.securityContext.readOnlyRootFilesystem == false)
+      ))
+    ))
   remediation:
     manual: "Set `readOnlyRootFilesystem: true` for containers running as root."
   references:

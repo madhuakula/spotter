@@ -103,7 +103,7 @@
             securityContext:
               privileged: true
 - name: pod with init container privileged should fail
-  pass: true
+  pass: false
   input: |
     apiVersion: v1
     kind: Pod
