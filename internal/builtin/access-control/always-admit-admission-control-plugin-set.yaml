@@ -1,7 +1,7 @@
 apiVersion: rules.spotter.run/v1
 kind: SecurityRule
 metadata:
-  name: always-admit-admission-plugin-enabled
+  name: always-admit-admission-control-plugin-set
   labels:
     category: "Access Control"
     severity: critical
