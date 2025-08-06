@@ -30,11 +30,12 @@ spec:
         kinds:
           - Role
           - ClusterRole
-        namespaces:
-          include: ["*"]
-          exclude: ["kube-system", "kube-public"]
   cel: |
-    object.kind in ["Role", "ClusterRole"] && object.rules.exists(r, "escalate" in r.verbs)
+    object.kind in ["Role", "ClusterRole"] && has(object.rules) && object.rules.exists(r,
+      has(r.resources) && has(r.verbs) &&
+      r.resources.exists(res, res in ["roles", "clusterroles"]) &&
+      r.verbs.exists(verb, verb in ["bind", "escalate", "*"])
+    )
   remediation:
     manual: "Avoid granting `escalate` permissions in RBAC roles."
   references:

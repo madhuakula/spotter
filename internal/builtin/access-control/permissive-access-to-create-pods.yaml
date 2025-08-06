@@ -30,9 +30,6 @@ spec:
         kinds:
           - Role
           - ClusterRole
-        namespaces:
-          include: ["*"]
-          exclude: ["kube-system", "kube-public"]
   cel: |
     object.kind in ["Role", "ClusterRole"] &&
     has(object.rules) &&

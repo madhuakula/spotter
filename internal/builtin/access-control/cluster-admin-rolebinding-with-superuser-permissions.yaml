@@ -27,14 +27,12 @@ spec:
           - "rbac.authorization.k8s.io"
         versions:
           - "v1"
+          - "v1beta1"
         kinds:
           - ClusterRoleBinding
-        namespaces:
-          include: ["*"]
-          exclude: []
   cel: |
-    has(object.roleRef) && object.roleRef.apiGroup == "rbac.authorization.k8s.io" && object.roleRef.kind == "ClusterRole" && object.roleRef.name == "cluster-admin" &&
-    has(object.subjects) && object.subjects.exists(s, s.kind == "User" || s.kind == "Group")
+    has(object.roleRef) && object.roleRef.kind == "ClusterRole" && object.roleRef.name == "cluster-admin" &&
+    has(object.subjects) && object.subjects.exists(s, s.kind in ["User", "Group", "ServiceAccount"])
   remediation:
     manual: "Avoid binding the `cluster-admin` role to users or groups. Use more specific roles and role bindings to grant only the necessary permissions."
   references:
