@@ -1,0 +1,243 @@
+/* Import Red Hat Mono font */
+@import url('https://fonts.googleapis.com/css2?family=Red+Hat+Mono:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&display=swap');
+
+/* Custom CSS variables for Spotter theme */
+:root {
+  /* Primary brand colors */
+  --sl-color-accent: #3b82f6;
+  --sl-color-accent-low: #dbeafe;
+  --sl-color-accent-high: #1e40af;
+  
+  /* Custom Spotter colors */
+  --spotter-primary: #2563eb;
+  --spotter-secondary: #7c3aed;
+  --spotter-success: #059669;
+  --spotter-warning: #d97706;
+  --spotter-danger: #dc2626;
+  
+  /* Typography */
+  --sl-font-mono: 'Red Hat Mono', 'Consolas', 'Monaco', 'Andale Mono', 'Ubuntu Mono', monospace;
+  --sl-font-system: 'Red Hat Mono', system-ui, sans-serif;
+  
+  /* Custom spacing */
+  --spotter-spacing-xs: 0.25rem;
+  --spotter-spacing-sm: 0.5rem;
+  --spotter-spacing-md: 1rem;
+  --spotter-spacing-lg: 1.5rem;
+  --spotter-spacing-xl: 2rem;
+}
+
+/* Dark theme overrides */
+:root[data-theme='dark'] {
+  --sl-color-accent: #60a5fa;
+  --sl-color-accent-low: #1e3a8a;
+  --sl-color-accent-high: #93c5fd;
+  
+  --spotter-primary: #3b82f6;
+  --spotter-secondary: #8b5cf6;
+  --spotter-success: #10b981;
+  --spotter-warning: #f59e0b;
+  --spotter-danger: #ef4444;
+}
+
+/* Apply Red Hat Mono to code elements */
+code, pre, .sl-markdown-content code {
+  font-family: var(--sl-font-mono) !important;
+  font-weight: 400;
+}
+
+/* Custom badge styles for severity levels */
+.severity-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: var(--sl-font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.severity-critical {
+  background-color: #fecaca;
+  color: #991b1b;
+}
+
+.severity-high {
+  background-color: #fed7aa;
+  color: #9a3412;
+}
+
+.severity-medium {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.severity-low {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+/* Dark theme severity badges */
+:root[data-theme='dark'] .severity-critical {
+  background-color: #7f1d1d;
+  color: #fca5a5;
+}
+
+:root[data-theme='dark'] .severity-high {
+  background-color: #7c2d12;
+  color: #fdba74;
+}
+
+:root[data-theme='dark'] .severity-medium {
+  background-color: #78350f;
+  color: #fcd34d;
+}
+
+:root[data-theme='dark'] .severity-low {
+  background-color: #064e3b;
+  color: #6ee7b7;
+}
+
+/* Custom card styles */
+.spotter-card {
+  background: var(--sl-color-bg-nav);
+  border: 1px solid var(--sl-color-hairline-shade);
+  border-radius: 0.5rem;
+  padding: var(--spotter-spacing-lg);
+  margin: var(--spotter-spacing-md) 0;
+}
+
+/* Feature grid */
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--spotter-spacing-lg);
+  margin: var(--spotter-spacing-xl) 0;
+}
+
+.feature-card {
+  background: var(--sl-color-bg-nav);
+  border: 1px solid var(--sl-color-hairline-shade);
+  border-radius: 0.5rem;
+  padding: var(--spotter-spacing-lg);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.feature-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.feature-card h3 {
+  color: var(--spotter-primary);
+  margin-top: 0;
+  font-family: var(--sl-font-mono);
+}
+
+/* Command line styling */
+.command-line {
+  background: var(--sl-color-bg-nav);
+  border: 1px solid var(--sl-color-hairline-shade);
+  border-radius: 0.375rem;
+  padding: var(--spotter-spacing-md);
+  font-family: var(--sl-font-mono);
+  font-size: 0.875rem;
+  overflow-x: auto;
+}
+
+/* Status indicators */
+.status-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-family: var(--sl-font-mono);
+  font-size: 0.875rem;
+}
+
+.status-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+}
+
+.status-success .status-dot {
+  background-color: var(--spotter-success);
+}
+
+.status-warning .status-dot {
+  background-color: var(--spotter-warning);
+}
+
+.status-danger .status-dot {
+  background-color: var(--spotter-danger);
+}
+
+/* Custom table styles */
+.spotter-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: var(--spotter-spacing-lg) 0;
+  font-family: var(--sl-font-mono);
+  font-size: 0.875rem;
+}
+
+.spotter-table th,
+.spotter-table td {
+  padding: var(--spotter-spacing-sm) var(--spotter-spacing-md);
+  text-align: left;
+  border-bottom: 1px solid var(--sl-color-hairline-shade);
+}
+
+.spotter-table th {
+  background-color: var(--sl-color-bg-nav);
+  font-weight: 600;
+  color: var(--spotter-primary);
+}
+
+/* Logo styling */
+.spotter-logo {
+  max-height: 2rem;
+  width: auto;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .feature-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .spotter-table {
+    font-size: 0.75rem;
+  }
+  
+  .spotter-table th,
+  .spotter-table td {
+    padding: var(--spotter-spacing-xs) var(--spotter-spacing-sm);
+  }
+}
+
+/* Syntax highlighting improvements */
+.sl-markdown-content pre {
+  background: var(--sl-color-bg-nav) !important;
+  border: 1px solid var(--sl-color-hairline-shade);
+}
+
+/* Custom scrollbar for code blocks */
+.sl-markdown-content pre::-webkit-scrollbar {
+  height: 8px;
+}
+
+.sl-markdown-content pre::-webkit-scrollbar-track {
+  background: var(--sl-color-bg-nav);
+}
+
+.sl-markdown-content pre::-webkit-scrollbar-thumb {
+  background: var(--sl-color-hairline-shade);
+  border-radius: 4px;
+}
+
+.sl-markdown-content pre::-webkit-scrollbar-thumb:hover {
+  background: var(--sl-color-accent);
+}
