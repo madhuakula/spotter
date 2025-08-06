@@ -29,9 +29,6 @@ spec:
           - "v1"
         kinds:
           - Pod
-        namespaces:
-          include: ["kube-system"]
-          exclude: ["*"]
   cel: |
     true
   remediation:
