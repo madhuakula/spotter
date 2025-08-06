@@ -62,9 +62,18 @@ var clusterCmd = &cobra.Command{
 This command connects to your Kubernetes cluster using the configured kubeconfig
 and scans all accessible resources against the loaded security rules.
 
+Kubeconfig Priority Order:
+  1. KUBECONFIG environment variable (if set)
+  2. --kubeconfig flag (if provided)
+  3. ~/.kube/config (default fallback)
+  4. In-cluster service account (when running inside Kubernetes)
+
 Examples:
   # Scan entire cluster
   spotter scan cluster
+  
+  # Scan with specific kubeconfig
+  spotter scan cluster --kubeconfig /path/to/config
   
   # Scan specific namespaces
   spotter scan cluster --namespace=default,production

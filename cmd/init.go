@@ -177,7 +177,8 @@ output:
 
 # Kubernetes configuration
 kubernetes:
-  # Path to kubeconfig file
+  # Path to kubeconfig file (fallback if KUBECONFIG env var not set)
+  # Priority: 1) KUBECONFIG env var, 2) --kubeconfig flag, 3) this config value
   kubeconfig: "~/.kube/config"
   # Kubernetes context to use
   context: ""

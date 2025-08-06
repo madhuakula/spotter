@@ -3,6 +3,7 @@ package k8s
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -366,20 +367,35 @@ func (c *K8sClient) watchResource(ctx context.Context, gvr schema.GroupVersionRe
 }
 
 func buildConfig(kubeconfig, context string) (*rest.Config, error) {
-	if kubeconfig == "" {
-		// Try in-cluster config first
+	// Priority order for kubeconfig file selection:
+	// 1. Check if there env var KUBECONFIG, if yes use that path
+	// 2. If that's not found, then check if user passes --kubeconfig flag then use that
+	// 3. If that's also not found, then directly use ~/.kube/config path
+
+	var kubeconfigPath string
+
+	// 1. Check KUBECONFIG environment variable first
+	if envKubeconfig := os.Getenv("KUBECONFIG"); envKubeconfig != "" {
+		kubeconfigPath = envKubeconfig
+	} else if kubeconfig != "" {
+		// 2. Use the kubeconfig flag if provided
+		kubeconfigPath = kubeconfig
+	} else {
+		// 3. Try in-cluster config first, then fall back to default kubeconfig location
 		if config, err := rest.InClusterConfig(); err == nil {
 			return config, nil
 		}
 
 		// Fall back to default kubeconfig location
 		if home := homedir.HomeDir(); home != "" {
-			kubeconfig = filepath.Join(home, ".kube", "config")
+			kubeconfigPath = filepath.Join(home, ".kube", "config")
+		} else {
+			return nil, fmt.Errorf("unable to determine kubeconfig path: no KUBECONFIG environment variable, no --kubeconfig flag, and no home directory found")
 		}
 	}
 
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
-	loadingRules.ExplicitPath = kubeconfig
+	loadingRules.ExplicitPath = kubeconfigPath
 
 	configOverrides := &clientcmd.ConfigOverrides{}
 	if context != "" {
