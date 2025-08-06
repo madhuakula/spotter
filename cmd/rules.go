@@ -1048,14 +1048,20 @@ func validateTestCaseWithScan(ctx context.Context, rule *models.SecurityRule, te
 	if err != nil {
 		return fmt.Errorf("failed to create temp file: %w", err)
 	}
-	defer os.Remove(tempFile.Name())
-	defer tempFile.Close()
+	defer func() {
+		_ = os.Remove(tempFile.Name())
+	}()
+	defer func() {
+		_ = tempFile.Close()
+	}()
 
 	// Write the test input to the temp file
 	if _, err := tempFile.WriteString(testCase.Input); err != nil {
 		return fmt.Errorf("failed to write test input to temp file: %w", err)
 	}
-	tempFile.Close()
+	if err := tempFile.Close(); err != nil {
+		return fmt.Errorf("failed to close temp file: %w", err)
+	}
 
 	// Initialize scanner and engine
 	scanner := initializeFileScanner()
@@ -1131,9 +1137,7 @@ func findTestFiles(rulePath, testCasesDir string) (map[string]string, error) {
 		ruleBase := strings.TrimSuffix(filepath.Base(ruleFile), filepath.Ext(ruleFile))
 
 		// Remove "_file" suffix if it exists and add "-test"
-		if strings.HasSuffix(ruleBase, "_file") {
-			ruleBase = strings.TrimSuffix(ruleBase, "_file")
-		}
+		ruleBase = strings.TrimSuffix(ruleBase, "_file")
 		testFileName := ruleBase + "-test.yaml"
 
 		// Use same directory as rule file (no separate test directory)

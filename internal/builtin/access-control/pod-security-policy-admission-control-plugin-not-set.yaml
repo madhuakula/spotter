@@ -30,7 +30,13 @@ spec:
         kinds:
           - Pod
   cel: |
-    has(object.spec.containers) && object.spec.containers.exists(c, has(c.command) && c.command.exists(cmd, cmd == "kube-apiserver") && (!has(c.args) || !c.args.exists(arg, arg.contains("--enable-admission-plugins=") && arg.contains("PodSecurityPolicy"))))
+    has(object.spec.containers) && object.spec.containers.exists(c,
+      has(c.command) && c.command.exists(cmd, cmd == "kube-apiserver") &&
+      !(
+        (has(c.args) && c.args.exists(arg, arg.contains("--enable-admission-plugins=") && arg.contains("PodSecurityPolicy"))) ||
+        (has(c.command) && c.command.exists(cmd, cmd.contains("--enable-admission-plugins=") && cmd.contains("PodSecurityPolicy")))
+      )
+    )
   remediation:
     manual: "Set `--enable-admission-plugins=PodSecurityPolicy` for the kube-apiserver."
   references:

@@ -135,12 +135,16 @@ func (s *Scanner) generateCacheKey(scanType string, options ScanOptions) string 
 
 // processBatch is deprecated and replaced by processParallel
 // Keeping for backward compatibility but not actively used
+//
+//nolint:unused
 func (s *Scanner) processBatch(ctx context.Context, resources []map[string]interface{}, batchSize int, options ScanOptions) []map[string]interface{} {
 	// This method is now a passthrough to parallel processing
 	return s.processParallel(ctx, resources, options.Parallelism, options)
 }
 
 // checkMemoryLimit checks if memory usage exceeds limit and triggers GC
+//
+//nolint:unused
 func (s *Scanner) checkMemoryLimit(limit int64) {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)

@@ -25,12 +25,21 @@ spec:
       kubernetes:
         apiGroups:
           - ""
+          - "kubelet.config.k8s.io"
         versions:
           - v1
+          - v1beta1
         kinds:
           - Pod
+          - KubeletConfiguration
   cel: |
-    has(object.spec.containers) && object.spec.containers.exists(c, has(c.command) && c.command.exists(cmd, cmd == "kube-apiserver") && has(c.args) && c.args.exists(arg, arg.contains("--authorization-mode=") && arg.contains("AlwaysAllow")))
+    (object.kind == "Pod" && has(object.spec.containers) && object.spec.containers.exists(c,
+      has(c.command) && (c.command.exists(cmd, cmd == "kube-apiserver") || c.command.exists(cmd, cmd == "kubelet")) &&
+      (
+        (has(c.args) && c.args.exists(arg, arg.contains("--authorization-mode=") && arg.contains("AlwaysAllow"))) ||
+        (has(c.command) && c.command.exists(cmd, cmd.contains("--authorization-mode=") && cmd.contains("AlwaysAllow")))
+      )
+    )) || (object.kind == "KubeletConfiguration" && has(object.authorization) && object.authorization.mode == "AlwaysAllow")
   remediation:
     manual: "Set `--authorization-mode` to `Node,RBAC` or other restrictive modes for the kube-apiserver."
   references:
