@@ -1,7 +1,6 @@
 - name: insecure sample 1 should fail
   pass: false
   input: |-
-    #this is a problematic code where the query should report a result(s)
     apiVersion: policy/v1beta1
     kind: PodSecurityPolicy
     metadata:
@@ -53,7 +52,6 @@
 - name: secure sample 1 should pass
   pass: true
   input: |-
-    #this code is a correct code for which the query should not find any result
     apiVersion: policy/v1beta1
     kind: PodSecurityPolicy
     metadata:

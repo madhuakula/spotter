@@ -37,8 +37,30 @@ spec:
           include: ["*"]
           exclude: ["kube-system", "kube-public"]
   cel: |
-    (object.kind == 'Pod' && has(object.spec.containers) && object.spec.containers.exists(c, has(c.securityContext) && has(c.securityContext.capabilities) && has(c.securityContext.capabilities.add) && size(c.securityContext.capabilities.add) > 0)) ||
-    (object.kind != 'Pod' && has(object.spec.template.spec.containers) && object.spec.template.spec.containers.exists(c, has(c.securityContext) && has(c.securityContext.capabilities) && has(c.securityContext.capabilities.add) && size(c.securityContext.capabilities.add) > 0))
+    (object.kind == 'Pod' && (
+      (has(object.spec.containers) && object.spec.containers.exists(c, 
+        has(c.securityContext) && has(c.securityContext.capabilities) && has(c.securityContext.capabilities.add) && size(c.securityContext.capabilities.add) > 0 &&
+        !(has(c.securityContext.capabilities.drop) && c.securityContext.capabilities.drop.exists(cap, cap == 'ALL') && 
+          c.securityContext.capabilities.add.all(addCap, addCap == 'NET_BIND_SERVICE'))
+      )) ||
+      (has(object.spec.initContainers) && object.spec.initContainers.exists(c, 
+        has(c.securityContext) && has(c.securityContext.capabilities) && has(c.securityContext.capabilities.add) && size(c.securityContext.capabilities.add) > 0 &&
+        !(has(c.securityContext.capabilities.drop) && c.securityContext.capabilities.drop.exists(cap, cap == 'ALL') && 
+          c.securityContext.capabilities.add.all(addCap, addCap == 'NET_BIND_SERVICE'))
+      ))
+    )) ||
+    (object.kind != 'Pod' && (
+      (has(object.spec.template.spec.containers) && object.spec.template.spec.containers.exists(c, 
+        has(c.securityContext) && has(c.securityContext.capabilities) && has(c.securityContext.capabilities.add) && size(c.securityContext.capabilities.add) > 0 &&
+        !(has(c.securityContext.capabilities.drop) && c.securityContext.capabilities.drop.exists(cap, cap == 'ALL') && 
+          c.securityContext.capabilities.add.all(addCap, addCap == 'NET_BIND_SERVICE'))
+      )) ||
+      (has(object.spec.template.spec.initContainers) && object.spec.template.spec.initContainers.exists(c, 
+        has(c.securityContext) && has(c.securityContext.capabilities) && has(c.securityContext.capabilities.add) && size(c.securityContext.capabilities.add) > 0 &&
+        !(has(c.securityContext.capabilities.drop) && c.securityContext.capabilities.drop.exists(cap, cap == 'ALL') && 
+          c.securityContext.capabilities.add.all(addCap, addCap == 'NET_BIND_SERVICE'))
+      ))
+    ))
   remediation:
     manual: "Review and remove any unnecessary added capabilities from the container's security context."
   references:
