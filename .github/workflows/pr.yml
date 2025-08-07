@@ -29,6 +29,7 @@ jobs:
         echo 'deb [trusted=yes] https://repo.goreleaser.com/apt/ /' | sudo tee /etc/apt/sources.list.d/goreleaser.list
         sudo apt update
         sudo apt install goreleaser
+        goreleaser-h
     
     - name: Run all checks (lint, format, vet, test)
       run: make check
