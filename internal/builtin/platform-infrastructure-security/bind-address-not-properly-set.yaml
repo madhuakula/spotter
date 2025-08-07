@@ -29,9 +29,6 @@ spec:
           - v1
         kinds:
           - Pod
-        namespaces:
-          include: ["kube-system"]
-          exclude: ["*"]
   cel: |
     has(object.spec.containers) && object.spec.containers.exists(c, has(c.command) && (c.command.exists(cmd, cmd == "kube-apiserver") || c.command.exists(cmd, cmd == "kube-controller-manager") || c.command.exists(cmd, cmd == "kube-scheduler")) && has(c.args) && c.args.exists(arg, arg.startsWith("--bind-address=") && arg.contains("=0.0.0.0")))
   remediation:

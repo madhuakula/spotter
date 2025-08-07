@@ -26,6 +26,7 @@ spec:
         apiGroups:
           - ""
           - "apps"
+          - "serving.knative.dev"
         versions:
           - "v1"
         kinds:
@@ -33,12 +34,16 @@ spec:
           - Deployment
           - StatefulSet
           - DaemonSet
+          - PersistentVolume
+          - Revision
         namespaces:
           include: ["*"]
           exclude: ["kube-system"]
   cel: |
+    (object.kind == 'PersistentVolume' && has(object.spec.hostPath)) ||
     (object.kind == 'Pod' && has(object.spec.volumes) && object.spec.volumes.exists(v, has(v.hostPath))) ||
-    (object.kind != 'Pod' && has(object.spec.template.spec.volumes) && object.spec.template.spec.volumes.exists(v, has(v.hostPath)))
+    (object.kind == 'Revision' && has(object.spec.volumes) && object.spec.volumes.exists(v, has(v.hostPath))) ||
+    (object.kind != 'Pod' && object.kind != 'PersistentVolume' && object.kind != 'Revision' && has(object.spec.template.spec.volumes) && object.spec.template.spec.volumes.exists(v, has(v.hostPath)))
   remediation:
     manual: "Avoid using hostPath volumes for pods outside of the `kube-system` namespace."
   references:

@@ -29,13 +29,13 @@ spec:
           - "v1"
         kinds:
           - Pod
-        namespaces:
-          include: ["kube-system"]
-          exclude: ["*"]
   cel: |
     has(object.spec.containers) && object.spec.containers.exists(c,
       has(c.command) && c.command.exists(cmd, cmd == "kube-apiserver") &&
-      has(c.args) && c.args.exists(arg, arg.startsWith("--basic-auth-file="))
+      (
+        (has(c.args) && c.args.exists(arg, arg.startsWith("--basic-auth-file="))) ||
+        (has(c.command) && c.command.exists(cmd, cmd.startsWith("--basic-auth-file=")))
+      )
     )
   remediation:
     manual: "Edit the kube-apiserver pod specification file and remove the --basic-auth-file argument."

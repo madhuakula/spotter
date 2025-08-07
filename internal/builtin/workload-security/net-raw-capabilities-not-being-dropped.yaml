@@ -26,12 +26,15 @@ spec:
         apiGroups:
         - ''
         - apps
+        - policy
         versions:
         - v1
+        - v1beta1
         kinds:
         - Pod
         - Deployment
         - StatefulSet
+        - PodSecurityPolicy
         namespaces:
           include:
           - '*'
@@ -39,8 +42,23 @@ spec:
           - kube-system
           - kube-public
   cel: |
-    (object.kind == 'Pod' && has(object.spec.containers) && object.spec.containers.exists(c, has(c.securityContext) && has(c.securityContext.capabilities) && has(c.securityContext.capabilities.add) && c.securityContext.capabilities.add.exists(cap, cap == "NET_RAW"))) ||
-    (object.kind != 'Pod' && has(object.spec.template.spec.containers) && object.spec.template.spec.containers.exists(c, has(c.securityContext) && has(c.securityContext.capabilities) && has(c.securityContext.capabilities.add) && c.securityContext.capabilities.add.exists(cap, cap == "NET_RAW")))
+    (object.kind == 'PodSecurityPolicy' && has(object.spec.requiredDropCapabilities) && !object.spec.requiredDropCapabilities.exists(cap, cap == "NET_RAW")) ||
+    (object.kind == 'Pod' && (
+      (has(object.spec.containers) && object.spec.containers.exists(c, 
+        !has(c.securityContext) || !has(c.securityContext.capabilities) || !has(c.securityContext.capabilities.drop) || !c.securityContext.capabilities.drop.exists(cap, cap == "NET_RAW")
+      )) ||
+      (has(object.spec.initContainers) && object.spec.initContainers.exists(c, 
+        !has(c.securityContext) || !has(c.securityContext.capabilities) || !has(c.securityContext.capabilities.drop) || !c.securityContext.capabilities.drop.exists(cap, cap == "NET_RAW")
+      ))
+    )) ||
+    (object.kind != 'Pod' && object.kind != 'PodSecurityPolicy' && (
+      (has(object.spec.template.spec.containers) && object.spec.template.spec.containers.exists(c, 
+        !has(c.securityContext) || !has(c.securityContext.capabilities) || !has(c.securityContext.capabilities.drop) || !c.securityContext.capabilities.drop.exists(cap, cap == "NET_RAW")
+      )) ||
+      (has(object.spec.template.spec.initContainers) && object.spec.template.spec.initContainers.exists(c, 
+        !has(c.securityContext) || !has(c.securityContext.capabilities) || !has(c.securityContext.capabilities.drop) || !c.securityContext.capabilities.drop.exists(cap, cap == "NET_RAW")
+      ))
+    ))
   remediation:
     manual: "Drop NET_RAW capability in securityContext"
   metadata:

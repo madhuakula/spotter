@@ -29,9 +29,6 @@ spec:
           - v1
         kinds:
           - Pod
-        namespaces:
-          include: ["kube-system"]
-          exclude: ["*"]
   cel: |
     has(object.spec.containers) && object.spec.containers.exists(c, has(c.command) && c.command.exists(cmd, cmd == "kube-apiserver") && (!has(c.args) || !c.args.exists(arg, arg.startsWith("--request-timeout=")) || c.args.exists(arg, arg.startsWith("--request-timeout=") && arg.endsWith("s") && !arg.contains("300s"))))
   remediation:

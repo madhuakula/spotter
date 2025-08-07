@@ -33,7 +33,7 @@ spec:
           include: ["*"]
           exclude: []
   cel: |
-    object.kind == "PodSecurityPolicy" && has(object.spec.requiredDropCapabilities) && !object.spec.requiredDropCapabilities.exists(cap, cap == "NET_RAW")
+    object.kind == "PodSecurityPolicy" && has(object.spec.requiredDropCapabilities) && !object.spec.requiredDropCapabilities.exists(cap, cap == "NET_RAW") && !object.spec.requiredDropCapabilities.exists(cap, cap == "ALL")
   remediation:
     manual: "Add `NET_RAW` to the `requiredDropCapabilities` list in the PodSecurityPolicy."
   references:

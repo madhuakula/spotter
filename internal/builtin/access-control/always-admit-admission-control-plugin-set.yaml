@@ -1,7 +1,7 @@
 apiVersion: rules.spotter.run/v1
 kind: SecurityRule
 metadata:
-  name: always-admit-admission-plugin-enabled
+  name: always-admit-admission-control-plugin-set
   labels:
     category: "Access Control"
     severity: critical
@@ -29,9 +29,6 @@ spec:
           - v1
         kinds:
           - Pod
-        namespaces:
-          include: ["kube-system"]
-          exclude: ["*"]
   cel: |
     has(object.spec.containers) && object.spec.containers.exists(c,
       has(c.command) && c.command.exists(cmd, cmd == "kube-apiserver") &&

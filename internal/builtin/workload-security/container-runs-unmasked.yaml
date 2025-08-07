@@ -24,20 +24,16 @@ spec:
     resources:
       kubernetes:
         apiGroups:
-          - ""
-          - "apps"
+          - "policy"
         versions:
-          - "v1"
+          - "v1beta1"
         kinds:
-          - Pod
-          - Deployment
-          - StatefulSet
-          - DaemonSet
+          - PodSecurityPolicy
         namespaces:
           include: ["*"]
-          exclude: ["kube-system", "kube-public"]
+          exclude: []
   cel: |
-    (object.kind == 'Pod' && has(object.spec.containers) && object.spec.containers.exists(c, has(c.securityContext) && has(c.securityContext.procMount) && c.securityContext.procMount == "Unmasked")) || (object.kind != 'Pod' && has(object.spec.template.spec.containers) && object.spec.template.spec.containers.exists(c, has(c.securityContext) && has(c.securityContext.procMount) && c.securityContext.procMount == "Unmasked"))
+    object.kind == "PodSecurityPolicy" && has(object.spec.allowedProcMountTypes) && object.spec.allowedProcMountTypes.exists(pmt, pmt == "Unmasked")
   remediation:
     manual: "Set `procMount: Default` or omit the `procMount` field in the container's security context."
   references:

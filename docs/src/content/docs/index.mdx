@@ -1,0 +1,85 @@
+---
+title: Spotter
+description: Spotter - Universal Kubernetes Security Engine. Spotter is a comprehensive Kubernetes security scanner that uses CEL-based rules to identify security vulnerabilities, misconfigurations, and compliance violations across your Kubernetes clusters, manifests, and CI/CD pipelines.
+template: splash
+hero:
+  tagline: 🚀 Universal Kubernetes Security Engine
+  image:
+    file: ../../assets/logo.svg
+  actions:
+    - text: Get Started
+      link: /introduction/
+      icon: right-arrow
+      variant: primary
+    - text: View on GitHub
+      link: https://github.com/madhuakula/spotter
+      icon: external
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+<CardGrid stagger>
+  <Card title="🔍 Comprehensive Scanning">
+    Scan live Kubernetes clusters, YAML manifests, and Helm charts for security vulnerabilities and misconfigurations using CEL-based rules.
+  </Card>
+  
+  <Card title="⚡ High Performance">
+    Built with Go for speed and efficiency. Concurrent scanning with configurable workers and intelligent caching for optimal performance.
+  </Card>
+  
+  <Card title="🛡️ 140+ Built-in Rules">
+    Comprehensive security rules covering 10 major categories from workload security to compliance, with CIS Kubernetes Benchmark alignment.
+  </Card>
+  
+  <Card title="🔧 Extensible">
+    Create custom security rules using CEL (Common Expression Language). Easy rule development with YAML-based configuration.
+  </Card>
+  
+  <Card title="📊 Multiple Output Formats">
+    Support for table, JSON, YAML, and SARIF output formats. Perfect for CI/CD integration and security reporting.
+  </Card>
+  
+  <Card title="🚀 Multiple Deployment Modes">
+    Use as CLI tool, admission controller, or integrate into CI/CD pipelines. Docker images available for easy deployment.
+  </Card>
+</CardGrid>
+
+## Security Categories
+
+Spotter covers 10 comprehensive security categories:
+
+- **Workload Security** - Container privileges, security contexts, capabilities
+- **Access Control** - RBAC, service accounts, authorization
+- **Network & Traffic Security** - Network policies, service exposure
+- **Secrets & Data Protection** - Secret management, encryption
+- **Configuration & Resource Hygiene** - Resource limits, probes, deprecated APIs
+- **Supply Chain & Image Security** - Image scanning, registries, signatures
+- **CI/CD & GitOps Security** - Pipeline security, shift-left policies
+- **Runtime Threat Detection** - Anomaly detection, policy violations
+- **Audit, Logging & Compliance** - CIS benchmarks, governance
+- **Platform & Infrastructure Security** - Node security, control plane
+
+## Quick Example
+
+```bash
+# Scan a live cluster
+spotter scan cluster
+
+# Scan manifest files
+spotter scan manifests ./k8s-manifests/
+
+# Output in JSON format
+spotter scan cluster --output json
+
+# Scan with custom rules
+spotter scan manifests --rules ./custom-rules/ ./manifests/
+```
+
+## Why Spotter?
+
+- **Universal**: Works with any Kubernetes distribution
+- **Fast**: Concurrent scanning with intelligent resource matching
+- **Accurate**: CEL-based rules provide precise security analysis
+- **Comprehensive**: 140+ built-in rules covering all security aspects
+- **Flexible**: Multiple deployment modes and output formats
+- **Open Source**: Apache 2.0 licensed with active community

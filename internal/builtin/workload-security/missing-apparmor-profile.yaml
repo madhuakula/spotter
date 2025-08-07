@@ -37,8 +37,28 @@ spec:
           include: ["*"]
           exclude: ["kube-system", "kube-public"]
   cel: |
-    (object.kind == 'Pod' && (!has(object.metadata.annotations) || size(object.metadata.annotations.filter(k, k.startsWith('container.apparmor.security.beta.kubernetes.io/'))) == 0)) ||
-    (object.kind != 'Pod' && (!has(object.spec.template.metadata.annotations) || size(object.spec.template.metadata.annotations.filter(k, k.startsWith('container.apparmor.security.beta.kubernetes.io/'))) == 0))
+    (object.kind == 'Pod' && (
+      !has(object.metadata.annotations) || 
+      (has(object.spec.containers) && object.spec.containers.exists(c, 
+        !('container.apparmor.security.beta.kubernetes.io/' + c.name in object.metadata.annotations) ||
+        object.metadata.annotations['container.apparmor.security.beta.kubernetes.io/' + c.name] == 'dummy'
+      )) ||
+      (has(object.spec.initContainers) && object.spec.initContainers.exists(c, 
+        !('container.apparmor.security.beta.kubernetes.io/' + c.name in object.metadata.annotations) ||
+        object.metadata.annotations['container.apparmor.security.beta.kubernetes.io/' + c.name] == 'dummy'
+      ))
+    )) ||
+    (object.kind != 'Pod' && (
+      !has(object.spec.template.metadata.annotations) || 
+      (has(object.spec.template.spec.containers) && object.spec.template.spec.containers.exists(c, 
+        !('container.apparmor.security.beta.kubernetes.io/' + c.name in object.spec.template.metadata.annotations) ||
+        object.spec.template.metadata.annotations['container.apparmor.security.beta.kubernetes.io/' + c.name] == 'dummy'
+      )) ||
+      (has(object.spec.template.spec.initContainers) && object.spec.template.spec.initContainers.exists(c, 
+        !('container.apparmor.security.beta.kubernetes.io/' + c.name in object.spec.template.metadata.annotations) ||
+        object.spec.template.metadata.annotations['container.apparmor.security.beta.kubernetes.io/' + c.name] == 'dummy'
+      ))
+    ))
   remediation:
     manual: "Add an AppArmor annotation to the pod or pod template, specifying a profile (e.g., `container.apparmor.security.beta.kubernetes.io/my-container: runtime/default`)."
   references:

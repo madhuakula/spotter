@@ -24,19 +24,22 @@ spec:
     resources:
       kubernetes:
         apiGroups:
-        - kubeadm.k8s.io
+        - ""
+        - "kubeadm.k8s.io"
         versions:
+        - v1
         - v1beta3
         kinds:
+        - Pod
         - ClusterConfiguration
-        namespaces:
-          include:
-          - '*'
-          exclude:
-          - kube-system
-          - kube-public
   cel: |
-    object.kind == "ClusterConfiguration" && !("NodeRestriction" in object.apiServer.enableAdmissionPlugins)
+    (object.kind == "Pod" && has(object.spec.containers) && object.spec.containers.exists(c,
+      has(c.command) && c.command.exists(cmd, cmd == "kube-apiserver") &&
+      !(
+        (has(c.args) && c.args.exists(arg, arg.contains("--enable-admission-plugins=") && arg.contains("NodeRestriction"))) ||
+        (has(c.command) && c.command.exists(cmd, cmd.contains("--enable-admission-plugins=") && cmd.contains("NodeRestriction")))
+      )
+    )) || (object.kind == "ClusterConfiguration" && !("NodeRestriction" in object.apiServer.enableAdmissionPlugins))
   remediation:
     manual: "Enable NodeRestriction in admission plugins"
   metadata:

@@ -37,7 +37,13 @@ spec:
           include: ["*"]
           exclude: ["kube-system", "kube-public"]
   cel: |
-    (object.kind == 'Pod' && has(object.spec.containers) && object.spec.containers.exists(c, has(c.securityContext) && has(c.securityContext.privileged) && c.securityContext.privileged == true)) || (object.kind != 'Pod' && has(object.spec.template.spec.containers) && object.spec.template.spec.containers.exists(c, has(c.securityContext) && has(c.securityContext.privileged) && c.securityContext.privileged == true))
+    (object.kind == 'Pod' && (
+      (has(object.spec.containers) && object.spec.containers.exists(c, has(c.securityContext) && has(c.securityContext.privileged) && c.securityContext.privileged == true)) ||
+      (has(object.spec.initContainers) && object.spec.initContainers.exists(c, has(c.securityContext) && has(c.securityContext.privileged) && c.securityContext.privileged == true))
+    )) || (object.kind != 'Pod' && (
+      (has(object.spec.template.spec.containers) && object.spec.template.spec.containers.exists(c, has(c.securityContext) && has(c.securityContext.privileged) && c.securityContext.privileged == true)) ||
+      (has(object.spec.template.spec.initContainers) && object.spec.template.spec.initContainers.exists(c, has(c.securityContext) && has(c.securityContext.privileged) && c.securityContext.privileged == true))
+    ))
   remediation:
     manual: "Set `privileged: false` in the container's security context."
   references:

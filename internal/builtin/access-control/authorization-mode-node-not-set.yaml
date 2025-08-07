@@ -29,11 +29,14 @@ spec:
           - v1
         kinds:
           - Pod
-        namespaces:
-          include: ["kube-system"]
-          exclude: ["*"]
   cel: |
-    has(object.spec.containers) && object.spec.containers.exists(c, has(c.command) && c.command.exists(cmd, cmd == "kube-apiserver") && (!has(c.args) || !c.args.exists(arg, arg.contains("--authorization-mode=") && arg.contains("Node"))))
+    has(object.spec.containers) && object.spec.containers.exists(c,
+      has(c.command) && c.command.exists(cmd, cmd == "kube-apiserver") &&
+      !(
+        (has(c.args) && c.args.exists(arg, arg.contains("--authorization-mode=") && arg.contains("Node"))) ||
+        (has(c.command) && c.command.exists(cmd, cmd.contains("--authorization-mode=") && cmd.contains("Node")))
+      )
+    )
   remediation:
     manual: "Set `--authorization-mode=Node,RBAC` for the kube-apiserver."
   references:

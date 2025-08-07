@@ -29,11 +29,14 @@ spec:
           - v1
         kinds:
           - Pod
-        namespaces:
-          include: ["kube-system"]
-          exclude: ["*"]
   cel: |
-    has(object.spec.containers) && object.spec.containers.exists(c, has(c.command) && c.command.exists(cmd, cmd == "kube-apiserver") && has(c.args) && !c.args.exists(arg, arg.contains("--enable-admission-plugins=") && arg.contains("EventRateLimit")))
+    has(object.spec.containers) && object.spec.containers.exists(c,
+      has(c.command) && c.command.exists(cmd, cmd == "kube-apiserver") &&
+      !(
+        (has(c.args) && c.args.exists(arg, arg.contains("--enable-admission-plugins=") && arg.contains("EventRateLimit"))) ||
+        (has(c.command) && c.command.exists(cmd, cmd.contains("--enable-admission-plugins=") && cmd.contains("EventRateLimit")))
+      )
+    )
   remediation:
     manual: "Enable the `EventRateLimit` admission plugin in the kube-apiserver configuration."
   references:
