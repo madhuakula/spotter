@@ -23,6 +23,11 @@ jobs:
         
     - name: Setup development environment
       run: make dev-setup
+
+    - name: Install GoReleaser
+      run: |
+        curl -sSfL https://install.goreleaser.com/github.com/goreleaser/goreleaser.sh | sh
+        export PATH=$PATH:$(pwd)
     
     - name: Run all checks (lint, format, vet, test)
       run: make check
