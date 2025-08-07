@@ -25,7 +25,10 @@ jobs:
       run: make dev-setup
 
     - name: Install GoReleaser
-      run: sudo apt-get install -y goreleaser
+      run: |
+        echo 'deb [trusted=yes] https://repo.goreleaser.com/apt/ /' | sudo tee /etc/apt/sources.list.d/goreleaser.list
+        sudo apt update
+        sudo apt install goreleaser
     
     - name: Run all checks (lint, format, vet, test)
       run: make check
