@@ -25,9 +25,7 @@ jobs:
       run: make dev-setup
 
     - name: Install GoReleaser
-      run: |
-        curl -sSfL https://install.goreleaser.com/github.com/goreleaser/goreleaser.sh | sh
-        export PATH=$PATH:$(pwd)
+      run: sudo apt-get install -y goreleaser
     
     - name: Run all checks (lint, format, vet, test)
       run: make check
