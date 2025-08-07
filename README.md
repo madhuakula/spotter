@@ -1,6 +1,4 @@
 
-# Spotter - Kubernetes Security Scanner
-
 <div align="center">
   <p align="center"><a href="https://spotter.run" rel="spotter.run"><img src="img/spotter-horizontal.svg" alt="Spotter Logo" width="350"></a></p>
   <p align="center">⚡️Universal Kubernetes Security Engine</p>
@@ -11,84 +9,45 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/madhuakula/spotter)](https://goreportcard.com/report/github.com/madhuakula/spotter)
 [![License](https://img.shields.io/github/license/madhuakula/spotter)](https://github.com/madhuakula/spotter/blob/main/LICENSE)
 [![Release](https://img.shields.io/github/v/release/madhuakula/spotter)](https://github.com/madhuakula/spotter/releases)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/madhuakula/spotter)
 
 </div>
 
-**Spotter** is a comprehensive Kubernetes security scanner that identifies security vulnerabilities, misconfigurations, and compliance violations using CEL-based rules.
+**Spotter** is a comprehensive Kubernetes security scanner that helps identify security misconfigurations, vulnerabilities, and compliance issues in your Kubernetes clusters and manifests. Built with extensibility and performance in mind, Spotter uses the Common Expression Language (CEL) for flexible rule definitions and supports multiple output formats including SARIF for seamless CI/CD integration.
 
-## Quick Start
+## 📋 Table of Contents
+
+- [Quick Start](#-quick-start)
+- [Architecture](#-architecture)
+- [Features](#-features)
+- [Configuration](#-configuration)
+- [Security Categories](#-security-categories)
+- [Rule Development](#-rule-development)
+- [Contributing](#-contributing)
+- [Documentation](#-documentation)
+
+## 🚀 Quick Start
 
 ### Installation
 
+#### Using Go Install
 ```bash
-# Using Go
 go install github.com/madhuakula/spotter@latest
+```
 
-# Using Docker
+#### Using Docker
+```bash
 docker pull ghcr.io/madhuakula/spotter:latest
-
-# Using Make (from source)
-make build
 ```
 
-### Usage
+#### Download Binary
+Download the latest release from [GitHub Releases](https://github.com/madhuakula/spotter/releases).
 
+### Basic Usage
+
+#### Scan Kubernetes Manifests
 ```bash
-# Show help
-spotter --help
-
-# Scan manifests
-spotter scan manifests ./k8s-manifests/
-
-# Scan live cluster
-spotter scan cluster
-
-# Run as admission controller
-spotter server --mode=validating
-```
-
-## Building
-
-```bash
-# Build binary
-make build
-
-# Build container
-make image
-
-# Run tests
-make test
-
-# Show all targets
-make help
-```
-
-## Container Usage
-
-```bash
-# CLI usage
-docker run --rm ghcr.io/madhuakula/spotter:latest
-
-# Scan files
-docker run --rm -v $(pwd):/workspace ghcr.io/madhuakula/spotter:latest \
-  scan manifests /workspace
-
-# Admission controller
-docker run --rm -p 8443:8443 ghcr.io/madhuakula/spotter:latest \
-  server --mode=validating --port=8443
-```
-
-## Features
-
-- **165+ security rules** across 7 categories
-- **Multiple deployment modes**: CLI, CI/CD, admission controller
-- **Flexible output**: table, JSON, YAML, SARIF
-- **CEL-based rules** for extensibility
-- **Cloud-native**: single container for all use cases
-
-## License
-
-Apache License 2.0 - see [LICENSE](LICENSE) for details.
+# Scan a single manifest file
 spotter scan manifests --path deployment.yaml
 
 # Scan a directory of manifests
