@@ -100,16 +100,19 @@ dev-setup: deps ## Setup development environment
 	@echo "Setting up development environment..."
 	@which golangci-lint >/dev/null || (echo "Installing golangci-lint..." && \
 		curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin)
+	@which goreleaser >/dev/null || (echo "Installing goreleaser..." && \
+		go install github.com/goreleaser/goreleaser@latest) && \
+		$(shell go env GOPATH)/bin/goreleaser release --help
 
 check: fmt vet lint test ## Run all checks (format, vet, lint, test)
 
 release: check ## Run checks and build release artifacts
 	@echo "Creating release..."
-	goreleaser release --clean
+	$(shell go env GOPATH)/bin/goreleaser release --clean
 
 release-snapshot: check ## Create snapshot release
 	@echo "Creating snapshot release..."
-	goreleaser release --snapshot --clean
+	$(shell go env GOPATH)/bin/goreleaser release --snapshot --clean
 
 # Local development with kind
 kind-setup: ## Setup local kind cluster for testing
