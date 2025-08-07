@@ -254,7 +254,7 @@ func getAllRules() (map[string]interface{}, error) {
 			return err
 		}
 
-		if d.IsDir() || !strings.HasSuffix(path, ".yaml") {
+		if d.IsDir() || !strings.HasSuffix(path, ".yaml") || strings.HasSuffix(path, "-test.yaml") {
 			return nil
 		}
 

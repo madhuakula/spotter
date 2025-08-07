@@ -55,7 +55,7 @@ function Scanner({ onScan, disabled }) {
         />
       </div>
       
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden auto', paddingRight: '4px' }}>
         <div className="editor-section">
           <div className="section-title">
             <div className="file-icon">K</div>

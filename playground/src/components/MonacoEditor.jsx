@@ -1,4 +1,5 @@
-import { Editor } from '@monaco-editor/react'
+import { Editor  } from '@monaco-editor/react'
+import editorTheme from 'monaco-themes/themes/Tomorrow-Night-Bright.json'
 
 function MonacoEditor({ 
   value, 
@@ -40,6 +41,15 @@ function MonacoEditor({
     insertSpaces: true
   }
 
+  const handleEditorDidMount = (monaco) => {
+    monaco.editor.defineTheme('Tomorrow-Night-Bright', {
+      base: 'vs-dark',
+      inherit: true,
+      ...editorTheme
+    });
+  };
+  console.log(editorTheme)
+
   return (
     <div style={{ height, border: '1px solid #3e3e42', borderRadius: '4px', overflow: 'hidden' }}>
       <Editor
@@ -47,7 +57,8 @@ function MonacoEditor({
         language={language}
         value={value}
         onChange={handleEditorChange}
-        theme="vs-dark"
+        beforeMount={handleEditorDidMount}
+        theme="Tomorrow-Night-Bright"
         options={editorOptions}
         loading={<div style={{ padding: '16px', color: '#969696' }}>Loading editor...</div>}
       />
