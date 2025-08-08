@@ -73,6 +73,9 @@ dockers:
     extra_files:
       - go.mod
       - go.sum
+      - cmd/
+      - internal/
+      - pkg/
 
 release:
   github:
