@@ -1,5 +1,5 @@
 # GoReleaser configuration for Spotter
-version: 2
+version: 1
 
 before:
   hooks:
