@@ -17,7 +17,10 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 # Copy source code
-COPY . .
+COPY *.go ./
+COPY cmd/ cmd/
+COPY pkg/ pkg/
+COPY internal/ internal/
 
 # Build the application with conditional ldflags
 RUN if [ "$ENABLE_VERSIONING" = "true" ]; then \
