@@ -3,6 +3,9 @@ FROM golang:1.24-alpine AS builder
 
 # Build arguments to control build behavior
 ARG ENABLE_VERSIONING=true
+ARG VERSION=dev
+ARG COMMIT=unknown
+ARG DATE=unknown
 
 # Install build dependencies
 RUN apk add --no-cache git ca-certificates tzdata
@@ -25,9 +28,9 @@ COPY internal/ internal/
 # Build the application with conditional ldflags
 RUN if [ "$ENABLE_VERSIONING" = "true" ]; then \
         CGO_ENABLED=0 GOOS=linux go build \
-        -ldflags="-s -w -X github.com/madhuakula/spotter/pkg/version.Version=$(git describe --tags --always --dirty) \
-        -X github.com/madhuakula/spotter/pkg/version.Commit=$(git rev-parse --short HEAD) \
-        -X github.com/madhuakula/spotter/pkg/version.Date=$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
+        -ldflags="-s -w -X github.com/madhuakula/spotter/pkg/version.Version=${VERSION} \
+        -X github.com/madhuakula/spotter/pkg/version.Commit=${COMMIT} \
+        -X github.com/madhuakula/spotter/pkg/version.Date=${DATE}" \
         -o spotter .; \
     else \
         CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags='-w -s' -o spotter .; \
