@@ -107,7 +107,7 @@ check: fmt vet lint test ## Run all checks (format, vet, lint, test)
 
 release: check ## Run checks and build release artifacts
 	@echo "Creating release..."
-	$(shell go env GOPATH)/bin/goreleaser release --clean
+	$(shell go env GOPATH)/bin/goreleaser release --clean --skip=docker
 
 release-snapshot: check ## Create snapshot release
 	@echo "Creating snapshot release..."
