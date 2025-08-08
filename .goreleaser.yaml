@@ -10,11 +10,11 @@ builds:
   - env:
       - CGO_ENABLED=0
     goos:
-      - linux
-      - windows
+      # - linux
+      # - windows
       - darwin
     goarch:
-      - amd64
+      # - amd64
       - arm64
     ldflags:
       - -s -w
@@ -64,6 +64,10 @@ dockers:
     dockerfile: Dockerfile
     build_flag_templates:
       - "--platform=linux/amd64"
+      - "--build-arg=VERSION={{.Version}}"
+      - "--build-arg=COMMIT={{.FullCommit}}"
+      - "--build-arg=DATE={{.Date}}"
+      - "--build-arg=ENABLE_VERSIONING=true"
       - "--label=org.opencontainers.image.created={{.Date}}"
       - "--label=org.opencontainers.image.title={{.ProjectName}}"
       - "--label=org.opencontainers.image.revision={{.FullCommit}}"
@@ -73,6 +77,8 @@ dockers:
     extra_files:
       - go.mod
       - go.sum
+      - main.go
+      - main_wasm.go
       - cmd/
       - internal/
       - pkg/
