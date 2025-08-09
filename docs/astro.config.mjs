@@ -45,6 +45,7 @@ export default defineConfig({
           label: 'Security Rules',
           items: [
             { label: 'Built-in Rules', slug: 'rules/builtin' },
+            { label: 'CEL by Example', slug: 'rules/cel-by-example' },
             { label: 'Custom Rules', slug: 'rules/custom' },
           ],
         },
