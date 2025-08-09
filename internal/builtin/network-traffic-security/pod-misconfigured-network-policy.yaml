@@ -24,18 +24,16 @@ spec:
     resources:
       kubernetes:
         apiGroups:
-          - ""
+          - "networking.k8s.io"
         versions:
           - "v1"
         kinds:
-          - Pod
+          - NetworkPolicy
         namespaces:
           include: ["*"]
           exclude: []
   cel: |
-    object.kind == "Pod" &&
-    has(object.metadata.namespace) &&
-    object.metadata.namespace.contains("positive")
+    !has(object.spec.podSelector) || (!has(object.spec.ingress) && !has(object.spec.egress))
   remediation:
     manual: "Ensure that the NetworkPolicy has a `podSelector` to target pods and defines at least one `ingress` or `egress` rule."
   references:

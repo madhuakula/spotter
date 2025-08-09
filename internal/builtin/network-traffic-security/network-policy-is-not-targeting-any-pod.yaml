@@ -24,16 +24,16 @@ spec:
     resources:
       kubernetes:
         apiGroups:
-          - ""
-          - "apps"
+          - "networking.k8s.io"
         versions:
           - "v1"
         kinds:
-          - Pod
-          - Deployment
+          - NetworkPolicy
+        namespaces:
+          include: ["*"]
+          exclude: ["kube-system", "kube-public"]
   cel: |
-    (object.kind == "Pod" && has(object.metadata.labels.app) && object.metadata.labels.app == "easy") ||
-    (object.kind == "Deployment" && (!has(object.metadata.labels.app) || object.metadata.labels.app == "easy"))
+    !has(object.spec.podSelector) || size(object.spec.podSelector.matchLabels) == 0
   remediation:
     manual: "Ensure that the NetworkPolicy's podSelector matches the labels of the intended pods."
   references:
