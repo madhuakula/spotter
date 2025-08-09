@@ -29,9 +29,6 @@ spec:
           - "v1"
         kinds:
           - Ingress
-        namespaces:
-          include: ["*"]
-          exclude: ["kube-system", "kube-public"]
   cel: |
     !has(object.spec.tls) || size(object.spec.tls) == 0
   remediation:

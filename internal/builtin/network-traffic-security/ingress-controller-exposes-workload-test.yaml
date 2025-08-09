@@ -1,0 +1,35 @@
+- name: insecure sample 1 should fail
+  pass: false
+  input: |
+    apiVersion: v1
+    kind: Service
+    metadata:
+      namespace: kube-system
+      name: app
+      labels:
+        app: app
+    spec:
+      type: ClusterIP
+      ports:
+      - port: 3000
+        targetPort: 3000
+      selector:
+        app: app
+
+- name: secure sample 1 should pass
+  pass: true
+  input: |
+    apiVersion: v1
+    kind: Service
+    metadata:
+      namespace: kube-system
+      name: app
+      labels:
+        app: app
+    spec:
+      type: ClusterIP
+      ports:
+      - port: 3000
+        targetPort: 3000
+      selector:
+        app: app

@@ -29,9 +29,6 @@ spec:
           - "v1"
         kinds:
           - NetworkPolicy
-        namespaces:
-          include: ["*"]
-          exclude: ["kube-system", "kube-public"]
   cel: |
     !has(object.spec.podSelector) || size(object.spec.podSelector.matchLabels) == 0
   remediation:

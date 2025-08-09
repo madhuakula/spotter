@@ -29,9 +29,6 @@ spec:
           - v1
         kinds:
           - Service
-        namespaces:
-          include: ["*"]
-          exclude: ["kube-system", "kube-public"]
   cel: |
     object.kind == "Service" && (!has(object.spec.selector) || size(object.spec.selector) == 0)
   remediation:

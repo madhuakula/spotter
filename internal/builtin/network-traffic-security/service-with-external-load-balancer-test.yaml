@@ -1,0 +1,35 @@
+- name: insecure sample 1 should fail
+  pass: false
+  input: |
+    apiVersion: v1
+    kind: Service
+    metadata:
+      namespace: kube-system
+      name: sample-service 05
+    spec:
+      ports:
+        - port: 80
+          targetPort: 80
+          protocol: TCP
+      type: LoadBalancer
+      selector:
+        app: nginx
+
+- name: secure sample 1 should pass
+  pass: true
+  input: |
+    apiVersion: v1
+    kind: Service
+    metadata:
+      namespace: kube-system
+      name: sample-service 01
+      annotations:
+        cloud.google.com/load-balancer-type: 'Internal'
+    spec:
+      ports:
+        - port: 80
+          targetPort: 80
+          protocol: TCP
+      type: LoadBalancer
+      selector:
+        app: nginx

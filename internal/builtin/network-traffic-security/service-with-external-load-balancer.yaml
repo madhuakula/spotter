@@ -29,9 +29,6 @@ spec:
           - "v1"
         kinds:
           - Service
-        namespaces:
-          include: ["*"]
-          exclude: ["kube-system", "kube-public"]
   cel: |
     has(object.spec.type) && object.spec.type == "LoadBalancer"
   remediation:
