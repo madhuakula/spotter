@@ -58,8 +58,6 @@ dockers:
   # Unified spotter image (CLI + admission controller)
   - image_templates:
       - "ghcr.io/madhuakula/spotter:{{ .Tag }}"
-      - "ghcr.io/madhuakula/spotter:v{{ .Major }}"
-      - "ghcr.io/madhuakula/spotter:v{{ .Major }}.{{ .Minor }}"
       - "ghcr.io/madhuakula/spotter:latest"
     dockerfile: Dockerfile
     build_flag_templates:
