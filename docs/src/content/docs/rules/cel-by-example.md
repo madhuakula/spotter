@@ -4,75 +4,13 @@ description: Quick, example-heavy guide for writing CEL queries and setting matc
 ---
 ## Overview
 
-This guide shows how to write a complete Spotter rule end-to-end:
-- Start with a full rule template 
-- Then scope your rule with match.resources
-- Finally, write the CEL query to detect your condition
+This guide focuses on scoping and CEL queries for Spotter rules:
+- Start by scoping your rule with match.resources
+- Then write the CEL expression to detect your condition
 
-## Complete rule template 
+If you need the full rule YAML structure, see [Custom Rules](/rules/custom).
 
-```yaml
-# apiVersion and kind identify this document as a Spotter security rule
-apiVersion: rules.spotter.run/v1   # Always rules.spotter.run/v1
-kind: SecurityRule                 # Always SecurityRule
-
-metadata:                          # Kubernetes-style metadata for this rule object
-  name: example-rule               # Machine-friendly unique name for the rule
-  labels:                          # Optional: free-form labels (useful for grouping/searching)
-    category: "Workload Security"
-    severity: high
-
-spec:                               # The rule’s specification
-  id: SPOTTER-EXAMPLE-001           # Stable, unique ID (used in results and tooling)
-  name: "Example Rule"              # Human-readable rule title
-  version: "1.0.0"                 # Rule version (bump when logic/wording changes)
-  description: >-                    # What the rule checks and why it matters
-    Concise description of the risk and what is being validated.
-
-  severity:                         # Severity used in outputs and reports
-    level: HIGH                     # One of: LOW, MEDIUM, HIGH, CRITICAL
-    score: 7.5                      # Numeric score (e.g., CVSS-like)
-
-  category: "Workload Security"     # One primary category from the catalog
-  subcategory: "Pod Security"       # Optional: narrower grouping within a category
-
-  cwe: "CWE-000"                    # Optional: CWE identifier if applicable
-
-  regulatoryStandards:              # Optional: map to compliance controls/benchmarks
-    - name: "CIS Kubernetes Benchmark v1.8.0"
-      reference: "https://www.cisecurity.org/benchmark/kubernetes"
-      # section: "5.2.1"            # Optional: if you track specific sections
-
-  match:                            # What resources are in scope for this rule
-    resources:
-      kubernetes:
-        apiGroups: ["", apps]       # core API group is ""
-        versions: [v1]
-        kinds: [Pod, Deployment]    # Keep this tight for performance
-        # namespaces:                # Optional include/exclude by namespace
-        #   include: ["*"]
-        #   exclude: ["kube-system", "kube-public"]
-        # labels:                    # Optional include/exclude by labels
-        #   include:
-        #     environment: ["production"]
-        #   exclude:
-        #     security.spotter.dev/ignore: ["true"]
-
-  cel: |                             # The CEL expression (true = finding)
-    object.kind == 'Pod' && has(object.spec)   # Replace with your logic
-
-  remediation:                      # Optional: how to fix the issue
-    manual: "Clear, actionable steps to remediate the finding."
-
-  references:                       # Optional: further reading and context
-    - title: "Relevant Documentation"
-      url: "https://kubernetes.io/"
-      description: "Why this matters and best practices."
-
-  metadata:                         # Optional: rule authoring metadata
-    author: "Your Name or Team"
-    created: "2025-01-01"
-```
+ 
 
 ## Scope resources with match.resources
 
