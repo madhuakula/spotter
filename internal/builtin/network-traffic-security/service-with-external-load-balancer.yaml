@@ -30,7 +30,13 @@ spec:
         kinds:
           - Service
   cel: |
-    has(object.spec.type) && object.spec.type == "LoadBalancer"
+    object.kind == "Service" &&
+    has(object.spec.type) && object.spec.type == "LoadBalancer" &&
+    (!has(object.metadata.annotations) ||
+     (!("networking.gke.io/load-balancer-type" in object.metadata.annotations && object.metadata.annotations["networking.gke.io/load-balancer-type"] == "Internal") &&
+      !("cloud.google.com/load-balancer-type" in object.metadata.annotations && object.metadata.annotations["cloud.google.com/load-balancer-type"] == "Internal") &&
+      !("service.beta.kubernetes.io/aws-load-balancer-internal" in object.metadata.annotations && object.metadata.annotations["service.beta.kubernetes.io/aws-load-balancer-internal"] == "true") &&
+      !("service.beta.kubernetes.io/azure-load-balancer-internal" in object.metadata.annotations && object.metadata.annotations["service.beta.kubernetes.io/azure-load-balancer-internal"] == "true")))
   remediation:
     manual: "If the service is not intended to be public, change the service type to ClusterIP or NodePort."
   references:

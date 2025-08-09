@@ -12,6 +12,15 @@
         image: nginx:1.14.2
         ports:
         - containerPort: 80
+    ---
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: positive2-netpol
+      namespace: positive2
+    spec:
+      podSelector: {}
+      policyTypes: []
 
 - name: insecure sample 2 should fail
   pass: false
@@ -29,6 +38,19 @@
         image: nginx:1.14.2
         ports:
         - containerPort: 80
+    ---
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: positive1-netpol
+      labels:
+        policy: no-ingress-no-egress
+      namespace: positive1-anotherone
+    spec:
+      podSelector:
+        matchLabels:
+          app: shouldmatch
+      policyTypes: []
 
 - name: secure sample 1 should pass
   pass: true
@@ -53,6 +75,17 @@
           limits:
             memory: "128Mi"
             cpu: "500m"
+    ---
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: negative1-policy
+      namespace: negative1
+    spec:
+      podSelector: {}
+      policyTypes:
+      - Ingress
+      - Egress
 
 - name: secure sample 2 should pass
   pass: true
@@ -79,6 +112,25 @@
           limits:
             memory: "128Mi"
             cpu: "500m"
+    ---
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: negative2-policy
+      namespace: negative2-othernamespace
+    spec:
+      podSelector:
+        matchLabels:
+          app: negative2-app
+      policyTypes:
+      - Ingress
+      egress:
+      - to:
+        - ipBlock:
+            cidr: 10.0.0.0/24
+        ports:
+        - protocol: TCP
+          port: 5978
 
 - name: secure sample 3 should pass
   pass: true
@@ -94,3 +146,20 @@
         image: nginx:1.14.2
         ports:
         - containerPort: 80
+    ---
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: negative3-netpol
+      labels:
+        policy: just-egress
+      namespace: negative3
+    spec:
+      podSelector: {}
+      egress:
+      - to:
+        - ipBlock:
+            cidr: 10.0.0.0/24
+        ports:
+        - protocol: TCP
+          port: 5978

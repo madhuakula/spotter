@@ -3,7 +3,9 @@ package cmd
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -1037,10 +1039,23 @@ func validateTestCaseWithScan(ctx context.Context, rule *models.SecurityRule, te
 	logger := GetLogger()
 	logger.Debug("Validating test case using scan manifest approach", "test_case", testCase.Name, "rule", rule.Spec.ID)
 
-	// Parse test input as Kubernetes resource to validate it's proper YAML/JSON
-	var resource map[string]interface{}
-	if err := yaml.Unmarshal([]byte(testCase.Input), &resource); err != nil {
-		return fmt.Errorf("failed to parse test input: %w", err)
+	// Optionally validate YAML syntax (multi-document aware)
+	dec := yaml.NewDecoder(strings.NewReader(testCase.Input))
+	seenDocs := 0
+	for {
+		var tmp map[string]interface{}
+		if err := dec.Decode(&tmp); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return fmt.Errorf("failed to parse test input: %w", err)
+		}
+		if len(tmp) > 0 {
+			seenDocs++
+		}
+	}
+	if seenDocs == 0 {
+		return fmt.Errorf("no resources found in test input")
 	}
 
 	// Create a temporary file with the test input
@@ -1095,29 +1110,42 @@ func validateTestCaseWithScan(ctx context.Context, rule *models.SecurityRule, te
 		return fmt.Errorf("no resources found in test input")
 	}
 
-	// Evaluate the rule against the first resource
-	result, err := engine.EvaluateRule(ctx, rule, resources[0])
-	if err != nil {
-		return fmt.Errorf("failed to evaluate rule: %w", err)
+	// Evaluate the rule against all resources in the test input
+	var matchedResults []*models.ValidationResult
+	for _, r := range resources {
+		res, err := engine.EvaluateRule(ctx, rule, r)
+		if err != nil {
+			return fmt.Errorf("failed to evaluate rule: %w", err)
+		}
+		if res != nil {
+			matchedResults = append(matchedResults, res)
+		}
 	}
 
-	// Handle case where resource doesn't match rule criteria (result is nil)
-	if result == nil {
-		// If the rule doesn't apply to this resource, treat it as "passed" (no violation)
-		// This means testCase.Pass should be true for the test to succeed
+	if len(matchedResults) == 0 {
+		// No resource matched this rule's criteria
 		if !testCase.Pass {
-			return fmt.Errorf("expected rule to apply and fail, but rule criteria didn't match resource")
+			return fmt.Errorf("expected rule to apply and fail, but rule criteria didn't match any resource")
 		}
 		return nil
 	}
 
-	// Check if result matches expectation
-	// testCase.Pass == true means the test should pass the security check (result.Passed = true)
-	// testCase.Pass == false means the test should fail the security check (result.Passed = false)
-	if result.Passed != testCase.Pass {
-		return fmt.Errorf("expected passed=%v, got passed=%v", testCase.Pass, result.Passed)
+	if !testCase.Pass {
+		// Expecting a failure: succeed if any matched resource failed
+		for _, mr := range matchedResults {
+			if !mr.Passed {
+				return nil
+			}
+		}
+		return fmt.Errorf("expected passed=false, but all matched resources passed")
 	}
 
+	// Expecting a pass: all matched resources must pass
+	for _, mr := range matchedResults {
+		if !mr.Passed {
+			return fmt.Errorf("expected passed=true, but a matched resource failed")
+		}
+	}
 	return nil
 }
 

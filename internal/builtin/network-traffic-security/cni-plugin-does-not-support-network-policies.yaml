@@ -28,9 +28,12 @@ spec:
         versions:
           - "v1"
         kinds:
-          - Pod
+          - ConfigMap
   cel: |
-    true
+    object.kind == "ConfigMap" &&
+    has(object.data) &&
+    "cni-conf.json" in object.data &&
+    object.data["cni-conf.json"].contains("flannel")
   remediation:
     manual: "Ensure that the CNI plugin used in the cluster supports and enforces network policies. Examples of such plugins include Calico, Cilium, and Weave Net."
   references:

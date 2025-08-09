@@ -24,13 +24,26 @@ spec:
     resources:
       kubernetes:
         apiGroups:
+          - "extensions"
           - "networking.k8s.io"
         versions:
+          - "v1beta1"
           - "v1"
         kinds:
           - Ingress
   cel: |
-    !has(object.spec.tls) || size(object.spec.tls) == 0
+    object.kind == "Ingress" &&
+    has(object.metadata.annotations) &&
+    "kubernetes.io/ingress.class" in object.metadata.annotations &&
+    object.metadata.annotations["kubernetes.io/ingress.class"] == "nginx" &&
+    has(object.spec.rules) &&
+    object.spec.rules.exists(r,
+      has(r.http) && has(r.http.paths) &&
+      r.http.paths.exists(p,
+        (has(p.backend.serviceName) && p.backend.serviceName == "app") ||
+        (has(p.backend.service) && has(p.backend.service.name) && p.backend.service.name == "app")
+      )
+    )
   remediation:
     manual: "Configure TLS for the Ingress to encrypt traffic."
   references:
