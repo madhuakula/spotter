@@ -5,6 +5,8 @@ description: Create and manage custom security rules for Spotter
 
 Spotter allows you to create custom security rules tailored to your organization's specific security policies and requirements. Custom rules use the same CEL (Common Expression Language) engine as built-in rules, providing powerful and flexible security checks.
 
+> For help writing CEL expressions, see the step-by-step examples in [CEL by Example](/rules/cel-by-example).
+
 ## Rule Structure
 
 Custom rules follow the same structure as built-in rules:

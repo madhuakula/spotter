@@ -46,6 +46,7 @@ export default defineConfig({
           items: [
             { label: 'Built-in Rules', slug: 'rules/builtin' },
             { label: 'Custom Rules', slug: 'rules/custom' },
+            { label: 'CEL by Example', slug: 'rules/cel-by-example' },
           ],
         },
         {
