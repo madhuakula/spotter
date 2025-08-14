@@ -101,7 +101,105 @@ func NewCELEngine() (*CELEngine, error) {
 	}, nil
 }
 
-// EvaluateRule evaluates a single rule against a Kubernetes resource
+// quickResourceMatch performs a fast pre-filter to check if a resource might match a rule
+// This avoids expensive CEL compilation and evaluation for obviously non-matching resources
+func (e *CELEngine) quickResourceMatch(rule *models.SecurityRule, resource map[string]interface{}) bool {
+	// Extract resource metadata
+	apiVersion, _ := resource["apiVersion"].(string)
+	kind, _ := resource["kind"].(string)
+	metadata, _ := resource["metadata"].(map[string]interface{})
+
+	// Get the kubernetes criteria
+	kubernetesCriteria := rule.Spec.Match.Resources.Kubernetes
+
+	// Check kind match if specified
+	if len(kubernetesCriteria.Kinds) > 0 {
+		kindMatches := false
+		for _, allowedKind := range kubernetesCriteria.Kinds {
+			if allowedKind == "*" || allowedKind == kind {
+				kindMatches = true
+				break
+			}
+		}
+		if !kindMatches {
+			return false
+		}
+	}
+
+	// Check API version match if specified
+	if len(kubernetesCriteria.Versions) > 0 {
+		versionMatches := false
+		for _, allowedVersion := range kubernetesCriteria.Versions {
+			if allowedVersion == "*" || apiVersion == allowedVersion {
+				versionMatches = true
+				break
+			}
+			// Also check if the apiVersion contains the version (e.g., "apps/v1" contains "v1")
+			if apiVersion != "" && len(apiVersion) > len(allowedVersion) {
+				if apiVersion[len(apiVersion)-len(allowedVersion):] == allowedVersion {
+					versionMatches = true
+					break
+				}
+			}
+		}
+		if !versionMatches {
+			return false
+		}
+	}
+
+	// Check API group match if specified
+	if len(kubernetesCriteria.APIGroups) > 0 {
+		groupMatches := false
+		for _, allowedGroup := range kubernetesCriteria.APIGroups {
+			if allowedGroup == "*" {
+				groupMatches = true
+				break
+			}
+			// Core API group is represented as empty string
+			if allowedGroup == "" && (apiVersion == "v1" || !strings.Contains(apiVersion, "/")) {
+				groupMatches = true
+				break
+			}
+			// Check if apiVersion starts with the group
+			if apiVersion != "" && strings.HasPrefix(apiVersion, allowedGroup+"/") {
+				groupMatches = true
+				break
+			}
+		}
+		if !groupMatches {
+			return false
+		}
+	}
+
+	// Quick namespace check if specified and metadata exists
+	if kubernetesCriteria.Namespaces != nil && metadata != nil {
+		namespace, _ := metadata["namespace"].(string)
+		// Simple include/exclude check - full logic is in MatchesNamespace
+		if len(kubernetesCriteria.Namespaces.Include) > 0 {
+			included := false
+			for _, includePattern := range kubernetesCriteria.Namespaces.Include {
+				if includePattern == "*" || includePattern == namespace {
+					included = true
+					break
+				}
+			}
+			if !included {
+				return false
+			}
+		}
+		if len(kubernetesCriteria.Namespaces.Exclude) > 0 {
+			for _, excludePattern := range kubernetesCriteria.Namespaces.Exclude {
+				if excludePattern == namespace {
+					return false
+				}
+			}
+		}
+	}
+
+	return true
+}
+
+// EvaluateRule evaluates a single security rule against a single resource
 func (e *CELEngine) EvaluateRule(ctx context.Context, rule *models.SecurityRule, resource map[string]interface{}) (*models.ValidationResult, error) {
 	result := &models.ValidationResult{
 		RuleID:    rule.Spec.ID,
@@ -210,7 +308,7 @@ func (e *CELEngine) EvaluateRulesAgainstResources(ctx context.Context, rules []*
 	return e.EvaluateRulesAgainstResourcesConcurrent(ctx, rules, resources, 10)
 }
 
-// EvaluateRulesAgainstResourcesConcurrent evaluates multiple rules against multiple resources with specified parallelism
+// EvaluateRulesAgainstResourcesConcurrent evaluates multiple rules against multiple resources with optimized parallelism
 func (e *CELEngine) EvaluateRulesAgainstResourcesConcurrent(ctx context.Context, rules []*models.SecurityRule, resources []map[string]interface{}, parallelism int) (*models.ScanResult, error) {
 	startTime := time.Now()
 	allResults := make([]models.ValidationResult, 0)
@@ -219,78 +317,116 @@ func (e *CELEngine) EvaluateRulesAgainstResourcesConcurrent(ctx context.Context,
 	passed := 0
 	failed := 0
 
-	// Use worker pool for concurrent evaluation
-	type job struct {
-		rule     *models.SecurityRule
-		resource map[string]interface{}
-	}
-
-	type result struct {
-		validationResult *models.ValidationResult
-		err              error
-	}
-
-	jobs := make(chan job, len(rules)*len(resources))
-	results := make(chan result, len(rules)*len(resources))
-
-	// Start workers
+	// Optimize parallelism based on workload
 	numWorkers := parallelism
 	if numWorkers <= 0 {
 		numWorkers = 10 // Default fallback
 	}
+	
+	// Limit workers to avoid over-parallelization for small workloads
+	maxUsefulWorkers := len(rules)
+	if len(resources) < len(rules) {
+		maxUsefulWorkers = len(resources)
+	}
+	if numWorkers > maxUsefulWorkers {
+		numWorkers = maxUsefulWorkers
+	}
+	if numWorkers < 1 {
+		numWorkers = 1
+	}
+
+	// Pre-filter and batch jobs for better efficiency
+	type ruleResourceBatch struct {
+		rule      *models.SecurityRule
+		resources []map[string]interface{}
+	}
+
+	type batchResult struct {
+		results []models.ValidationResult
+		err     error
+	}
+
+	// Group resources by rule for more efficient processing
+	batches := make([]ruleResourceBatch, 0, len(rules))
+	for _, rule := range rules {
+		// Pre-filter resources that might match this rule to reduce unnecessary work
+		matchingResources := make([]map[string]interface{}, 0)
+		for _, resource := range resources {
+			// Quick pre-check based on resource kind/apiVersion if available
+			if e.quickResourceMatch(rule, resource) {
+				matchingResources = append(matchingResources, resource)
+			}
+		}
+		if len(matchingResources) > 0 {
+			batches = append(batches, ruleResourceBatch{
+				rule:      rule,
+				resources: matchingResources,
+			})
+		}
+	}
+
+	// Use buffered channels sized appropriately
+	batchJobs := make(chan ruleResourceBatch, len(batches))
+	batchResults := make(chan batchResult, len(batches))
+
+	// Start workers
 	for i := 0; i < numWorkers; i++ {
 		go func() {
-			for j := range jobs {
+			for batch := range batchJobs {
 				select {
 				case <-ctx.Done():
 					return
 				default:
 				}
 
-				vr, err := e.EvaluateRule(ctx, j.rule, j.resource)
-				results <- result{validationResult: vr, err: err}
+				batchRes := batchResult{results: make([]models.ValidationResult, 0)}
+				for _, resource := range batch.resources {
+					vr, err := e.EvaluateRule(ctx, batch.rule, resource)
+					if err != nil {
+						batchRes.err = err
+						break
+					}
+					if vr != nil {
+						batchRes.results = append(batchRes.results, *vr)
+					}
+				}
+				batchResults <- batchRes
 			}
 		}()
 	}
 
-	// Send jobs
+	// Send batch jobs
 	go func() {
-		defer close(jobs)
-		for _, rule := range rules {
-			for _, resource := range resources {
-				select {
-				case <-ctx.Done():
-					return
-				case jobs <- job{rule: rule, resource: resource}:
-				}
+		defer close(batchJobs)
+		for _, batch := range batches {
+			select {
+			case <-ctx.Done():
+				return
+			case batchJobs <- batch:
 			}
 		}
 	}()
 
 	// Collect results
-	expectedResults := len(rules) * len(resources)
-	for i := 0; i < expectedResults; i++ {
+	for i := 0; i < len(batches); i++ {
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
-		case r := <-results:
-			if r.err != nil {
-				return nil, r.err
+		case batchRes := <-batchResults:
+			if batchRes.err != nil {
+				return nil, batchRes.err
 			}
 
-			if r.validationResult != nil {
-				allResults = append(allResults, *r.validationResult)
-
-				if r.validationResult.Passed {
+			for _, result := range batchRes.results {
+				allResults = append(allResults, result)
+				if result.Passed {
 					passed++
 				} else {
 					failed++
-					severityBreakdown[string(r.validationResult.Severity)]++
-					categoryBreakdown[r.validationResult.Category]++
+					severityBreakdown[string(result.Severity)]++
+					categoryBreakdown[result.Category]++
 				}
 			}
-			// If r.validationResult is nil, it means the resource doesn't match the rule criteria
-			// and should not be counted in passed/failed metrics
 		}
 	}
 

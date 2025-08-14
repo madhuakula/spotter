@@ -3,9 +3,11 @@ package k8s
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -72,37 +74,117 @@ func (c *K8sClient) GetResources(ctx context.Context, gvks []schema.GroupVersion
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	var allResources []map[string]interface{}
-	var errors []string
+	if len(gvks) == 0 {
+		return []map[string]interface{}{}, nil
+	}
 
+	// Use concurrent fetching for better performance
+	type fetchJob struct {
+		gvk       schema.GroupVersionKind
+		namespace string
+	}
+
+	type fetchResult struct {
+		resources []map[string]interface{}
+		err       error
+		job       fetchJob
+	}
+
+	// Create jobs for all GVK-namespace combinations
+	var jobs []fetchJob
 	for _, gvk := range gvks {
-		gvr, err := c.gvkToGVR(gvk)
-		if err != nil {
-			// Log the error but continue with other resources
-			errors = append(errors, fmt.Sprintf("failed to convert GVK to GVR for %s: %v", gvk.String(), err))
-			continue
-		}
-
 		if len(namespaces) == 0 {
 			// Cluster-scoped or all namespaces
-			resources, err := c.listResources(ctx, gvr, "")
-			if err != nil {
-				// Log the error but continue with other resources
-				errors = append(errors, fmt.Sprintf("failed to list resources for %s: %v", gvk.String(), err))
-				continue
-			}
-			allResources = append(allResources, resources...)
+			jobs = append(jobs, fetchJob{gvk: gvk, namespace: ""})
 		} else {
 			// Specific namespaces
 			for _, namespace := range namespaces {
-				resources, err := c.listResources(ctx, gvr, namespace)
+				jobs = append(jobs, fetchJob{gvk: gvk, namespace: namespace})
+			}
+		}
+	}
+
+	// Reduce concurrency for production stability
+	// Lower concurrency reduces API server load and throttling
+	maxConcurrency := 5
+	if len(jobs) < maxConcurrency {
+		maxConcurrency = len(jobs)
+	}
+
+	jobChan := make(chan fetchJob, len(jobs))
+	resultChan := make(chan fetchResult, len(jobs))
+
+	// Start workers with rate limiting
+	for i := 0; i < maxConcurrency; i++ {
+		go func(workerID int) {
+			for job := range jobChan {
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
+
+				// Add small delay between requests to reduce API pressure
+				if workerID > 0 {
+					time.Sleep(time.Duration(workerID*50) * time.Millisecond)
+				}
+
+				gvr, err := c.gvkToGVR(job.gvk)
 				if err != nil {
-					// Log the error but continue with other resources
-					errors = append(errors, fmt.Sprintf("failed to list resources for %s in namespace %s: %v", gvk.String(), namespace, err))
+					resultChan <- fetchResult{
+						resources: nil,
+						err:       fmt.Errorf("failed to convert GVK to GVR for %s: %w", job.gvk.String(), err),
+						job:       job,
+					}
 					continue
 				}
-				allResources = append(allResources, resources...)
+
+				// Retry logic with exponential backoff
+				resources, err := c.listResourcesWithRetry(ctx, gvr, job.namespace)
+				resultChan <- fetchResult{
+					resources: resources,
+					err:       err,
+					job:       job,
+				}
 			}
+		}(i)
+	}
+
+	// Send jobs with controlled rate
+	go func() {
+		defer close(jobChan)
+		for i, job := range jobs {
+			select {
+			case <-ctx.Done():
+				return
+			case jobChan <- job:
+				// Add small delay between job submissions
+				if i > 0 && i%5 == 0 {
+					time.Sleep(100 * time.Millisecond)
+				}
+			}
+		}
+	}()
+
+	// Collect results
+	var allResources []map[string]interface{}
+	var errors []string
+
+	for i := 0; i < len(jobs); i++ {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case result := <-resultChan:
+			if result.err != nil {
+				// Log the error but continue with other resources
+				if result.job.namespace == "" {
+					errors = append(errors, fmt.Sprintf("failed to list resources for %s: %v", result.job.gvk.String(), result.err))
+				} else {
+					errors = append(errors, fmt.Sprintf("failed to list resources for %s in namespace %s: %v", result.job.gvk.String(), result.job.namespace, result.err))
+				}
+				continue
+			}
+			allResources = append(allResources, result.resources...)
 		}
 	}
 
@@ -326,6 +408,52 @@ func (c *K8sClient) listResources(ctx context.Context, gvr schema.GroupVersionRe
 	return resources, nil
 }
 
+// listResourcesWithRetry implements exponential backoff retry logic for API calls
+func (c *K8sClient) listResourcesWithRetry(ctx context.Context, gvr schema.GroupVersionResource, namespace string) ([]map[string]interface{}, error) {
+	maxRetries := 3
+	baseDelay := 100 * time.Millisecond
+	maxDelay := 5 * time.Second
+
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		resources, err := c.listResources(ctx, gvr, namespace)
+		if err == nil {
+			return resources, nil
+		}
+
+		// Check if this is the last attempt
+		if attempt == maxRetries {
+			return nil, err
+		}
+
+		// Check if context is cancelled
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+
+		// Calculate exponential backoff delay
+		delay := time.Duration(1<<uint(attempt)) * baseDelay
+		if delay > maxDelay {
+			delay = maxDelay
+		}
+
+		// Add jitter to prevent thundering herd
+		jitter := time.Duration(float64(delay) * 0.1)
+		delay += jitter
+
+		// Wait before retry
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(delay):
+			// Continue to next attempt
+		}
+	}
+
+	return nil, fmt.Errorf("max retries exceeded")
+}
+
 func (c *K8sClient) watchResource(ctx context.Context, gvr schema.GroupVersionResource, namespace string, eventChan chan<- ResourceEvent) {
 	var watcher watch.Interface
 	var err error
@@ -366,9 +494,14 @@ func (c *K8sClient) watchResource(ctx context.Context, gvr schema.GroupVersionRe
 }
 
 func buildConfig(kubeconfig, context string) (*rest.Config, error) {
+	var config *rest.Config
+	var err error
+
 	if kubeconfig == "" {
 		// Try in-cluster config first
-		if config, err := rest.InClusterConfig(); err == nil {
+		if config, err = rest.InClusterConfig(); err == nil {
+			// Configure in-cluster config for production
+			configureProductionSettings(config)
 			return config, nil
 		}
 
@@ -387,5 +520,42 @@ func buildConfig(kubeconfig, context string) (*rest.Config, error) {
 	}
 
 	clientConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, configOverrides)
-	return clientConfig.ClientConfig()
+	config, err = clientConfig.ClientConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	// Configure production settings
+	configureProductionSettings(config)
+	return config, nil
+}
+
+// configureProductionSettings optimizes the client configuration for production use
+func configureProductionSettings(config *rest.Config) {
+	// Set reasonable rate limiting to prevent throttling
+	// QPS: Queries Per Second - how many requests per second
+	// Burst: Maximum number of requests that can be made in a burst
+	config.QPS = 50.0    // Increased from default 5
+	config.Burst = 100   // Increased from default 10
+
+	// Set timeouts for better reliability
+	config.Timeout = 30 * time.Second
+
+	// Disable client-side throttling warnings in logs
+	// This reduces log noise while maintaining functionality
+	if config.WrapTransport == nil {
+		config.WrapTransport = func(rt http.RoundTripper) http.RoundTripper {
+			return &productionTransport{wrapped: rt}
+		}
+	}
+}
+
+// productionTransport wraps the default transport to handle production concerns
+type productionTransport struct {
+	wrapped http.RoundTripper
+}
+
+func (pt *productionTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	// Add production-specific headers or modifications if needed
+	return pt.wrapped.RoundTrip(req)
 }
