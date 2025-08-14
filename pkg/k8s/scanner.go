@@ -301,7 +301,15 @@ func (s *Scanner) ScanNamespaces(ctx context.Context, namespaces []string, optio
 		return nil, fmt.Errorf("failed to get resources: %w", err)
 	}
 
-	return s.filterResources(resources, options), nil
+	// Apply optimization based on parallelism
+	var result []map[string]interface{}
+	if options.Parallelism > 1 {
+		result = s.processParallel(ctx, resources, options.Parallelism, options)
+	} else {
+		result = s.filterResources(resources, options)
+	}
+
+	return result, nil
 }
 
 // ScanManifests scans YAML/JSON manifests from files or directories
@@ -316,7 +324,15 @@ func (s *Scanner) ScanManifests(ctx context.Context, paths []string, options Sca
 		allResources = append(allResources, resources...)
 	}
 
-	return s.filterResources(allResources, options), nil
+	// Apply optimization based on parallelism
+	var result []map[string]interface{}
+	if options.Parallelism > 1 {
+		result = s.processParallel(ctx, allResources, options.Parallelism, options)
+	} else {
+		result = s.filterResources(allResources, options)
+	}
+
+	return result, nil
 }
 
 // ScanHelmCharts scans Helm charts for security issues
@@ -336,12 +352,18 @@ func (s *Scanner) ScanHelmCharts(ctx context.Context, chartPaths []string, optio
 			return nil, fmt.Errorf("failed to parse rendered manifests from chart %s: %w", chartPath, err)
 		}
 
-		// Filter resources based on scan options
-		filteredResources := s.filterResources(resources, options)
-		allResources = append(allResources, filteredResources...)
+		allResources = append(allResources, resources...)
 	}
 
-	return allResources, nil
+	// Apply optimization based on parallelism
+	var result []map[string]interface{}
+	if options.Parallelism > 1 {
+		result = s.processParallel(ctx, allResources, options.Parallelism, options)
+	} else {
+		result = s.filterResources(allResources, options)
+	}
+
+	return result, nil
 }
 
 // renderHelmChart renders a Helm chart using the helm template command
