@@ -186,49 +186,119 @@ func init() {
 		// Note: 'no-color' flag is inherited from global persistent flags
 
 		// Bind common flags to viper so they can be set in config file
-		viper.BindPFlag("include-rules", cmd.Flags().Lookup("include-rules"))
-		viper.BindPFlag("exclude-rules", cmd.Flags().Lookup("exclude-rules"))
-		viper.BindPFlag("categories", cmd.Flags().Lookup("categories"))
-		viper.BindPFlag("parallelism", cmd.Flags().Lookup("parallelism"))
-		viper.BindPFlag("min-severity", cmd.Flags().Lookup("min-severity"))
-		viper.BindPFlag("max-violations", cmd.Flags().Lookup("max-violations"))
-		viper.BindPFlag("quiet", cmd.Flags().Lookup("quiet"))
-		viper.BindPFlag("summary-only", cmd.Flags().Lookup("summary-only"))
+		if err := viper.BindPFlag("include-rules", cmd.Flags().Lookup("include-rules")); err != nil {
+			panic(fmt.Errorf("failed to bind include-rules flag: %w", err))
+		}
+		if err := viper.BindPFlag("exclude-rules", cmd.Flags().Lookup("exclude-rules")); err != nil {
+			panic(fmt.Errorf("failed to bind exclude-rules flag: %w", err))
+		}
+		if err := viper.BindPFlag("categories", cmd.Flags().Lookup("categories")); err != nil {
+			panic(fmt.Errorf("failed to bind categories flag: %w", err))
+		}
+		if err := viper.BindPFlag("parallelism", cmd.Flags().Lookup("parallelism")); err != nil {
+			panic(fmt.Errorf("failed to bind parallelism flag: %w", err))
+		}
+		if err := viper.BindPFlag("min-severity", cmd.Flags().Lookup("min-severity")); err != nil {
+			panic(fmt.Errorf("failed to bind min-severity flag: %w", err))
+		}
+		if err := viper.BindPFlag("max-violations", cmd.Flags().Lookup("max-violations")); err != nil {
+			panic(fmt.Errorf("failed to bind max-violations flag: %w", err))
+		}
+		if err := viper.BindPFlag("quiet", cmd.Flags().Lookup("quiet")); err != nil {
+			panic(fmt.Errorf("failed to bind quiet flag: %w", err))
+		}
+		if err := viper.BindPFlag("summary-only", cmd.Flags().Lookup("summary-only")); err != nil {
+			panic(fmt.Errorf("failed to bind summary-only flag: %w", err))
+		}
 	}
 
 	// Bind scan-specific flags to viper for config file support
 	// Cluster flags
-	viper.BindPFlag("scan.cluster.exclude-system-namespaces", clusterCmd.Flags().Lookup("exclude-system-namespaces"))
-	viper.BindPFlag("scan.cluster.include-cluster-resources", clusterCmd.Flags().Lookup("include-cluster-resources"))
-	viper.BindPFlag("scan.cluster.namespace", clusterCmd.Flags().Lookup("namespace"))
-	viper.BindPFlag("scan.cluster.exclude-namespaces", clusterCmd.Flags().Lookup("exclude-namespaces"))
-	viper.BindPFlag("scan.cluster.resource-types", clusterCmd.Flags().Lookup("resource-types"))
-	viper.BindPFlag("scan.cluster.context", clusterCmd.Flags().Lookup("context"))
+	if err := viper.BindPFlag("scan.cluster.exclude-system-namespaces", clusterCmd.Flags().Lookup("exclude-system-namespaces")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.cluster.exclude-system-namespaces flag: %w", err))
+	}
+	if err := viper.BindPFlag("scan.cluster.include-cluster-resources", clusterCmd.Flags().Lookup("include-cluster-resources")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.cluster.include-cluster-resources flag: %w", err))
+	}
+	if err := viper.BindPFlag("scan.cluster.namespace", clusterCmd.Flags().Lookup("namespace")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.cluster.namespace flag: %w", err))
+	}
+	if err := viper.BindPFlag("scan.cluster.exclude-namespaces", clusterCmd.Flags().Lookup("exclude-namespaces")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.cluster.exclude-namespaces flag: %w", err))
+	}
+	if err := viper.BindPFlag("scan.cluster.resource-types", clusterCmd.Flags().Lookup("resource-types")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.cluster.resource-types flag: %w", err))
+	}
+	if err := viper.BindPFlag("scan.cluster.context", clusterCmd.Flags().Lookup("context")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.cluster.context flag: %w", err))
+	}
 
 	// Manifests flags
-	viper.BindPFlag("scan.manifests.recursive", manifestsCmd.Flags().Lookup("recursive"))
-	viper.BindPFlag("scan.manifests.file-extensions", manifestsCmd.Flags().Lookup("file-extensions"))
-	viper.BindPFlag("scan.manifests.include-paths", manifestsCmd.Flags().Lookup("include-paths"))
-	viper.BindPFlag("scan.manifests.follow-symlinks", manifestsCmd.Flags().Lookup("follow-symlinks"))
-	viper.BindPFlag("scan.manifests.exclude-system-namespaces", manifestsCmd.Flags().Lookup("exclude-system-namespaces"))
-	viper.BindPFlag("scan.manifests.include-cluster-resources", manifestsCmd.Flags().Lookup("include-cluster-resources"))
+	if err := viper.BindPFlag("scan.manifests.recursive", manifestsCmd.Flags().Lookup("recursive")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.manifests.recursive flag: %w", err))
+	}
+	if err := viper.BindPFlag("scan.manifests.file-extensions", manifestsCmd.Flags().Lookup("file-extensions")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.manifests.file-extensions flag: %w", err))
+	}
+	if err := viper.BindPFlag("scan.manifests.include-paths", manifestsCmd.Flags().Lookup("include-paths")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.manifests.include-paths flag: %w", err))
+	}
+	if err := viper.BindPFlag("scan.manifests.follow-symlinks", manifestsCmd.Flags().Lookup("follow-symlinks")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.manifests.follow-symlinks flag: %w", err))
+	}
+	if err := viper.BindPFlag("scan.manifests.exclude-system-namespaces", manifestsCmd.Flags().Lookup("exclude-system-namespaces")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.manifests.exclude-system-namespaces flag: %w", err))
+	}
+	if err := viper.BindPFlag("scan.manifests.include-cluster-resources", manifestsCmd.Flags().Lookup("include-cluster-resources")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.manifests.include-cluster-resources flag: %w", err))
+	}
 
 	// Helm flags
-	viper.BindPFlag("scan.helm.values", helmCmd.Flags().Lookup("values"))
-	viper.BindPFlag("scan.helm.set", helmCmd.Flags().Lookup("set"))
-	viper.BindPFlag("scan.helm.set-string", helmCmd.Flags().Lookup("set-string"))
-	viper.BindPFlag("scan.helm.release-name", helmCmd.Flags().Lookup("release-name"))
-	viper.BindPFlag("scan.helm.namespace", helmCmd.Flags().Lookup("namespace"))
-	viper.BindPFlag("scan.helm.include-dependencies", helmCmd.Flags().Lookup("include-dependencies"))
-	viper.BindPFlag("scan.helm.validate-schema", helmCmd.Flags().Lookup("validate-schema"))
-	viper.BindPFlag("scan.helm.kube-version", helmCmd.Flags().Lookup("kube-version"))
-	viper.BindPFlag("scan.helm.exclude-system-namespaces", helmCmd.Flags().Lookup("exclude-system-namespaces"))
-	viper.BindPFlag("scan.helm.include-cluster-resources", helmCmd.Flags().Lookup("include-cluster-resources"))
-	viper.BindPFlag("scan.helm.skip-tests", helmCmd.Flags().Lookup("skip-tests"))
-	viper.BindPFlag("scan.helm.skip-crds", helmCmd.Flags().Lookup("skip-crds"))
-	viper.BindPFlag("scan.helm.chart-repo", helmCmd.Flags().Lookup("chart-repo"))
-	viper.BindPFlag("scan.helm.chart-version", helmCmd.Flags().Lookup("chart-version"))
-	viper.BindPFlag("scan.helm.update-dependencies", helmCmd.Flags().Lookup("update-dependencies"))
+	if err := viper.BindPFlag("scan.helm.values", helmCmd.Flags().Lookup("values")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.helm.values flag: %w", err))
+	}
+	if err := viper.BindPFlag("scan.helm.set", helmCmd.Flags().Lookup("set")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.helm.set flag: %w", err))
+	}
+	if err := viper.BindPFlag("scan.helm.set-string", helmCmd.Flags().Lookup("set-string")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.helm.set-string flag: %w", err))
+	}
+	if err := viper.BindPFlag("scan.helm.release-name", helmCmd.Flags().Lookup("release-name")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.helm.release-name flag: %w", err))
+	}
+	if err := viper.BindPFlag("scan.helm.namespace", helmCmd.Flags().Lookup("namespace")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.helm.namespace flag: %w", err))
+	}
+	if err := viper.BindPFlag("scan.helm.include-dependencies", helmCmd.Flags().Lookup("include-dependencies")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.helm.include-dependencies flag: %w", err))
+	}
+	if err := viper.BindPFlag("scan.helm.validate-schema", helmCmd.Flags().Lookup("validate-schema")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.helm.validate-schema flag: %w", err))
+	}
+	if err := viper.BindPFlag("scan.helm.kube-version", helmCmd.Flags().Lookup("kube-version")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.helm.kube-version flag: %w", err))
+	}
+	if err := viper.BindPFlag("scan.helm.exclude-system-namespaces", helmCmd.Flags().Lookup("exclude-system-namespaces")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.helm.exclude-system-namespaces flag: %w", err))
+	}
+	if err := viper.BindPFlag("scan.helm.include-cluster-resources", helmCmd.Flags().Lookup("include-cluster-resources")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.helm.include-cluster-resources flag: %w", err))
+	}
+	if err := viper.BindPFlag("scan.helm.skip-tests", helmCmd.Flags().Lookup("skip-tests")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.helm.skip-tests flag: %w", err))
+	}
+	if err := viper.BindPFlag("scan.helm.skip-crds", helmCmd.Flags().Lookup("skip-crds")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.helm.skip-crds flag: %w", err))
+	}
+	if err := viper.BindPFlag("scan.helm.chart-repo", helmCmd.Flags().Lookup("chart-repo")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.helm.chart-repo flag: %w", err))
+	}
+	if err := viper.BindPFlag("scan.helm.chart-version", helmCmd.Flags().Lookup("chart-version")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.helm.chart-version flag: %w", err))
+	}
+	if err := viper.BindPFlag("scan.helm.update-dependencies", helmCmd.Flags().Lookup("update-dependencies")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.helm.update-dependencies flag: %w", err))
+	}
 }
 
 func runClusterScan(cmd *cobra.Command, args []string) error {
