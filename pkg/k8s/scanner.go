@@ -7,10 +7,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
-	"time"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/yaml"
@@ -18,210 +16,20 @@ import (
 
 // Scanner implements the ResourceScanner interface
 type Scanner struct {
-	client  Client
-	parser  ManifestParser
-	cache   *ResourceCache
-	metrics *ScanMetrics
-}
-
-// ResourceCache provides caching for scanned resources
-type ResourceCache struct {
-	mu   sync.RWMutex
-	data map[string]CacheEntry
-	ttl  time.Duration
-}
-
-// CacheEntry represents a cached resource entry
-type CacheEntry struct {
-	resources []map[string]interface{}
-	timestamp time.Time
-}
-
-// ScanMetrics tracks scanning performance metrics
-type ScanMetrics struct {
-	mu               sync.RWMutex
-	ResourcesScanned int64
-	BatchesProcessed int64
-	CacheHits        int64
-	CacheMisses      int64
-	ScanDuration     time.Duration
-	MemoryUsage      int64
+	client Client
+	parser ManifestParser
 }
 
 // NewScanner creates a new resource scanner
 func NewScanner(client Client) ResourceScanner {
 	return &Scanner{
-		client:  client,
-		parser:  NewManifestParser(),
-		cache:   NewResourceCache(5 * time.Minute),
-		metrics: &ScanMetrics{},
+		client: client,
+		parser: NewManifestParser(),
 	}
-}
-
-// NewResourceCache creates a new resource cache with specified TTL
-func NewResourceCache(ttl time.Duration) *ResourceCache {
-	return &ResourceCache{
-		data: make(map[string]CacheEntry),
-		ttl:  ttl,
-	}
-}
-
-// Get retrieves a cached entry if it exists and is not expired
-func (c *ResourceCache) Get(key string) ([]map[string]interface{}, bool) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	entry, exists := c.data[key]
-	if !exists {
-		return nil, false
-	}
-
-	if time.Since(entry.timestamp) > c.ttl {
-		delete(c.data, key)
-		return nil, false
-	}
-
-	return entry.resources, true
-}
-
-// Set stores a cache entry
-func (c *ResourceCache) Set(key string, resources []map[string]interface{}) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	c.data[key] = CacheEntry{
-		resources: resources,
-		timestamp: time.Now(),
-	}
-}
-
-// Clear removes all cached entries
-func (c *ResourceCache) Clear() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.data = make(map[string]CacheEntry)
-}
-
-// GetMetrics returns current scan metrics without the mutex
-func (s *Scanner) GetMetrics() ScanMetrics {
-	s.metrics.mu.RLock()
-	defer s.metrics.mu.RUnlock()
-	// Create a new ScanMetrics without the mutex to avoid the govet copylocks warning
-	return ScanMetrics{
-		ResourcesScanned: s.metrics.ResourcesScanned,
-		BatchesProcessed: s.metrics.BatchesProcessed,
-		CacheHits:        s.metrics.CacheHits,
-		CacheMisses:      s.metrics.CacheMisses,
-		ScanDuration:     s.metrics.ScanDuration,
-		MemoryUsage:      s.metrics.MemoryUsage,
-	}
-}
-
-// updateMemoryUsage updates the current memory usage metric
-func (s *Scanner) updateMemoryUsage() {
-	var m runtime.MemStats
-	runtime.ReadMemStats(&m)
-	s.metrics.mu.Lock()
-	s.metrics.MemoryUsage = int64(m.Alloc)
-	s.metrics.mu.Unlock()
-}
-
-// generateCacheKey creates a cache key based on scan type and options
-func (s *Scanner) generateCacheKey(scanType string, options ScanOptions) string {
-	// Create a simple cache key based on scan parameters
-	key := fmt.Sprintf("%s:%v:%v:%v", scanType, options.ResourceTypes, options.IncludeNamespaces, options.ExcludeNamespaces)
-	return key
-}
-
-// processBatch is deprecated and replaced by processParallel
-// Keeping for backward compatibility but not actively used
-//
-//nolint:unused
-func (s *Scanner) processBatch(ctx context.Context, resources []map[string]interface{}, batchSize int, options ScanOptions) []map[string]interface{} {
-	// This method is now a passthrough to parallel processing
-	return s.processParallel(ctx, resources, options.Parallelism, options)
-}
-
-// checkMemoryLimit checks if memory usage exceeds limit and triggers GC
-//
-//nolint:unused
-func (s *Scanner) checkMemoryLimit(limit int64) {
-	var m runtime.MemStats
-	runtime.ReadMemStats(&m)
-	if int64(m.Alloc) > limit {
-		runtime.GC()
-	}
-}
-
-// processParallel processes resources in parallel for better performance
-func (s *Scanner) processParallel(ctx context.Context, resources []map[string]interface{}, parallelism int, options ScanOptions) []map[string]interface{} {
-	if parallelism <= 0 {
-		parallelism = runtime.NumCPU()
-	}
-
-	if len(resources) == 0 {
-		return resources
-	}
-
-	// Calculate batch size for parallel processing
-	batchSize := len(resources) / parallelism
-	if batchSize == 0 {
-		batchSize = 1
-	}
-
-	var wg sync.WaitGroup
-	resultChan := make(chan []map[string]interface{}, parallelism)
-
-	for i := 0; i < len(resources); i += batchSize {
-		end := i + batchSize
-		if end > len(resources) {
-			end = len(resources)
-		}
-
-		wg.Add(1)
-		go func(batch []map[string]interface{}) {
-			defer wg.Done()
-			processed := s.filterResources(batch, options)
-			resultChan <- processed
-		}(resources[i:end])
-	}
-
-	go func() {
-		wg.Wait()
-		close(resultChan)
-	}()
-
-	var result []map[string]interface{}
-	for batch := range resultChan {
-		result = append(result, batch...)
-	}
-
-	return result
 }
 
 // ScanCluster scans the entire cluster for resources with optimization features
 func (s *Scanner) ScanCluster(ctx context.Context, options ScanOptions) ([]map[string]interface{}, error) {
-	start := time.Now()
-	defer func() {
-		s.metrics.mu.Lock()
-		s.metrics.ScanDuration = time.Since(start)
-		s.metrics.mu.Unlock()
-		s.updateMemoryUsage()
-	}()
-
-	// Check cache if enabled
-	if options.CacheEnabled {
-		cacheKey := s.generateCacheKey("cluster", options)
-		if cached, found := s.cache.Get(cacheKey); found {
-			s.metrics.mu.Lock()
-			s.metrics.CacheHits++
-			s.metrics.mu.Unlock()
-			return cached, nil
-		}
-		s.metrics.mu.Lock()
-		s.metrics.CacheMisses++
-		s.metrics.mu.Unlock()
-	}
 
 	// Original scanning logic with optimization
 	resourceInfos, gvks, err := s.determineResourceTypesWithScope(ctx, options)
@@ -269,21 +77,7 @@ func (s *Scanner) ScanCluster(ctx context.Context, options ScanOptions) ([]map[s
 		allResources = append(allResources, namespacedResources...)
 	}
 
-	// Apply optimization based on parallelism
-	var result []map[string]interface{}
-	if options.Parallelism > 1 {
-		result = s.processParallel(ctx, allResources, options.Parallelism, options)
-	} else {
-		result = s.filterResources(allResources, options)
-	}
-
-	// Cache results if enabled
-	if options.CacheEnabled {
-		cacheKey := s.generateCacheKey("cluster", options)
-		s.cache.Set(cacheKey, result)
-	}
-
-	return result, nil
+	return allResources, nil
 }
 
 // ScanNamespaces scans specific namespaces for resources
@@ -301,7 +95,7 @@ func (s *Scanner) ScanNamespaces(ctx context.Context, namespaces []string, optio
 		return nil, fmt.Errorf("failed to get resources: %w", err)
 	}
 
-	return s.filterResources(resources, options), nil
+	return resources, nil
 }
 
 // ScanManifests scans YAML/JSON manifests from files or directories
@@ -316,7 +110,7 @@ func (s *Scanner) ScanManifests(ctx context.Context, paths []string, options Sca
 		allResources = append(allResources, resources...)
 	}
 
-	return s.filterResources(allResources, options), nil
+	return allResources, nil
 }
 
 // ScanHelmCharts scans Helm charts for security issues
@@ -336,9 +130,7 @@ func (s *Scanner) ScanHelmCharts(ctx context.Context, chartPaths []string, optio
 			return nil, fmt.Errorf("failed to parse rendered manifests from chart %s: %w", chartPath, err)
 		}
 
-		// Filter resources based on scan options
-		filteredResources := s.filterResources(resources, options)
-		allResources = append(allResources, filteredResources...)
+		allResources = append(allResources, resources...)
 	}
 
 	return allResources, nil
@@ -664,12 +456,6 @@ func (s *Scanner) shouldIncludeResource(info ResourceInfo, config ResourceFilter
 	return true
 }
 
-func (s *Scanner) filterResources(resources []map[string]interface{}, options ScanOptions) []map[string]interface{} {
-	// TODO: Implement resource filtering based on options
-	// This could include filtering by labels, annotations, etc.
-	return resources
-}
-
 func (s *Scanner) scanPath(ctx context.Context, path string, options ScanOptions) ([]map[string]interface{}, error) {
 	info, err := os.Stat(path)
 	if err != nil {
@@ -762,23 +548,6 @@ func (p *FileManifestParser) ParseContent(ctx context.Context, content string) (
 	}
 
 	return resources, nil
-}
-
-// ValidateManifest validates a Kubernetes manifest
-func (p *FileManifestParser) ValidateManifest(ctx context.Context, manifest map[string]interface{}) error {
-	// Basic validation
-	if manifest["apiVersion"] == nil {
-		return fmt.Errorf("missing apiVersion field")
-	}
-
-	if manifest["kind"] == nil {
-		return fmt.Errorf("missing kind field")
-	}
-
-	// Skip validation for resources without names or generateNames
-	// Some resources like ConfigMaps might not have names in templates
-
-	return nil
 }
 
 func (p *FileManifestParser) isManifestFile(filePath string) bool {

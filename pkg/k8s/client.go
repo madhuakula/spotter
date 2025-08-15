@@ -3,9 +3,11 @@ package k8s
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -29,15 +31,38 @@ type K8sClient struct {
 	discoveryClient discovery.DiscoveryInterface
 	restMapper      meta.RESTMapper
 	config          *rest.Config
+	clientConfig    *ClientConfig
 	mu              sync.RWMutex
 }
 
-// NewClient creates a new Kubernetes client
+// NewClient creates a new Kubernetes client with default configuration
 func NewClient(kubeconfig, context string) (Client, error) {
+	// Provide default configuration for backward compatibility
+	defaultConfig := &ClientConfig{
+		QPS:            50.0,
+		Burst:          100,
+		MaxConcurrency: 5,
+		Retry: RetryConfig{
+			MaxAttempts: 3,
+			BaseDelayMs: 100,
+			MaxDelayS:   5,
+		},
+	}
+	return NewClientWithConfig(kubeconfig, context, defaultConfig)
+}
+
+// NewClientWithConfig creates a new Kubernetes client with custom configuration
+func NewClientWithConfig(kubeconfig, context string, clientConfig *ClientConfig) (Client, error) {
 	config, err := buildConfig(kubeconfig, context)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build kubernetes config: %w", err)
 	}
+
+	// Apply client configuration (required)
+	if clientConfig == nil {
+		return nil, fmt.Errorf("clientConfig is required")
+	}
+	configureClientSettings(config, clientConfig)
 
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
@@ -64,6 +89,7 @@ func NewClient(kubeconfig, context string) (Client, error) {
 		discoveryClient: discoveryClient,
 		restMapper:      restMapper,
 		config:          config,
+		clientConfig:    clientConfig,
 	}, nil
 }
 
@@ -72,37 +98,118 @@ func (c *K8sClient) GetResources(ctx context.Context, gvks []schema.GroupVersion
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	var allResources []map[string]interface{}
-	var errors []string
-
-	for _, gvk := range gvks {
-		gvr, err := c.gvkToGVR(gvk)
+	// If no GVKs specified, discover all available resources for cluster scanning
+	if len(gvks) == 0 {
+		discoveredGVKs, err := c.DiscoverAllResources(ctx)
 		if err != nil {
-			// Log the error but continue with other resources
-			errors = append(errors, fmt.Sprintf("failed to convert GVK to GVR for %s: %v", gvk.String(), err))
-			continue
+			return nil, fmt.Errorf("failed to discover resources: %w", err)
 		}
+		gvks = discoveredGVKs
+	}
 
+	// Use concurrent fetching for better performance
+	type fetchJob struct {
+		gvk       schema.GroupVersionKind
+		namespace string
+	}
+
+	type fetchResult struct {
+		resources []map[string]interface{}
+		err       error
+		job       fetchJob
+	}
+
+	// Create jobs for all GVK-namespace combinations
+	var jobs []fetchJob
+	for _, gvk := range gvks {
 		if len(namespaces) == 0 {
 			// Cluster-scoped or all namespaces
-			resources, err := c.listResources(ctx, gvr, "")
-			if err != nil {
-				// Log the error but continue with other resources
-				errors = append(errors, fmt.Sprintf("failed to list resources for %s: %v", gvk.String(), err))
-				continue
-			}
-			allResources = append(allResources, resources...)
+			jobs = append(jobs, fetchJob{gvk: gvk, namespace: ""})
 		} else {
 			// Specific namespaces
 			for _, namespace := range namespaces {
-				resources, err := c.listResources(ctx, gvr, namespace)
+				jobs = append(jobs, fetchJob{gvk: gvk, namespace: namespace})
+			}
+		}
+	}
+
+	// Use max concurrency from client configuration
+	maxConcurrency := c.clientConfig.MaxConcurrency
+	if len(jobs) < maxConcurrency {
+		maxConcurrency = len(jobs)
+	}
+
+	jobChan := make(chan fetchJob, len(jobs))
+	resultChan := make(chan fetchResult, len(jobs))
+
+	// Start workers with rate limiting
+	for i := 0; i < maxConcurrency; i++ {
+		go func(workerID int) {
+			for job := range jobChan {
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
+
+				// Add small delay between requests to reduce API pressure
+				if workerID > 0 {
+					time.Sleep(time.Duration(workerID*50) * time.Millisecond)
+				}
+
+				gvr, err := c.gvkToGVR(job.gvk)
 				if err != nil {
-					// Log the error but continue with other resources
-					errors = append(errors, fmt.Sprintf("failed to list resources for %s in namespace %s: %v", gvk.String(), namespace, err))
+					resultChan <- fetchResult{
+						resources: nil,
+						err:       fmt.Errorf("failed to convert GVK to GVR for %s: %w", job.gvk.String(), err),
+						job:       job,
+					}
 					continue
 				}
-				allResources = append(allResources, resources...)
+
+				// Retry logic with exponential backoff
+				resources, err := c.listResourcesWithRetry(ctx, gvr, job.namespace)
+				resultChan <- fetchResult{
+					resources: resources,
+					err:       err,
+					job:       job,
+				}
 			}
+		}(i)
+	}
+
+	// Send jobs
+	go func() {
+		defer close(jobChan)
+		for _, job := range jobs {
+			select {
+			case <-ctx.Done():
+				return
+			case jobChan <- job:
+				// Job submitted successfully
+			}
+		}
+	}()
+
+	// Collect results
+	var allResources []map[string]interface{}
+	var errors []string
+
+	for i := 0; i < len(jobs); i++ {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case result := <-resultChan:
+			if result.err != nil {
+				// Log the error but continue with other resources
+				if result.job.namespace == "" {
+					errors = append(errors, fmt.Sprintf("failed to list resources for %s: %v", result.job.gvk.String(), result.err))
+				} else {
+					errors = append(errors, fmt.Sprintf("failed to list resources for %s in namespace %s: %v", result.job.gvk.String(), result.job.namespace, result.err))
+				}
+				continue
+			}
+			allResources = append(allResources, result.resources...)
 		}
 	}
 
@@ -326,6 +433,52 @@ func (c *K8sClient) listResources(ctx context.Context, gvr schema.GroupVersionRe
 	return resources, nil
 }
 
+// listResourcesWithRetry implements exponential backoff retry logic for API calls
+func (c *K8sClient) listResourcesWithRetry(ctx context.Context, gvr schema.GroupVersionResource, namespace string) ([]map[string]interface{}, error) {
+	maxRetries := c.clientConfig.Retry.MaxAttempts
+	baseDelay := time.Duration(c.clientConfig.Retry.BaseDelayMs) * time.Millisecond
+	maxDelay := time.Duration(c.clientConfig.Retry.MaxDelayS) * time.Second
+
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		resources, err := c.listResources(ctx, gvr, namespace)
+		if err == nil {
+			return resources, nil
+		}
+
+		// Check if this is the last attempt
+		if attempt == maxRetries {
+			return nil, err
+		}
+
+		// Check if context is cancelled
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+
+		// Calculate exponential backoff delay
+		delay := time.Duration(1<<uint(attempt)) * baseDelay
+		if delay > maxDelay {
+			delay = maxDelay
+		}
+
+		// Add jitter to prevent thundering herd
+		jitter := time.Duration(float64(delay) * 0.1)
+		delay += jitter
+
+		// Wait before retry
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(delay):
+			// Continue to next attempt
+		}
+	}
+
+	return nil, fmt.Errorf("max retries exceeded")
+}
+
 func (c *K8sClient) watchResource(ctx context.Context, gvr schema.GroupVersionResource, namespace string, eventChan chan<- ResourceEvent) {
 	var watcher watch.Interface
 	var err error
@@ -366,9 +519,12 @@ func (c *K8sClient) watchResource(ctx context.Context, gvr schema.GroupVersionRe
 }
 
 func buildConfig(kubeconfig, context string) (*rest.Config, error) {
+	var config *rest.Config
+	var err error
+
 	if kubeconfig == "" {
 		// Try in-cluster config first
-		if config, err := rest.InClusterConfig(); err == nil {
+		if config, err = rest.InClusterConfig(); err == nil {
 			return config, nil
 		}
 
@@ -387,5 +543,37 @@ func buildConfig(kubeconfig, context string) (*rest.Config, error) {
 	}
 
 	clientConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, configOverrides)
-	return clientConfig.ClientConfig()
+	config, err = clientConfig.ClientConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	return config, nil
+}
+
+// configureClientSettings applies custom client configuration
+func configureClientSettings(config *rest.Config, clientConfig *ClientConfig) {
+	// Set rate limiting
+	config.QPS = float32(clientConfig.QPS)
+	config.Burst = clientConfig.Burst
+
+	// Set timeouts (using 30s default as before)
+	config.Timeout = 30 * time.Second
+
+	// Disable client-side throttling warnings in logs
+	if config.WrapTransport == nil {
+		config.WrapTransport = func(rt http.RoundTripper) http.RoundTripper {
+			return &productionTransport{wrapped: rt}
+		}
+	}
+}
+
+// productionTransport wraps the default transport to handle production concerns
+type productionTransport struct {
+	wrapped http.RoundTripper
+}
+
+func (pt *productionTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	// Add production-specific headers or modifications if needed
+	return pt.wrapped.RoundTrip(req)
 }

@@ -1088,7 +1088,6 @@ func validateTestCaseWithScan(ctx context.Context, rule *models.SecurityRule, te
 	// Scan the manifest file
 	scanOptions := k8s.ScanOptions{
 		Recursive:               false,
-		Parallelism:             1,
 		Timeout:                 "30s",
 		IncludeSystemNamespaces: true,
 		IncludeClusterResources: true,

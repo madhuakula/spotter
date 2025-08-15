@@ -15,6 +15,21 @@ type ResourceInfo struct {
 	Categories []string
 }
 
+// ClientConfig holds Kubernetes client configuration
+type ClientConfig struct {
+	QPS            float64
+	Burst          int
+	MaxConcurrency int
+	Retry          RetryConfig
+}
+
+// RetryConfig holds retry configuration for the client
+type RetryConfig struct {
+	MaxAttempts int
+	BaseDelayMs int
+	MaxDelayS   int
+}
+
 // Client defines the interface for Kubernetes operations
 type Client interface {
 	// GetResources retrieves all resources of specified types from the cluster
@@ -95,9 +110,6 @@ type ScanOptions struct {
 	Timeout string
 
 	// Performance optimization options
-	CacheEnabled bool   // Enable resource caching
-	CacheTTL     string // Cache time-to-live
-	Parallelism  int    // Number of parallel workers for scanning and rule evaluation
 
 	// Memory optimization
 	MemoryLimit      int64 // Maximum memory usage in bytes
@@ -204,7 +216,4 @@ type ManifestParser interface {
 
 	// ParseContent parses YAML/JSON content from a string
 	ParseContent(ctx context.Context, content string) ([]map[string]interface{}, error)
-
-	// ValidateManifest validates a Kubernetes manifest
-	ValidateManifest(ctx context.Context, manifest map[string]interface{}) error
 }
