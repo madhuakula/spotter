@@ -3,6 +3,7 @@ package k8s
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -366,15 +367,25 @@ func (c *K8sClient) watchResource(ctx context.Context, gvr schema.GroupVersionRe
 }
 
 func buildConfig(kubeconfig, context string) (*rest.Config, error) {
+	// Priority order for kubeconfig:
+	// 1. --kubeconfig flag (highest priority)
+	// 2. SPOTTER_KUBECONFIG environment variable
+	// 3. ~/.kube/config (lowest priority)
+
 	if kubeconfig == "" {
 		// Try in-cluster config first
 		if config, err := rest.InClusterConfig(); err == nil {
 			return config, nil
 		}
 
-		// Fall back to default kubeconfig location
-		if home := homedir.HomeDir(); home != "" {
-			kubeconfig = filepath.Join(home, ".kube", "config")
+		// Check SPOTTER_KUBECONFIG environment variable
+		if envKubeconfig := os.Getenv("SPOTTER_KUBECONFIG"); envKubeconfig != "" {
+			kubeconfig = envKubeconfig
+		} else {
+			// Fall back to default kubeconfig location
+			if home := homedir.HomeDir(); home != "" {
+				kubeconfig = filepath.Join(home, ".kube", "config")
+			}
 		}
 	}
 
