@@ -184,6 +184,120 @@ func init() {
 		cmd.Flags().Bool("quiet", false, "suppress non-error output")
 		cmd.Flags().Bool("summary-only", false, "show only summary statistics")
 		// Note: 'no-color' flag is inherited from global persistent flags
+
+		// Bind common flags to viper so they can be set in config file
+		if err := viper.BindPFlag("scan.include-rules", cmd.Flags().Lookup("include-rules")); err != nil {
+			panic(fmt.Errorf("failed to bind include-rules flag: %w", err))
+		}
+		if err := viper.BindPFlag("scan.exclude-rules", cmd.Flags().Lookup("exclude-rules")); err != nil {
+			panic(fmt.Errorf("failed to bind exclude-rules flag: %w", err))
+		}
+		if err := viper.BindPFlag("scan.categories", cmd.Flags().Lookup("categories")); err != nil {
+			panic(fmt.Errorf("failed to bind categories flag: %w", err))
+		}
+		if err := viper.BindPFlag("scan.parallelism", cmd.Flags().Lookup("parallelism")); err != nil {
+			panic(fmt.Errorf("failed to bind parallelism flag: %w", err))
+		}
+		if err := viper.BindPFlag("scan.min-severity", cmd.Flags().Lookup("min-severity")); err != nil {
+			panic(fmt.Errorf("failed to bind min-severity flag: %w", err))
+		}
+		if err := viper.BindPFlag("scan.max-violations", cmd.Flags().Lookup("max-violations")); err != nil {
+			panic(fmt.Errorf("failed to bind max-violations flag: %w", err))
+		}
+		if err := viper.BindPFlag("scan.quiet", cmd.Flags().Lookup("quiet")); err != nil {
+			panic(fmt.Errorf("failed to bind quiet flag: %w", err))
+		}
+		if err := viper.BindPFlag("scan.summary-only", cmd.Flags().Lookup("summary-only")); err != nil {
+			panic(fmt.Errorf("failed to bind summary-only flag: %w", err))
+		}
+	}
+
+	// Bind scan-specific flags to viper for config file support
+	// Cluster flags
+	if err := viper.BindPFlag("scan.cluster.exclude-system-namespaces", clusterCmd.Flags().Lookup("exclude-system-namespaces")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.cluster.exclude-system-namespaces flag: %w", err))
+	}
+	if err := viper.BindPFlag("scan.cluster.include-cluster-resources", clusterCmd.Flags().Lookup("include-cluster-resources")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.cluster.include-cluster-resources flag: %w", err))
+	}
+	if err := viper.BindPFlag("scan.cluster.namespace", clusterCmd.Flags().Lookup("namespace")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.cluster.namespace flag: %w", err))
+	}
+	if err := viper.BindPFlag("scan.cluster.exclude-namespaces", clusterCmd.Flags().Lookup("exclude-namespaces")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.cluster.exclude-namespaces flag: %w", err))
+	}
+	if err := viper.BindPFlag("scan.cluster.resource-types", clusterCmd.Flags().Lookup("resource-types")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.cluster.resource-types flag: %w", err))
+	}
+	if err := viper.BindPFlag("scan.cluster.context", clusterCmd.Flags().Lookup("context")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.cluster.context flag: %w", err))
+	}
+
+	// Manifests flags
+	if err := viper.BindPFlag("scan.manifests.recursive", manifestsCmd.Flags().Lookup("recursive")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.manifests.recursive flag: %w", err))
+	}
+	if err := viper.BindPFlag("scan.manifests.file-extensions", manifestsCmd.Flags().Lookup("file-extensions")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.manifests.file-extensions flag: %w", err))
+	}
+	if err := viper.BindPFlag("scan.manifests.include-paths", manifestsCmd.Flags().Lookup("include-paths")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.manifests.include-paths flag: %w", err))
+	}
+	if err := viper.BindPFlag("scan.manifests.follow-symlinks", manifestsCmd.Flags().Lookup("follow-symlinks")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.manifests.follow-symlinks flag: %w", err))
+	}
+	if err := viper.BindPFlag("scan.manifests.exclude-system-namespaces", manifestsCmd.Flags().Lookup("exclude-system-namespaces")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.manifests.exclude-system-namespaces flag: %w", err))
+	}
+	if err := viper.BindPFlag("scan.manifests.include-cluster-resources", manifestsCmd.Flags().Lookup("include-cluster-resources")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.manifests.include-cluster-resources flag: %w", err))
+	}
+
+	// Helm flags
+	if err := viper.BindPFlag("scan.helm.values", helmCmd.Flags().Lookup("values")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.helm.values flag: %w", err))
+	}
+	if err := viper.BindPFlag("scan.helm.set", helmCmd.Flags().Lookup("set")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.helm.set flag: %w", err))
+	}
+	if err := viper.BindPFlag("scan.helm.set-string", helmCmd.Flags().Lookup("set-string")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.helm.set-string flag: %w", err))
+	}
+	if err := viper.BindPFlag("scan.helm.release-name", helmCmd.Flags().Lookup("release-name")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.helm.release-name flag: %w", err))
+	}
+	if err := viper.BindPFlag("scan.helm.namespace", helmCmd.Flags().Lookup("namespace")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.helm.namespace flag: %w", err))
+	}
+	if err := viper.BindPFlag("scan.helm.include-dependencies", helmCmd.Flags().Lookup("include-dependencies")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.helm.include-dependencies flag: %w", err))
+	}
+	if err := viper.BindPFlag("scan.helm.validate-schema", helmCmd.Flags().Lookup("validate-schema")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.helm.validate-schema flag: %w", err))
+	}
+	if err := viper.BindPFlag("scan.helm.kube-version", helmCmd.Flags().Lookup("kube-version")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.helm.kube-version flag: %w", err))
+	}
+	if err := viper.BindPFlag("scan.helm.exclude-system-namespaces", helmCmd.Flags().Lookup("exclude-system-namespaces")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.helm.exclude-system-namespaces flag: %w", err))
+	}
+	if err := viper.BindPFlag("scan.helm.include-cluster-resources", helmCmd.Flags().Lookup("include-cluster-resources")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.helm.include-cluster-resources flag: %w", err))
+	}
+	if err := viper.BindPFlag("scan.helm.skip-tests", helmCmd.Flags().Lookup("skip-tests")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.helm.skip-tests flag: %w", err))
+	}
+	if err := viper.BindPFlag("scan.helm.skip-crds", helmCmd.Flags().Lookup("skip-crds")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.helm.skip-crds flag: %w", err))
+	}
+	if err := viper.BindPFlag("scan.helm.chart-repo", helmCmd.Flags().Lookup("chart-repo")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.helm.chart-repo flag: %w", err))
+	}
+	if err := viper.BindPFlag("scan.helm.chart-version", helmCmd.Flags().Lookup("chart-version")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.helm.chart-version flag: %w", err))
+	}
+	if err := viper.BindPFlag("scan.helm.update-dependencies", helmCmd.Flags().Lookup("update-dependencies")); err != nil {
+		panic(fmt.Errorf("failed to bind scan.helm.update-dependencies flag: %w", err))
 	}
 }
 
@@ -278,9 +392,14 @@ func runManifestsScan(cmd *cobra.Command, args []string) error {
 	var manifestFiles []string
 	recursive, _ := cmd.Flags().GetBool("recursive")
 	extensions, _ := cmd.Flags().GetStringSlice("file-extensions")
+	followSymlinks := viper.GetBool("scan.manifests.follow-symlinks")
 
-	for _, path := range args {
-		files, err := collectManifestFiles(path, recursive, extensions)
+	pathsToScan := append([]string{}, args...)
+	includePaths := viper.GetStringSlice("scan.manifests.include-paths")
+	pathsToScan = append(pathsToScan, includePaths...)
+
+	for _, path := range pathsToScan {
+		files, err := collectManifestFiles(path, recursive, extensions, followSymlinks)
 		if err != nil {
 			return fmt.Errorf("failed to collect manifest files from %s: %w", path, err)
 		}
@@ -524,7 +643,7 @@ func loadExternalRules(parser *parser.YAMLParser, rulesPaths []string) ([]*model
 }
 
 // collectManifestFiles collects all manifest files from the given path
-func collectManifestFiles(path string, recursive bool, extensions []string) ([]string, error) {
+func collectManifestFiles(path string, recursive bool, extensions []string, followSymlinks bool) ([]string, error) {
 	var files []string
 
 	info, err := os.Stat(path)
@@ -546,6 +665,10 @@ func collectManifestFiles(path string, recursive bool, extensions []string) ([]s
 			if err != nil {
 				return err
 			}
+			// Skip symlinks if not following
+			if d.Type()&os.ModeSymlink != 0 && !followSymlinks {
+				return nil
+			}
 			if !d.IsDir() && hasValidExtension(filePath, extensions) {
 				files = append(files, filePath)
 			}
@@ -557,6 +680,10 @@ func collectManifestFiles(path string, recursive bool, extensions []string) ([]s
 			return nil, err
 		}
 		for _, entry := range entries {
+			// Skip symlinks if not following
+			if entry.Type()&os.ModeSymlink != 0 && !followSymlinks {
+				continue
+			}
 			if !entry.IsDir() {
 				filePath := filepath.Join(path, entry.Name())
 				if hasValidExtension(filePath, extensions) {
@@ -604,6 +731,8 @@ type ScanConfig struct {
 	ResourceTypes           []string
 	Recursive               bool
 	FileExtensions          []string
+	IncludePaths            []string
+	FollowSymlinks          bool
 	NoColor                 bool
 	Verbose                 bool
 	FailOnViolations        bool
@@ -613,6 +742,7 @@ type ScanConfig struct {
 
 // buildScanConfig creates scan configuration from command flags
 func buildScanConfig(cmd *cobra.Command) (*ScanConfig, error) {
+	logger := GetLogger()
 	// Get command name to determine which section of config to use
 	cmdName := cmd.Name()
 
@@ -625,17 +755,40 @@ func buildScanConfig(cmd *cobra.Command) (*ScanConfig, error) {
 		Verbose:     viper.GetBool("verbose"),
 	}
 
+	// Load common scan config values from viper (could be from config file or flags)
+	config.MinSeverity = viper.GetString("scan.min-severity")
+	config.MaxViolations = viper.GetInt("scan.max-violations")
+	config.Quiet = viper.GetBool("scan.quiet")
+	config.SummaryOnly = viper.GetBool("scan.summary-only")
+	config.Parallelism = viper.GetInt("scan.parallelism")
+
 	// Set defaults based on config file for specific command types
 	switch cmdName {
 	case "cluster":
 		// Read cluster-specific settings from config
 		config.ExcludeSystemNamespaces = viper.GetBool("scan.cluster.exclude-system-namespaces")
 		config.IncludeClusterResources = viper.GetBool("scan.cluster.include-cluster-resources")
+		if len(config.IncludeNamespaces) == 0 {
+			config.IncludeNamespaces = viper.GetStringSlice("scan.cluster.namespace")
+		}
+		if len(config.ExcludeNamespaces) == 0 {
+			config.ExcludeNamespaces = viper.GetStringSlice("scan.cluster.exclude-namespaces")
+		}
+		if len(config.ResourceTypes) == 0 {
+			config.ResourceTypes = viper.GetStringSlice("scan.cluster.resource-types")
+		}
 	case "manifests":
 		// Read manifests-specific settings from config
 		config.Recursive = viper.GetBool("scan.manifests.recursive")
+		config.FileExtensions = viper.GetStringSlice("scan.manifests.file-extensions")
+		config.ExcludeSystemNamespaces = viper.GetBool("scan.manifests.exclude-system-namespaces")
+		config.IncludeClusterResources = viper.GetBool("scan.manifests.include-cluster-resources")
+		config.IncludePaths = viper.GetStringSlice("scan.manifests.include-paths")
+		config.FollowSymlinks = viper.GetBool("scan.manifests.follow-symlinks")
 	case "helm":
 		// Read helm-specific settings from config
+		config.ExcludeSystemNamespaces = viper.GetBool("scan.helm.exclude-system-namespaces")
+		config.IncludeClusterResources = viper.GetBool("scan.helm.include-cluster-resources")
 	}
 
 	// Get command-specific flags (these override config file settings)
@@ -688,6 +841,21 @@ func buildScanConfig(cmd *cobra.Command) (*ScanConfig, error) {
 		config.Parallelism = 4
 	}
 
+	// Log final configuration summary
+	logger.Debug("This is the config we're using for the scan",
+		"command", cmdName,
+		"config_file", viper.ConfigFileUsed(),
+		"output", config.Output,
+		"parallelism", config.Parallelism,
+		"min-severity", config.MinSeverity,
+		"max-violations", config.MaxViolations,
+		"quiet", config.Quiet,
+		"summary-only", config.SummaryOnly,
+		"recursive", config.Recursive,
+		"file-extensions", config.FileExtensions,
+		"exclude-system-namespaces", config.ExcludeSystemNamespaces,
+		"include-cluster-resources", config.IncludeClusterResources)
+
 	return config, nil
 }
 
@@ -696,7 +864,39 @@ func initializeK8sClient() (k8s.Client, error) {
 	kubeconfig := viper.GetString("kubeconfig")
 	context := viper.GetString("context")
 
-	client, err := k8s.NewClient(kubeconfig, context)
+	// Read client configuration
+	clientConfig := &k8s.ClientConfig{
+		QPS:            viper.GetFloat64("client.qps"),
+		Burst:          viper.GetInt("client.burst"),
+		MaxConcurrency: viper.GetInt("client.max_concurrency"),
+		Retry: k8s.RetryConfig{
+			MaxAttempts: viper.GetInt("client.retry.max_attempts"),
+			BaseDelayMs: viper.GetInt("client.retry.base_delay_ms"),
+			MaxDelayS:   viper.GetInt("client.retry.max_delay_s"),
+		},
+	}
+
+	// Set defaults if not configured
+	if clientConfig.QPS == 0 {
+		clientConfig.QPS = 50.0
+	}
+	if clientConfig.Burst == 0 {
+		clientConfig.Burst = 100
+	}
+	if clientConfig.MaxConcurrency == 0 {
+		clientConfig.MaxConcurrency = 5
+	}
+	if clientConfig.Retry.MaxAttempts == 0 {
+		clientConfig.Retry.MaxAttempts = 3
+	}
+	if clientConfig.Retry.BaseDelayMs == 0 {
+		clientConfig.Retry.BaseDelayMs = 100
+	}
+	if clientConfig.Retry.MaxDelayS == 0 {
+		clientConfig.Retry.MaxDelayS = 5
+	}
+
+	client, err := k8s.NewClientWithConfig(kubeconfig, context, clientConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Kubernetes client: %w", err)
 	}
@@ -754,7 +954,6 @@ func executeClusterScan(ctx context.Context, scanner k8s.ResourceScanner, engine
 		ResourceTypes:           gvks,
 		IncludeSystemNamespaces: !config.ExcludeSystemNamespaces, // Use the config value
 		IncludeClusterResources: config.IncludeClusterResources,  // Use the config value
-		Parallelism:             config.Parallelism,
 		Timeout:                 config.Timeout.String(),
 		NamespacePatterns: k8s.NamespaceFilterConfig{
 			UseDynamicDetection: true,
@@ -791,7 +990,6 @@ func executeManifestsScan(ctx context.Context, scanner k8s.ResourceScanner, engi
 	// Build scan options with dynamic filtering enabled
 	scanOptions := k8s.ScanOptions{
 		Recursive:               config.Recursive,
-		Parallelism:             config.Parallelism,
 		Timeout:                 config.Timeout.String(),
 		IncludeSystemNamespaces: !config.ExcludeSystemNamespaces, // Use the config value
 		IncludeClusterResources: config.IncludeClusterResources,  // Use the config value
@@ -827,20 +1025,19 @@ func executeHelmScan(ctx context.Context, scanner k8s.ResourceScanner, engine en
 	logger := GetLogger()
 
 	// Get Helm-specific flags
-	valuesFiles := viper.GetStringSlice("values")
-	setValues := viper.GetStringSlice("set")
-	setStringValues := viper.GetStringSlice("set-string")
-	releaseName := viper.GetString("release-name")
-	namespace := viper.GetString("namespace")
-	kubeVersion := viper.GetString("kube-version")
-	skipCRDs := viper.GetBool("skip-crds")
-	skipTests := viper.GetBool("skip-tests")
-	validateSchema := viper.GetBool("validate-schema")
-	updateDependencies := viper.GetBool("update-dependencies")
+	valuesFiles := viper.GetStringSlice("scan.helm.values")
+	setValues := viper.GetStringSlice("scan.helm.set")
+	setStringValues := viper.GetStringSlice("scan.helm.set-string")
+	releaseName := viper.GetString("scan.helm.release-name")
+	namespace := viper.GetString("scan.helm.namespace")
+	kubeVersion := viper.GetString("scan.helm.kube-version")
+	skipCRDs := viper.GetBool("scan.helm.skip-crds")
+	skipTests := viper.GetBool("scan.helm.skip-tests")
+	validateSchema := viper.GetBool("scan.helm.validate-schema")
+	updateDependencies := viper.GetBool("scan.helm.update-dependencies")
 
 	// Build scan options with dynamic filtering enabled
 	scanOptions := k8s.ScanOptions{
-		Parallelism:             config.Parallelism,
 		Timeout:                 config.Timeout.String(),
 		IncludeSystemNamespaces: !config.ExcludeSystemNamespaces, // Use the config value
 		IncludeClusterResources: config.IncludeClusterResources,  // Use the config value
