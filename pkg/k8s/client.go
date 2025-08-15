@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -528,9 +529,14 @@ func buildConfig(kubeconfig, context string) (*rest.Config, error) {
 			return config, nil
 		}
 
-		// Fall back to default kubeconfig location
-		if home := homedir.HomeDir(); home != "" {
-			kubeconfig = filepath.Join(home, ".kube", "config")
+		// Check SPOTTER_KUBECONFIG environment variable
+		if envKubeconfig := os.Getenv("KUBECONFIG"); envKubeconfig != "" {
+			kubeconfig = envKubeconfig
+		} else {
+			// Fall back to default kubeconfig location
+			if home := homedir.HomeDir(); home != "" {
+				kubeconfig = filepath.Join(home, ".kube", "config")
+			}
 		}
 	}
 

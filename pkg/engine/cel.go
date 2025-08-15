@@ -322,7 +322,7 @@ func (e *CELEngine) EvaluateRulesAgainstResourcesConcurrent(ctx context.Context,
 	if numWorkers <= 0 {
 		numWorkers = 10 // Default fallback
 	}
-	
+
 	// Limit workers to avoid over-parallelization for small workloads
 	maxUsefulWorkers := len(rules)
 	if len(resources) < len(rules) {
