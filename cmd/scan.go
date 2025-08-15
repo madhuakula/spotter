@@ -838,7 +838,39 @@ func initializeK8sClient() (k8s.Client, error) {
 	kubeconfig := viper.GetString("kubeconfig")
 	context := viper.GetString("context")
 
-	client, err := k8s.NewClient(kubeconfig, context)
+	// Read client configuration
+	clientConfig := &k8s.ClientConfig{
+		QPS:            viper.GetFloat64("client.qps"),
+		Burst:          viper.GetInt("client.burst"),
+		MaxConcurrency: viper.GetInt("client.max_concurrency"),
+		Retry: k8s.RetryConfig{
+			MaxAttempts: viper.GetInt("client.retry.max_attempts"),
+			BaseDelayMs: viper.GetInt("client.retry.base_delay_ms"),
+			MaxDelayS:   viper.GetInt("client.retry.max_delay_s"),
+		},
+	}
+
+	// Set defaults if not configured
+	if clientConfig.QPS == 0 {
+		clientConfig.QPS = 50.0
+	}
+	if clientConfig.Burst == 0 {
+		clientConfig.Burst = 100
+	}
+	if clientConfig.MaxConcurrency == 0 {
+		clientConfig.MaxConcurrency = 5
+	}
+	if clientConfig.Retry.MaxAttempts == 0 {
+		clientConfig.Retry.MaxAttempts = 3
+	}
+	if clientConfig.Retry.BaseDelayMs == 0 {
+		clientConfig.Retry.BaseDelayMs = 100
+	}
+	if clientConfig.Retry.MaxDelayS == 0 {
+		clientConfig.Retry.MaxDelayS = 5
+	}
+
+	client, err := k8s.NewClientWithConfig(kubeconfig, context, clientConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Kubernetes client: %w", err)
 	}

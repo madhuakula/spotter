@@ -15,6 +15,21 @@ type ResourceInfo struct {
 	Categories []string
 }
 
+// ClientConfig holds Kubernetes client configuration
+type ClientConfig struct {
+	QPS            float64
+	Burst          int
+	MaxConcurrency int
+	Retry          RetryConfig
+}
+
+// RetryConfig holds retry configuration for the client
+type RetryConfig struct {
+	MaxAttempts int
+	BaseDelayMs int
+	MaxDelayS   int
+}
+
 // Client defines the interface for Kubernetes operations
 type Client interface {
 	// GetResources retrieves all resources of specified types from the cluster

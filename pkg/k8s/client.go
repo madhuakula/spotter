@@ -9,7 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/spf13/viper"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -32,15 +31,38 @@ type K8sClient struct {
 	discoveryClient discovery.DiscoveryInterface
 	restMapper      meta.RESTMapper
 	config          *rest.Config
+	clientConfig    *ClientConfig
 	mu              sync.RWMutex
 }
 
-// NewClient creates a new Kubernetes client
+// NewClient creates a new Kubernetes client with default configuration
 func NewClient(kubeconfig, context string) (Client, error) {
+	// Provide default configuration for backward compatibility
+	defaultConfig := &ClientConfig{
+		QPS:            50.0,
+		Burst:          100,
+		MaxConcurrency: 5,
+		Retry: RetryConfig{
+			MaxAttempts: 3,
+			BaseDelayMs: 100,
+			MaxDelayS:   5,
+		},
+	}
+	return NewClientWithConfig(kubeconfig, context, defaultConfig)
+}
+
+// NewClientWithConfig creates a new Kubernetes client with custom configuration
+func NewClientWithConfig(kubeconfig, context string, clientConfig *ClientConfig) (Client, error) {
 	config, err := buildConfig(kubeconfig, context)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build kubernetes config: %w", err)
 	}
+
+	// Apply client configuration (required)
+	if clientConfig == nil {
+		return nil, fmt.Errorf("clientConfig is required")
+	}
+	configureClientSettings(config, clientConfig)
 
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
@@ -67,6 +89,7 @@ func NewClient(kubeconfig, context string) (Client, error) {
 		discoveryClient: discoveryClient,
 		restMapper:      restMapper,
 		config:          config,
+		clientConfig:    clientConfig,
 	}, nil
 }
 
@@ -110,11 +133,8 @@ func (c *K8sClient) GetResources(ctx context.Context, gvks []schema.GroupVersion
 		}
 	}
 
-	// Read max concurrency from configuration
-	maxConcurrency := viper.GetInt("kubernetes.client.max_concurrency")
-	if maxConcurrency == 0 {
-		maxConcurrency = 5 // Default value
-	}
+	// Use max concurrency from client configuration
+	maxConcurrency := c.clientConfig.MaxConcurrency
 	if len(jobs) < maxConcurrency {
 		maxConcurrency = len(jobs)
 	}
@@ -415,9 +435,9 @@ func (c *K8sClient) listResources(ctx context.Context, gvr schema.GroupVersionRe
 
 // listResourcesWithRetry implements exponential backoff retry logic for API calls
 func (c *K8sClient) listResourcesWithRetry(ctx context.Context, gvr schema.GroupVersionResource, namespace string) ([]map[string]interface{}, error) {
-	maxRetries := 3
-	baseDelay := 100 * time.Millisecond
-	maxDelay := 5 * time.Second
+	maxRetries := c.clientConfig.Retry.MaxAttempts
+	baseDelay := time.Duration(c.clientConfig.Retry.BaseDelayMs) * time.Millisecond
+	maxDelay := time.Duration(c.clientConfig.Retry.MaxDelayS) * time.Second
 
 	for attempt := 0; attempt <= maxRetries; attempt++ {
 		resources, err := c.listResources(ctx, gvr, namespace)
@@ -505,8 +525,6 @@ func buildConfig(kubeconfig, context string) (*rest.Config, error) {
 	if kubeconfig == "" {
 		// Try in-cluster config first
 		if config, err = rest.InClusterConfig(); err == nil {
-			// Configure in-cluster config for production
-			configureProductionSettings(config)
 			return config, nil
 		}
 
@@ -530,38 +548,19 @@ func buildConfig(kubeconfig, context string) (*rest.Config, error) {
 		return nil, err
 	}
 
-	// Configure production settings
-	configureProductionSettings(config)
 	return config, nil
 }
 
-// configureProductionSettings optimizes the client configuration for production use
-func configureProductionSettings(config *rest.Config) {
-	// Read configuration from spotter.yaml
-	qps := viper.GetFloat64("kubernetes.client.qps")
-	if qps == 0 {
-		qps = 50.0 // Default value
-	}
+// configureClientSettings applies custom client configuration
+func configureClientSettings(config *rest.Config, clientConfig *ClientConfig) {
+	// Set rate limiting
+	config.QPS = float32(clientConfig.QPS)
+	config.Burst = clientConfig.Burst
 
-	burst := viper.GetInt("kubernetes.client.burst")
-	if burst == 0 {
-		burst = 100 // Default value
-	}
-
-	timeout := viper.GetDuration("kubernetes.timeout")
-	if timeout == 0 {
-		timeout = 30 * time.Second // Default value
-	}
-
-	// Set rate limiting to prevent throttling
-	config.QPS = float32(qps)
-	config.Burst = burst
-
-	// Set timeouts for better reliability
-	config.Timeout = timeout
+	// Set timeouts (using 30s default as before)
+	config.Timeout = 30 * time.Second
 
 	// Disable client-side throttling warnings in logs
-	// This reduces log noise while maintaining functionality
 	if config.WrapTransport == nil {
 		config.WrapTransport = func(rt http.RoundTripper) http.RoundTripper {
 			return &productionTransport{wrapped: rt}
