@@ -369,7 +369,7 @@ func (c *K8sClient) watchResource(ctx context.Context, gvr schema.GroupVersionRe
 func buildConfig(kubeconfig, context string) (*rest.Config, error) {
 	// Priority order for kubeconfig:
 	// 1. --kubeconfig flag (highest priority)
-	// 2. SPOTTER_KUBECONFIG environment variable
+	// 2. KUBECONFIG environment variable
 	// 3. ~/.kube/config (lowest priority)
 
 	if kubeconfig == "" {
@@ -379,7 +379,7 @@ func buildConfig(kubeconfig, context string) (*rest.Config, error) {
 		}
 
 		// Check SPOTTER_KUBECONFIG environment variable
-		if envKubeconfig := os.Getenv("SPOTTER_KUBECONFIG"); envKubeconfig != "" {
+		if envKubeconfig := os.Getenv("KUBECONFIG"); envKubeconfig != "" {
 			kubeconfig = envKubeconfig
 		} else {
 			// Fall back to default kubeconfig location
