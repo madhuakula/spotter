@@ -896,7 +896,6 @@ func executeClusterScan(ctx context.Context, scanner k8s.ResourceScanner, engine
 		ResourceTypes:           gvks,
 		IncludeSystemNamespaces: !config.ExcludeSystemNamespaces, // Use the config value
 		IncludeClusterResources: config.IncludeClusterResources,  // Use the config value
-		Parallelism:             config.Parallelism,
 		Timeout:                 config.Timeout.String(),
 		NamespacePatterns: k8s.NamespaceFilterConfig{
 			UseDynamicDetection: true,
@@ -933,7 +932,6 @@ func executeManifestsScan(ctx context.Context, scanner k8s.ResourceScanner, engi
 	// Build scan options with dynamic filtering enabled
 	scanOptions := k8s.ScanOptions{
 		Recursive:               config.Recursive,
-		Parallelism:             config.Parallelism,
 		Timeout:                 config.Timeout.String(),
 		IncludeSystemNamespaces: !config.ExcludeSystemNamespaces, // Use the config value
 		IncludeClusterResources: config.IncludeClusterResources,  // Use the config value
@@ -982,7 +980,6 @@ func executeHelmScan(ctx context.Context, scanner k8s.ResourceScanner, engine en
 
 	// Build scan options with dynamic filtering enabled
 	scanOptions := k8s.ScanOptions{
-		Parallelism:             config.Parallelism,
 		Timeout:                 config.Timeout.String(),
 		IncludeSystemNamespaces: !config.ExcludeSystemNamespaces, // Use the config value
 		IncludeClusterResources: config.IncludeClusterResources,  // Use the config value

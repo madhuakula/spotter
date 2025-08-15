@@ -95,9 +95,6 @@ type ScanOptions struct {
 	Timeout string
 
 	// Performance optimization options
-	CacheEnabled bool   // Enable resource caching
-	CacheTTL     string // Cache time-to-live
-	Parallelism  int    // Number of parallel workers for scanning and rule evaluation
 
 	// Memory optimization
 	MemoryLimit      int64 // Maximum memory usage in bytes
@@ -204,7 +201,4 @@ type ManifestParser interface {
 
 	// ParseContent parses YAML/JSON content from a string
 	ParseContent(ctx context.Context, content string) ([]map[string]interface{}, error)
-
-	// ValidateManifest validates a Kubernetes manifest
-	ValidateManifest(ctx context.Context, manifest map[string]interface{}) error
 }
