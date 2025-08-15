@@ -49,11 +49,6 @@ Examples:
 // Execute adds all child commands to the root command and sets flags appropriately.
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		// Ensure logger is initialized before using it
-		if logger == nil {
-			initializeLogger()
-		}
-		logger.Error("Command execution failed", "error", err)
 		os.Exit(1)
 	}
 }

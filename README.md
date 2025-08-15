@@ -163,36 +163,79 @@ Spotter follows a modular architecture designed for extensibility and performanc
 
 ## 🔧 Configuration
 
-Spotter can be configured using YAML files, environment variables, or command-line flags:
+Spotter can be configured using YAML files, environment variables, or command-line (higher priority) flags:
 
 ```yaml
 # spotter.yaml
-logging:
-  level: info
-  format: text
+# Global Configuration
+log-level: info
+verbose: true
+no-color: false
+timeout: 5m
+output: table
+output-file: ""
+kubeconfig: ""
 
-scanner:
-  workers: 4
-  timeout: 300s
-  include_namespaces: ["production", "staging"]
-  exclude_namespaces: ["kube-system"]
+# Common scan options (applies to all scan types)
+include-rules: []
+exclude-rules: []
+categories: []
+parallelism: 4
+min-severity: ""
+max-violations: 0
+quiet: false
+summary-only: false
 
-rules:
-  builtin_enabled: true
-  custom_paths:
-    - "./custom-rules/"
-    - "/etc/spotter/rules/"
-  severity_filter: ["CRITICAL", "HIGH", "MEDIUM"]
+# Scan-specific configurations
+scan:
+  # Cluster scanning configuration
+  cluster:
+    namespace: []
+    exclude-namespaces: []
+    exclude-system-namespaces: false
+    resource-types: []
+    include-cluster-resources: true
+    context: ""
 
-output:
-  format: table
-  verbose: false
-  file: "scan-results.json"
+  # Manifest scanning configuration  
+  manifests:
+    recursive: true
+    file-extensions: [".yaml", ".yml", ".json"]
+    include-paths: []
+    follow-symlinks: false
+    exclude-system-namespaces: false
+    include-cluster-resources: true
 
-kubernetes:
-  kubeconfig: "~/.kube/config"
-  context: "production-cluster"
-  timeout: 30s
+  # Helm chart scanning configuration
+  helm:
+    values: []
+    set: []
+    set-string: []
+    release-name: "test-release"
+    namespace: "default"
+    include-dependencies: true
+    validate-schema: true
+    kube-version: ""
+    chart-repo: ""
+    chart-version: ""
+    update-dependencies: false
+    exclude-system-namespaces: false
+    include-cluster-resources: true
+    skip-tests: false
+    skip-crds: false
+
+# External rules configuration
+rules-path: []
+```
+
+### Using Configuration Files
+
+```bash
+# Use a specific config file
+spotter scan manifests ./manifests --config spotter.yaml
+
+# Override config values with flags
+spotter scan cluster --config production.yaml --min-severity high --parallelism 8
 ```
 
 ## 🛡️ Security Rules
