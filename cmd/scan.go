@@ -184,7 +184,51 @@ func init() {
 		cmd.Flags().Bool("quiet", false, "suppress non-error output")
 		cmd.Flags().Bool("summary-only", false, "show only summary statistics")
 		// Note: 'no-color' flag is inherited from global persistent flags
+
+		// Bind common flags to viper so they can be set in config file
+		viper.BindPFlag("include-rules", cmd.Flags().Lookup("include-rules"))
+		viper.BindPFlag("exclude-rules", cmd.Flags().Lookup("exclude-rules"))
+		viper.BindPFlag("categories", cmd.Flags().Lookup("categories"))
+		viper.BindPFlag("parallelism", cmd.Flags().Lookup("parallelism"))
+		viper.BindPFlag("min-severity", cmd.Flags().Lookup("min-severity"))
+		viper.BindPFlag("max-violations", cmd.Flags().Lookup("max-violations"))
+		viper.BindPFlag("quiet", cmd.Flags().Lookup("quiet"))
+		viper.BindPFlag("summary-only", cmd.Flags().Lookup("summary-only"))
 	}
+
+	// Bind scan-specific flags to viper for config file support
+	// Cluster flags
+	viper.BindPFlag("scan.cluster.exclude-system-namespaces", clusterCmd.Flags().Lookup("exclude-system-namespaces"))
+	viper.BindPFlag("scan.cluster.include-cluster-resources", clusterCmd.Flags().Lookup("include-cluster-resources"))
+	viper.BindPFlag("scan.cluster.namespace", clusterCmd.Flags().Lookup("namespace"))
+	viper.BindPFlag("scan.cluster.exclude-namespaces", clusterCmd.Flags().Lookup("exclude-namespaces"))
+	viper.BindPFlag("scan.cluster.resource-types", clusterCmd.Flags().Lookup("resource-types"))
+	viper.BindPFlag("scan.cluster.context", clusterCmd.Flags().Lookup("context"))
+
+	// Manifests flags
+	viper.BindPFlag("scan.manifests.recursive", manifestsCmd.Flags().Lookup("recursive"))
+	viper.BindPFlag("scan.manifests.file-extensions", manifestsCmd.Flags().Lookup("file-extensions"))
+	viper.BindPFlag("scan.manifests.include-paths", manifestsCmd.Flags().Lookup("include-paths"))
+	viper.BindPFlag("scan.manifests.follow-symlinks", manifestsCmd.Flags().Lookup("follow-symlinks"))
+	viper.BindPFlag("scan.manifests.exclude-system-namespaces", manifestsCmd.Flags().Lookup("exclude-system-namespaces"))
+	viper.BindPFlag("scan.manifests.include-cluster-resources", manifestsCmd.Flags().Lookup("include-cluster-resources"))
+
+	// Helm flags
+	viper.BindPFlag("scan.helm.values", helmCmd.Flags().Lookup("values"))
+	viper.BindPFlag("scan.helm.set", helmCmd.Flags().Lookup("set"))
+	viper.BindPFlag("scan.helm.set-string", helmCmd.Flags().Lookup("set-string"))
+	viper.BindPFlag("scan.helm.release-name", helmCmd.Flags().Lookup("release-name"))
+	viper.BindPFlag("scan.helm.namespace", helmCmd.Flags().Lookup("namespace"))
+	viper.BindPFlag("scan.helm.include-dependencies", helmCmd.Flags().Lookup("include-dependencies"))
+	viper.BindPFlag("scan.helm.validate-schema", helmCmd.Flags().Lookup("validate-schema"))
+	viper.BindPFlag("scan.helm.kube-version", helmCmd.Flags().Lookup("kube-version"))
+	viper.BindPFlag("scan.helm.exclude-system-namespaces", helmCmd.Flags().Lookup("exclude-system-namespaces"))
+	viper.BindPFlag("scan.helm.include-cluster-resources", helmCmd.Flags().Lookup("include-cluster-resources"))
+	viper.BindPFlag("scan.helm.skip-tests", helmCmd.Flags().Lookup("skip-tests"))
+	viper.BindPFlag("scan.helm.skip-crds", helmCmd.Flags().Lookup("skip-crds"))
+	viper.BindPFlag("scan.helm.chart-repo", helmCmd.Flags().Lookup("chart-repo"))
+	viper.BindPFlag("scan.helm.chart-version", helmCmd.Flags().Lookup("chart-version"))
+	viper.BindPFlag("scan.helm.update-dependencies", helmCmd.Flags().Lookup("update-dependencies"))
 }
 
 func runClusterScan(cmd *cobra.Command, args []string) error {
@@ -613,6 +657,7 @@ type ScanConfig struct {
 
 // buildScanConfig creates scan configuration from command flags
 func buildScanConfig(cmd *cobra.Command) (*ScanConfig, error) {
+	logger := GetLogger()
 	// Get command name to determine which section of config to use
 	cmdName := cmd.Name()
 
@@ -625,6 +670,13 @@ func buildScanConfig(cmd *cobra.Command) (*ScanConfig, error) {
 		Verbose:     viper.GetBool("verbose"),
 	}
 
+	// Load common scan config values from viper (could be from config file or flags)
+	config.MinSeverity = viper.GetString("min-severity")
+	config.MaxViolations = viper.GetInt("max-violations")
+	config.Quiet = viper.GetBool("quiet")
+	config.SummaryOnly = viper.GetBool("summary-only")
+	config.Parallelism = viper.GetInt("parallelism")
+
 	// Set defaults based on config file for specific command types
 	switch cmdName {
 	case "cluster":
@@ -634,8 +686,13 @@ func buildScanConfig(cmd *cobra.Command) (*ScanConfig, error) {
 	case "manifests":
 		// Read manifests-specific settings from config
 		config.Recursive = viper.GetBool("scan.manifests.recursive")
+		config.FileExtensions = viper.GetStringSlice("scan.manifests.file-extensions")
+		config.ExcludeSystemNamespaces = viper.GetBool("scan.manifests.exclude-system-namespaces")
+		config.IncludeClusterResources = viper.GetBool("scan.manifests.include-cluster-resources")
 	case "helm":
 		// Read helm-specific settings from config
+		config.ExcludeSystemNamespaces = viper.GetBool("scan.helm.exclude-system-namespaces")
+		config.IncludeClusterResources = viper.GetBool("scan.helm.include-cluster-resources")
 	}
 
 	// Get command-specific flags (these override config file settings)
@@ -687,6 +744,21 @@ func buildScanConfig(cmd *cobra.Command) (*ScanConfig, error) {
 	if config.Parallelism <= 0 {
 		config.Parallelism = 4
 	}
+
+	// Log final configuration summary
+	logger.Debug("This is the config we're using for the scan",
+		"command", cmdName,
+		"config_file", viper.ConfigFileUsed(),
+		"output", config.Output,
+		"parallelism", config.Parallelism,
+		"min-severity", config.MinSeverity,
+		"max-violations", config.MaxViolations,
+		"quiet", config.Quiet,
+		"summary-only", config.SummaryOnly,
+		"recursive", config.Recursive,
+		"file-extensions", config.FileExtensions,
+		"exclude-system-namespaces", config.ExcludeSystemNamespaces,
+		"include-cluster-resources", config.IncludeClusterResources)
 
 	return config, nil
 }
