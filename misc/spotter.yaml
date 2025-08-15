@@ -1,96 +1,63 @@
-# Spotter Configuration File
-# Complete configuration with all available parameters and options
+# spotter.yaml
+# Global Configuration
+log-level: info
+verbose: true
+no-color: false
+timeout: 5m
+output: table
+output-file: ""
+kubeconfig: ""
 
-# Logging configuration
-logging:
-  # Log level: debug, info, warn, error
-  level: info
-  # Log format: text, json
-  format: text
+# Common scan options (applies to all scan types)
+include-rules: []
+exclude-rules: []
+categories: []
+parallelism: 4
+min-severity: ""
+max-violations: 0
+quiet: false
+summary-only: false
 
-# Scanner configuration
-scanner:
-  # Number of worker goroutines for parallel processing
-  workers: 4
-  # Maximum number of concurrent operations
-  max_concurrency: 10
-  # Timeout for scan operations (e.g., 300s, 5m, 1h)
-  timeout: 300s
-  # Batch size for processing resources
-  batch_size: 100
-  # Enable streaming mode for large datasets
-  streaming_mode: false
-  # Memory limit for resource processing (e.g., 512MB, 1GB)
-  memory_limit: "1GB"
-  # Resource pool size for optimization
-  resource_pool_size: 50
-  
-  # Namespace configuration
-  include_namespaces: []
-  exclude_namespaces: ["kube-system", "kube-public", "kube-node-lease"]
-  exclude_system_namespaces: true
-  
-  # Resource type filtering
-  resource_types: []
-  include_cluster_resources: true
-  
-  # File scanning options (for manifest scanning)
-  recursive: true
-  file_extensions: [".yaml", ".yml"]
-  
-  # Performance and filtering options
-  parallelism: 4
-  fail_on_violations: false
-  max_violations: 0  # 0 = unlimited
-  include_passed: false
+# Scan-specific configurations
+scan:
+  # Cluster scanning configuration
+  cluster:
+    namespace: []
+    exclude-namespaces: []
+    exclude-system-namespaces: false
+    resource-types: []
+    include-cluster-resources: true
+    context: ""
 
-# Rules configuration
-rules:
-  # Enable built-in security rules
-  builtin_enabled: true
-  
-  # Custom rule paths
-  custom_paths:
-    - "./custom-rules/"
-    - "/etc/spotter/rules/"
-  
-  # Severity filtering - only include rules with these severity levels
-  severity_filter: ["CRITICAL", "HIGH", "MEDIUM", "LOW"]
-  
-  # Minimum severity level to report
-  min_severity: ""
-  
-  # Rule inclusion/exclusion
-  include_rules: []  # Specific rule IDs to include
-  exclude_rules: []  # Specific rule IDs to exclude
-  
-  # Rule categories to include
-  categories: []
-  # Available categories:
-  # - "Workload Security"
-  # - "Access Control"
-  # - "Network & Traffic Security"
-  # - "Secrets & Data Protection"
-  # - "Configuration & Resource Hygiene"
-  # - "Supply Chain & Image Security"
-  # - "CI/CD & GitOps Security"
-  # - "Runtime Threat Detection"
-  # - "Audit, Logging & Compliance"
-  # - "Platform & Infrastructure Security"
-  
-  # Custom filters using CEL expressions
-  custom_filters: {}
+  # Manifest scanning configuration  
+  manifests:
+    recursive: true
+    file-extensions: [".yaml", ".yml", ".json"]
+    include-paths: []
+    follow-symlinks: false
+    exclude-system-namespaces: false
+    include-cluster-resources: true
 
-# Output configuration
-output:
-  # Output format: table, json, yaml, sarif
-  format: table
-  # Enable verbose output
-  verbose: false
-  # Output file path (optional)
-  file: ""
-  # Pretty print JSON/YAML output
-  pretty: true
+  # Helm chart scanning configuration
+  helm:
+    values: []
+    set: []
+    set-string: []
+    release-name: "test-release"
+    namespace: "default"
+    include-dependencies: true
+    validate-schema: true
+    kube-version: ""
+    chart-repo: ""
+    chart-version: ""
+    update-dependencies: false
+    exclude-system-namespaces: false
+    include-cluster-resources: true
+    skip-tests: false
+    skip-crds: false
+
+# External rules configuration
+rules-path: []
 
 # Kubernetes configuration
 kubernetes:
@@ -119,115 +86,3 @@ kubernetes:
       base_delay_ms: 100
       # Maximum delay between retries in seconds (default: 5)
       max_delay_s: 5
-
-# Helm-specific configuration
-helm:
-  # Default release name for helm template
-  release_name: "spotter-scan"
-  # Target namespace for Helm charts
-  namespace: "default"
-  # Kubernetes version for rendering (e.g., 1.28.0)
-  kube_version: ""
-  
-  # Values files for Helm charts
-  values_files: []
-  
-  # Set values (equivalent to --set)
-  set_values: []
-  
-  # Set string values (equivalent to --set-string)
-  set_string_values: []
-  
-  # Skip Custom Resource Definitions
-  skip_crds: false
-  
-  # Skip test resources
-  skip_tests: false
-  
-  # Enable schema validation
-  validate_schema: false
-  
-  # Include Custom Resource Definitions
-  include_crds: true
-  
-  # Update chart dependencies before rendering
-  update_dependencies: false
-  
-  # Helm chart repository URL
-  chart_repo: ""
-  
-  # Specific chart version to scan
-  chart_version: ""
-
-# Advanced filtering configuration
-filtering:
-  # Namespace patterns for dynamic detection
-  namespace_patterns:
-    use_dynamic_detection: true
-    use_secure_validation: true
-    custom_patterns: []
-  
-  # Resource filtering configuration
-  resource_filter:
-    use_dynamic_filtering: true
-    custom_filters: {}
-
-# Performance optimization
-performance:
-  # Enable performance monitoring
-  enable_metrics: false
-  # CPU profiling
-  cpu_profile: false
-  # Memory profiling
-  memory_profile: false
-  # Enable caching
-  enable_cache: true
-  # Cache TTL
-  cache_ttl: "1h"
-
-# Security settings
-security:
-  # Validate rule signatures
-  validate_signatures: false
-  # Allow unsigned rules
-  allow_unsigned_rules: true
-  # Trusted rule sources
-  trusted_sources: []
-
-# Reporting configuration
-reporting:
-  # Include rule metadata in reports
-  include_metadata: true
-  # Include remediation information
-  include_remediation: true
-  # Include references
-  include_references: true
-  # Group findings by category
-  group_by_category: false
-  # Show progress during scanning
-  show_progress: true
-
-# Integration settings
-integrations:
-  # Webhook configuration for notifications
-  webhooks: []
-  
-  # SARIF output configuration
-  sarif:
-    # Include rule help
-    include_rule_help: true
-    # Include locations
-    include_locations: true
-  
-
-
-# Development and debugging
-development:
-  # Enable debug mode
-  debug: false
-  # Dry run mode (don't execute actual scans)
-  dry_run: false
-  # Validate configuration only
-  validate_only: false
-  # Enable experimental features
-  experimental: false
