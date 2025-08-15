@@ -102,6 +102,23 @@ kubernetes:
   timeout: 30s
   # Namespace for operations (when applicable)
   namespace: ""
+  
+  # Client configuration for production environments
+  client:
+    # Queries per second - how many requests per second (default: 50)
+    qps: 50.0
+    # Maximum number of requests that can be made in a burst (default: 100)
+    burst: 100
+    # Maximum number of concurrent API workers (default: 5)
+    max_concurrency: 5
+    # Retry configuration
+    retry:
+      # Maximum number of retry attempts (default: 3)
+      max_attempts: 3
+      # Base delay for exponential backoff in milliseconds (default: 100)
+      base_delay_ms: 100
+      # Maximum delay between retries in seconds (default: 5)
+      max_delay_s: 5
 
 # Helm-specific configuration
 helm:

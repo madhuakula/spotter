@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/spf13/viper"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -74,8 +75,13 @@ func (c *K8sClient) GetResources(ctx context.Context, gvks []schema.GroupVersion
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
+	// If no GVKs specified, discover all available resources for cluster scanning
 	if len(gvks) == 0 {
-		return []map[string]interface{}{}, nil
+		discoveredGVKs, err := c.DiscoverAllResources(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to discover resources: %w", err)
+		}
+		gvks = discoveredGVKs
 	}
 
 	// Use concurrent fetching for better performance
@@ -104,9 +110,11 @@ func (c *K8sClient) GetResources(ctx context.Context, gvks []schema.GroupVersion
 		}
 	}
 
-	// Reduce concurrency for production stability
-	// Lower concurrency reduces API server load and throttling
-	maxConcurrency := 5
+	// Read max concurrency from configuration
+	maxConcurrency := viper.GetInt("kubernetes.client.max_concurrency")
+	if maxConcurrency == 0 {
+		maxConcurrency = 5 // Default value
+	}
 	if len(jobs) < maxConcurrency {
 		maxConcurrency = len(jobs)
 	}
@@ -150,18 +158,15 @@ func (c *K8sClient) GetResources(ctx context.Context, gvks []schema.GroupVersion
 		}(i)
 	}
 
-	// Send jobs with controlled rate
+	// Send jobs
 	go func() {
 		defer close(jobChan)
-		for i, job := range jobs {
+		for _, job := range jobs {
 			select {
 			case <-ctx.Done():
 				return
 			case jobChan <- job:
-				// Add small delay between job submissions
-				if i > 0 && i%5 == 0 {
-					time.Sleep(100 * time.Millisecond)
-				}
+				// Job submitted successfully
 			}
 		}
 	}()
@@ -532,14 +537,28 @@ func buildConfig(kubeconfig, context string) (*rest.Config, error) {
 
 // configureProductionSettings optimizes the client configuration for production use
 func configureProductionSettings(config *rest.Config) {
-	// Set reasonable rate limiting to prevent throttling
-	// QPS: Queries Per Second - how many requests per second
-	// Burst: Maximum number of requests that can be made in a burst
-	config.QPS = 50.0    // Increased from default 5
-	config.Burst = 100   // Increased from default 10
+	// Read configuration from spotter.yaml
+	qps := viper.GetFloat64("kubernetes.client.qps")
+	if qps == 0 {
+		qps = 50.0 // Default value
+	}
+
+	burst := viper.GetInt("kubernetes.client.burst")
+	if burst == 0 {
+		burst = 100 // Default value
+	}
+
+	timeout := viper.GetDuration("kubernetes.timeout")
+	if timeout == 0 {
+		timeout = 30 * time.Second // Default value
+	}
+
+	// Set rate limiting to prevent throttling
+	config.QPS = float32(qps)
+	config.Burst = burst
 
 	// Set timeouts for better reliability
-	config.Timeout = 30 * time.Second
+	config.Timeout = timeout
 
 	// Disable client-side throttling warnings in logs
 	// This reduces log noise while maintaining functionality
