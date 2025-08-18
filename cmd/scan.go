@@ -315,20 +315,20 @@ func runClusterScan(cmd *cobra.Command, args []string) error {
 		logger.Info("Starting cluster scan")
 	}
 
-	// Load and filter security rules
-	rules, err := loadAndFilterSecurityRules(cmd)
+	// Initialize scan configuration
+	scanConfig, err := buildScanConfig(cmd)
+	if err != nil {
+		return fmt.Errorf("failed to build scan configuration: %w", err)
+	}
+
+	// Load and filter security rules using resolved config
+	rules, err := loadAndFilterSecurityRules(cmd, scanConfig.DisableBuiltInRules)
 	if err != nil {
 		return fmt.Errorf("failed to load security rules: %w", err)
 	}
 
 	if logLevel == "debug" {
 		logger.Info("Loaded security rules", "count", len(rules))
-	}
-
-	// Initialize scan configuration
-	scanConfig, err := buildScanConfig(cmd)
-	if err != nil {
-		return fmt.Errorf("failed to build scan configuration: %w", err)
 	}
 
 	// Initialize Kubernetes client
@@ -376,20 +376,20 @@ func runManifestsScan(cmd *cobra.Command, args []string) error {
 		logger.Info("Starting manifests scan")
 	}
 
-	// Load and filter security rules
-	rules, err := loadAndFilterSecurityRules(cmd)
+	// Initialize scan configuration
+	scanConfig, err := buildScanConfig(cmd)
+	if err != nil {
+		return fmt.Errorf("failed to build scan configuration: %w", err)
+	}
+
+	// Load and filter security rules using resolved config
+	rules, err := loadAndFilterSecurityRules(cmd, scanConfig.DisableBuiltInRules)
 	if err != nil {
 		return fmt.Errorf("failed to load security rules: %w", err)
 	}
 
 	if logLevel == "debug" {
 		logger.Info("Loaded security rules", "count", len(rules))
-	}
-
-	// Initialize scan configuration
-	scanConfig, err := buildScanConfig(cmd)
-	if err != nil {
-		return fmt.Errorf("failed to build scan configuration: %w", err)
 	}
 
 	// Collect all manifest files
@@ -448,8 +448,14 @@ func runHelmScan(cmd *cobra.Command, args []string) error {
 		logger.Info("Starting Helm charts scan")
 	}
 
-	// Load and filter security rules
-	rules, err := loadAndFilterSecurityRules(cmd)
+	// Initialize scan configuration
+	scanConfig, err := buildScanConfig(cmd)
+	if err != nil {
+		return fmt.Errorf("failed to build scan configuration: %w", err)
+	}
+
+	// Load and filter security rules using resolved config
+	rules, err := loadAndFilterSecurityRules(cmd, scanConfig.DisableBuiltInRules)
 	if err != nil {
 		return fmt.Errorf("failed to load security rules: %w", err)
 	}
@@ -457,12 +463,6 @@ func runHelmScan(cmd *cobra.Command, args []string) error {
 	if logLevel == "debug" {
 		logger.Info("Loaded security rules", "count", len(rules))
 		logger.Info("Scanning Helm charts", "count", len(args))
-	}
-
-	// Initialize scan configuration
-	scanConfig, err := buildScanConfig(cmd)
-	if err != nil {
-		return fmt.Errorf("failed to build scan configuration: %w", err)
 	}
 
 	// Initialize scanner and engine
@@ -532,9 +532,8 @@ func loadSecurityRules(disableBuiltins bool) ([]*models.SecurityRule, error) {
 }
 
 // loadAndFilterSecurityRules loads security rules and applies include/exclude filtering
-func loadAndFilterSecurityRules(cmd *cobra.Command) ([]*models.SecurityRule, error) {
-	// Load all rules first (prefer viper which merges config + flags)
-	disableBuiltins := viper.GetBool("scan.disable-built-in-rules")
+func loadAndFilterSecurityRules(cmd *cobra.Command, disableBuiltins bool) ([]*models.SecurityRule, error) {
+	// Load all rules using the resolved disableBuiltins value
 	allRules, err := loadSecurityRules(disableBuiltins)
 	if err != nil {
 		return nil, err
@@ -745,6 +744,7 @@ type ScanConfig struct {
 	FailOnViolations        bool
 	ExcludeSystemNamespaces bool
 	IncludeClusterResources bool
+	DisableBuiltInRules     bool
 }
 
 // buildScanConfig creates scan configuration from command flags
@@ -838,6 +838,17 @@ func buildScanConfig(cmd *cobra.Command) (*ScanConfig, error) {
 	}
 	if cmd.Flags().Changed("parallelism") {
 		config.Parallelism, _ = cmd.Flags().GetInt("parallelism")
+	}
+
+	// Determine disable built-in rules precedence
+	if cmd.Flags().Changed("disable-built-in-rules") {
+		config.DisableBuiltInRules, _ = cmd.Flags().GetBool("disable-built-in-rules")
+	} else if viper.IsSet("scan.disable-built-in-rules") {
+		config.DisableBuiltInRules = viper.GetBool("scan.disable-built-in-rules")
+	} else if viper.IsSet("disable-built-in-rules") {
+		config.DisableBuiltInRules = viper.GetBool("disable-built-in-rules")
+	} else {
+		config.DisableBuiltInRules = false
 	}
 
 	// Set defaults
