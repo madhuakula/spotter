@@ -49,15 +49,17 @@ Examples:
 
 // ServerConfig holds the server configuration
 type ServerConfig struct {
-	Mode          string // "validating" or "evaluating"
-	Port          int
-	TLSCertFile   string
-	TLSKeyFile    string
-	Namespaces    []string
-	ResourceTypes []string
-	MinSeverity   string
-	LogFormat     string
-	LogLevel      string
+	Mode                string // "validating" or "evaluating"
+	Port                int
+	TLSCertFile         string
+	TLSKeyFile          string
+	Namespaces          []string
+	ResourceTypes       []string
+	MinSeverity         string
+	LogFormat           string
+	LogLevel            string
+	DisableBuiltinRules bool
+	RulesPath           []string
 }
 
 // Removed unused variables scheme and codecs
@@ -73,6 +75,8 @@ func init() {
 	serverCmd.Flags().StringSlice("namespaces", []string{}, "namespaces to monitor (empty = all namespaces)")
 	serverCmd.Flags().StringSlice("resource-types", []string{}, "resource types to monitor (empty = all supported types)")
 	serverCmd.Flags().String("min-severity", "medium", "minimum severity level to act upon (low, medium, high, critical)")
+	serverCmd.Flags().Bool("disable-built-in-rules", false, "do not include built-in rules during evaluation")
+	serverCmd.Flags().StringSlice("rules-path", []string{}, "paths to security rules directories or files")
 
 	// Bind flags to viper
 	if err := viper.BindPFlag("server.mode", serverCmd.Flags().Lookup("mode")); err != nil {
@@ -96,6 +100,12 @@ func init() {
 	if err := viper.BindPFlag("server.min-severity", serverCmd.Flags().Lookup("min-severity")); err != nil {
 		panic(fmt.Sprintf("failed to bind server.min-severity flag: %v", err))
 	}
+	if err := viper.BindPFlag("server.disable-built-in-rules", serverCmd.Flags().Lookup("disable-built-in-rules")); err != nil {
+		panic(fmt.Sprintf("failed to bind server.disable-built-in-rules flag: %v", err))
+	}
+	if err := viper.BindPFlag("server.rules-path", serverCmd.Flags().Lookup("rules-path")); err != nil {
+		panic(fmt.Sprintf("failed to bind server.rules-path flag: %v", err))
+	}
 }
 
 func runServer(cmd *cobra.Command, args []string) error {
@@ -113,10 +123,44 @@ func runServer(cmd *cobra.Command, args []string) error {
 		"namespaces", config.Namespaces,
 		"min_severity", config.MinSeverity)
 
-	// Load built-in security rules
-	rules, err := loadBuiltinSecurityRules()
-	if err != nil {
-		return fmt.Errorf("failed to load security rules: %w", err)
+	// Load security rules based on configuration
+	var rules []*models.SecurityRule
+	if viper.GetBool("server.disable-built-in-rules") {
+		parser := parser.NewYAMLParser(true)
+		rulesPaths := viper.GetStringSlice("server.rules-path")
+		if len(rulesPaths) > 0 {
+			var err error
+			rules, err = loadExternalRules(parser, rulesPaths)
+			if err != nil {
+				return fmt.Errorf("failed to load external rules: %w", err)
+			}
+		} else {
+			rules = []*models.SecurityRule{}
+		}
+	} else {
+		builtin, err := loadBuiltinSecurityRules()
+		if err != nil {
+			return fmt.Errorf("failed to load security rules: %w", err)
+		}
+		rules = append(rules, builtin...)
+		rulesPaths := viper.GetStringSlice("server.rules-path")
+		if len(rulesPaths) > 0 {
+			parser := parser.NewYAMLParser(true)
+			ext, err := loadExternalRules(parser, rulesPaths)
+			if err != nil {
+				return fmt.Errorf("failed to load external rules: %w", err)
+			}
+			seen := map[string]bool{}
+			for _, r := range rules {
+				seen[r.Spec.ID] = true
+			}
+			for _, r := range ext {
+				if !seen[r.Spec.ID] {
+					rules = append(rules, r)
+					seen[r.Spec.ID] = true
+				}
+			}
+		}
 	}
 
 	logger.Info("Loaded security rules", "count", len(rules))

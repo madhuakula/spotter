@@ -54,7 +54,10 @@ spotter scan manifests --path deployment.yaml
 spotter scan manifests --path ./k8s-manifests/
 
 # Scan with custom rules
-spotter scan manifests --path ./manifests/ --rules ./custom-rules/
+spotter scan manifests --path ./manifests/ --rules-path ./custom-rules/
+
+# Scan using only custom rules (disable built-ins)
+spotter scan manifests ./manifests --disable-built-in-rules --rules-path ./rules
 
 # Output in JSON format
 spotter scan manifests --path ./manifests/ --output json
@@ -70,6 +73,9 @@ spotter scan cluster --namespace production
 
 # Scan with specific kubeconfig
 spotter scan cluster --kubeconfig ~/.kube/config
+
+# Scan cluster using only custom rules
+spotter scan cluster --disable-built-in-rules --rules-path ./rules
 ```
 
 #### Rule Management

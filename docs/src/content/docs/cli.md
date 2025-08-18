@@ -19,6 +19,7 @@ Global Flags:
       --output string        output format (table, json, yaml, sarif) (default "table")
       --output-file string   output file path
       --rules-path strings   paths to security rules directories or files
+      --disable-built-in-rules   do not include built-in rules during evaluation (scan + server)
       --timeout string       timeout for operations (default "5m")
   -v, --verbose              verbose output
 ```
@@ -80,6 +81,7 @@ spotter scan cluster --output json --output-file results.json
 Flags:
       --categories strings           rule categories to include
       --context string               kubernetes context to use
+      --disable-built-in-rules       do not include built-in rules during evaluation
       --exclude-namespaces strings   namespaces to exclude from scanning
       --exclude-rules strings        specific rule IDs to exclude
       --exclude-system-namespaces    exclude system namespaces (kube-system, kube-public, etc.)
@@ -127,6 +129,7 @@ spotter scan manifests "./manifests/**/*.yaml"
 ```bash
 Flags:
       --categories strings          rule categories to include
+      --disable-built-in-rules      do not include built-in rules during evaluation
       --exclude-rules strings       specific rule IDs to exclude
       --exclude-system-namespaces   exclude system namespaces (kube-system, kube-public, etc.)
       --file-extensions strings     file extensions to scan (default [.yaml,.yml,.json])
