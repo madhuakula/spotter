@@ -17,6 +17,7 @@ min-severity: ""
 max-violations: 0
 quiet: false
 summary-only: false
+disable-built-in-rules: false
 
 # Scan-specific configurations
 scan:
@@ -58,6 +59,13 @@ scan:
 
 # External rules configuration
 rules-path: []
+
+# Server (admission controller) options
+server:
+  # When true, server uses only external rules (from server.rules-path)
+  disable-built-in-rules: false
+  # Additional custom rules for the server
+  rules-path: []
 
 # Kubernetes configuration
 kubernetes:

@@ -183,6 +183,7 @@ func init() {
 		cmd.Flags().Int("max-violations", 0, "maximum number of violations before stopping scan (0 = no limit)")
 		cmd.Flags().Bool("quiet", false, "suppress non-error output")
 		cmd.Flags().Bool("summary-only", false, "show only summary statistics")
+		cmd.Flags().Bool("disable-built-in-rules", false, "do not include built-in rules during evaluation")
 		// Note: 'no-color' flag is inherited from global persistent flags
 
 		// Bind common flags to viper so they can be set in config file
@@ -209,6 +210,9 @@ func init() {
 		}
 		if err := viper.BindPFlag("scan.summary-only", cmd.Flags().Lookup("summary-only")); err != nil {
 			panic(fmt.Errorf("failed to bind summary-only flag: %w", err))
+		}
+		if err := viper.BindPFlag("scan.disable-built-in-rules", cmd.Flags().Lookup("disable-built-in-rules")); err != nil {
+			panic(fmt.Errorf("failed to bind disable-built-in-rules flag: %w", err))
 		}
 	}
 
@@ -486,22 +490,24 @@ func runHelmScan(cmd *cobra.Command, args []string) error {
 }
 
 // loadSecurityRules loads security rules from built-in embedded rules and configured paths
-func loadSecurityRules() ([]*models.SecurityRule, error) {
+func loadSecurityRules(disableBuiltins bool) ([]*models.SecurityRule, error) {
 	parser := parser.NewYAMLParser(true)
 	var allRules []*models.SecurityRule
 	ruleIDMap := make(map[string]bool) // Track rule IDs to prevent duplicates
 
-	// Always load built-in rules first
-	builtinRules, err := loadBuiltinRules(parser)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load built-in rules: %w", err)
-	}
+	// Load built-in rules unless disabled
+	if !disableBuiltins {
+		builtinRules, err := loadBuiltinRules(parser)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load built-in rules: %w", err)
+		}
 
-	// Add builtin rules and track their IDs
-	for _, rule := range builtinRules {
-		if !ruleIDMap[rule.Spec.ID] {
-			allRules = append(allRules, rule)
-			ruleIDMap[rule.Spec.ID] = true
+		// Add builtin rules and track their IDs
+		for _, rule := range builtinRules {
+			if !ruleIDMap[rule.Spec.ID] {
+				allRules = append(allRules, rule)
+				ruleIDMap[rule.Spec.ID] = true
+			}
 		}
 	}
 
@@ -527,8 +533,9 @@ func loadSecurityRules() ([]*models.SecurityRule, error) {
 
 // loadAndFilterSecurityRules loads security rules and applies include/exclude filtering
 func loadAndFilterSecurityRules(cmd *cobra.Command) ([]*models.SecurityRule, error) {
-	// Load all rules first
-	allRules, err := loadSecurityRules()
+	// Load all rules first (prefer viper which merges config + flags)
+	disableBuiltins := viper.GetBool("scan.disable-built-in-rules")
+	allRules, err := loadSecurityRules(disableBuiltins)
 	if err != nil {
 		return nil, err
 	}
