@@ -1,0 +1,138 @@
+- name: insecure sample 1 should fail
+  pass: false
+  input: |
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: sample-service 05
+    spec:
+      ports:
+        - port: 80
+          targetPort: 80
+          protocol: TCP
+      type: LoadBalancer
+      selector:
+        app: nginx
+    ---
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: sample-service 05334443
+      annotations:
+        service.beta.kubernetes.io/aws-load-balancer-internal: 'false'
+    spec:
+      ports:
+        - port: 80
+          targetPort: 80
+          protocol: TCP
+      type: LoadBalancer
+      selector:
+        app: nginx
+    ---
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: sample-service 07
+      annotations:
+        service.beta.kubernetes.io/azure-load-balancer-internal: 'false'
+    spec:
+      ports:
+        - port: 80
+          targetPort: 80
+          protocol: TCP
+      type: LoadBalancer
+      selector:
+        app: nginx
+    ---
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: sample-service 08
+      annotations:
+        networking.gke.io/load-balancer-type: 'External'
+    spec:
+      ports:
+        - port: 80
+          targetPort: 80
+          protocol: TCP
+      type: LoadBalancer
+      selector:
+        app: nginx
+    ---
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: sample-service 09
+      annotations:
+        cloud.google.com/load-balancer-type: 'External'
+    spec:
+      ports:
+        - port: 80
+          targetPort: 80
+          protocol: TCP
+      type: LoadBalancer
+      selector:
+        app: nginx
+
+- name: secure sample 1 should pass
+  pass: true
+  input: |
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: sample-service 01
+      annotations:
+        cloud.google.com/load-balancer-type: 'Internal'
+    spec:
+      ports:
+        - port: 80
+          targetPort: 80
+          protocol: TCP
+      type: LoadBalancer
+      selector:
+        app: nginx
+    ---
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: sample-service 02
+      annotations:
+        service.beta.kubernetes.io/aws-load-balancer-internal: 'true'
+    spec:
+      ports:
+        - port: 80
+          targetPort: 80
+          protocol: TCP
+      type: LoadBalancer
+      selector:
+        app: nginx
+    ---
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: sample-service 03
+      annotations:
+        service.beta.kubernetes.io/azure-load-balancer-internal: 'true'
+    spec:
+      ports:
+        - port: 80
+          targetPort: 80
+          protocol: TCP
+      type: LoadBalancer
+      selector:
+        app: nginx
+    ---
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: sample-service 04
+      annotations:
+        networking.gke.io/load-balancer-type: 'Internal'
+    spec:
+      ports:
+        - port: 80
+          targetPort: 80
+          protocol: TCP
+      type: LoadBalancer
+      selector:
+        app: nginx
