@@ -1,0 +1,223 @@
+- name: insecure sample 1 should fail
+  pass: false
+  input: |
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: command-demo
+      labels:
+        purpose: demonstrate-command
+    spec:
+      containers:
+        - name: command-demo-container
+          image: gcr.io/google_containers/kube-apiserver-amd64:v1.6.0
+          command: ["kube-apiserver"]
+          args: []
+      restartPolicy: OnFailure
+
+- name: insecure sample 2 should fail
+  pass: false
+  input: |
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: command-demo
+      labels:
+        purpose: demonstrate-command
+    spec:
+      containers:
+        - name: command-demo-container
+          image: gcr.io/google_containers/kube-apiserver-amd64:v1.6.0
+          command: ["kube-apiserver","--audit-policy-file=./not/valid/file.yaml"]
+          args: []
+      restartPolicy: OnFailure
+
+- name: insecure sample 3 should fail
+  pass: false
+  input: |
+    apiVersion: serving.knative.dev/v1
+    kind: Service
+    metadata:
+      name: dummy
+      namespace: knative-sequence
+    spec:
+      template:
+        spec:
+          containers:
+          - name: command-demo-container
+            image: gcr.io/google_containers/kube-apiserver-amd64:v1.6.0
+            command: ["kube-apiserver"]
+            args: []
+        restartPolicy: OnFailure
+
+- name: secure sample 1 should pass
+  pass: true
+  input: |
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: command-demo
+      labels:
+        purpose: demonstrate-command
+    spec:
+      containers:
+        - name: command-demo-container
+          image: gcr.io/google_containers/kube-apiserver-amd64:v1.6.0
+          command: ["kube-apiserver"]
+          args: ["--audit-policy-file=/etc/kubernetes/audit_policy_file.yaml"]
+      restartPolicy: OnFailure
+    ---
+    apiVersion: audit.k8s.io/v1 # This is required.
+    kind: Policy
+    # Don't generate audit events for all requests in RequestReceived stage.
+    omitStages:
+      - "RequestReceived"
+    rules:
+      # Log pod changes at RequestResponse level
+      - level: RequestResponse
+        resources:
+        - group: ""
+          # Resource "pods" doesn't match requests to any subresource of pods,
+          # which is consistent with the RBAC policy.
+          resources: ["pods"]
+      # Log "pods/log", "pods/status" at Metadata level
+      - level: Metadata
+        resources:
+        - group: ""
+          resources: ["pods/log", "pods/status"]
+
+      # Don't log requests to a configmap called "controller-leader"
+      - level: None
+        resources:
+        - group: ""
+          resources: ["configmaps"]
+          resourceNames: ["controller-leader"]
+
+      # Don't log watch requests by the "system:kube-proxy" on endpoints or services
+      - level: None
+        users: ["system:kube-proxy"]
+        verbs: ["watch"]
+        resources:
+        - group: "" # core API group
+          resources: ["endpoints", "services"]
+
+      # Don't log authenticated requests to certain non-resource URL paths.
+      - level: None
+        userGroups: ["system:authenticated"]
+        nonResourceURLs:
+        - "/api*" # Wildcard matching.
+        - "/version"
+
+      # Log the request body of configmap changes in kube-system.
+      - level: Request
+        resources:
+        - group: "" # core API group
+          resources: ["configmaps"]
+        # This rule only applies to resources in the "kube-system" namespace.
+        # The empty string "" can be used to select non-namespaced resources.
+        namespaces: ["kube-system"]
+
+      # Log configmap and secret changes in all other namespaces at the Metadata level.
+      - level: Metadata
+        resources:
+        - group: "" # core API group
+          resources: ["secrets", "configmaps"]
+
+      # Log all other resources in core and extensions at the Request level.
+      - level: Request
+        resources:
+        - group: "" # core API group
+        - group: "extensions" # Version of group should NOT be included.
+
+      # A catch-all rule to log all other requests at the Metadata level.
+      - level: Metadata
+        # Long-running requests like watches that fall under this rule will not
+        # generate an audit event in RequestReceived.
+        omitStages:
+          - "RequestReceived"
+
+- name: secure sample 2 should pass
+  pass: true
+  input: |
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: command-demo
+      labels:
+        purpose: demonstrate-command
+    spec:
+      containers:
+        - name: command-demo-container
+          image: gcr.io/google_containers/kube-apiserver-amd64:v1.6.0
+          command: ["kube-apiserver","--audit-policy-file=/etc/kubernetes/audit_policy_file.yaml"]
+          args: []
+      restartPolicy: OnFailure
+    ---
+    apiVersion: audit.k8s.io/v1 # This is required.
+    kind: Policy
+    # Don't generate audit events for all requests in RequestReceived stage.
+    omitStages:
+      - "RequestReceived"
+    rules:
+      # Log pod changes at RequestResponse level
+      - level: RequestResponse
+        resources:
+        - group: ""
+          # Resource "pods" doesn't match requests to any subresource of pods,
+          # which is consistent with the RBAC policy.
+          resources: ["pods"]
+      # Log "pods/log", "pods/status" at Metadata level
+      - level: Metadata
+        resources:
+        - group: ""
+          resources: ["pods/log", "pods/status"]
+
+      # Don't log requests to a configmap called "controller-leader"
+      - level: None
+        resources:
+        - group: ""
+          resources: ["configmaps"]
+          resourceNames: ["controller-leader"]
+
+      # Don't log watch requests by the "system:kube-proxy" on endpoints or services
+      - level: None
+        users: ["system:kube-proxy"]
+        verbs: ["watch"]
+        resources:
+        - group: "" # core API group
+          resources: ["endpoints", "services"]
+
+      # Don't log authenticated requests to certain non-resource URL paths.
+      - level: None
+        userGroups: ["system:authenticated"]
+        nonResourceURLs:
+        - "/api*" # Wildcard matching.
+        - "/version"
+
+      # Log the request body of configmap changes in kube-system.
+      - level: Request
+        resources:
+        - group: "" # core API group
+          resources: ["configmaps"]
+        # This rule only applies to resources in the "kube-system" namespace.
+        # The empty string "" can be used to select non-namespaced resources.
+        namespaces: ["kube-system"]
+
+      # Log configmap and secret changes in all other namespaces at the Metadata level.
+      - level: Metadata
+        resources:
+        - group: "" # core API group
+          resources: ["secrets", "configmaps"]
+
+      # Log all other resources in core and extensions at the Request level.
+      - level: Request
+        resources:
+        - group: "" # core API group
+        - group: "extensions" # Version of group should NOT be included.
+
+      # A catch-all rule to log all other requests at the Metadata level.
+      - level: Metadata
+        # Long-running requests like watches that fall under this rule will not
+        # generate an audit event in RequestReceived.
+        omitStages:
+          - "RequestReceived"

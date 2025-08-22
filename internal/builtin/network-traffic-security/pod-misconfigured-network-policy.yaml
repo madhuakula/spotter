@@ -33,7 +33,9 @@ spec:
           include: ["*"]
           exclude: []
   cel: |
-    !has(object.spec.podSelector) || (!has(object.spec.ingress) && !has(object.spec.egress))
+    object.kind == "NetworkPolicy" &&
+    has(object.spec.policyTypes) &&
+    size(object.spec.policyTypes) == 0
   remediation:
     manual: "Ensure that the NetworkPolicy has a `podSelector` to target pods and defines at least one `ingress` or `egress` rule."
   references:

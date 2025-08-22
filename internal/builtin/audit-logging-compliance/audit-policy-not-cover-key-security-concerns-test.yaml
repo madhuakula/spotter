@@ -1,0 +1,74 @@
+- name: insecure sample 1 should fail
+  pass: false
+  input: |
+    apiVersion: audit.k8s.io/v1 # This is required.
+    kind: Policy
+    # Don't generate audit events for all requests in RequestReceived stage.
+    omitStages:
+      - "RequestReceived"
+    rules:
+
+- name: insecure sample 2 should fail
+  pass: false
+  input: |
+    apiVersion: audit.k8s.io/v1 # This is required.
+    kind: Policy
+    # Don't generate audit events for all requests in RequestReceived stage.
+    rules:
+      - level: RequestResponse
+        resources:
+        - group: ""
+          resources: ["secrets","configmaps","tokenreviews"]
+      - level: Metadata
+        resources:
+        - group: ""
+          resources: ["pods","deployments"]
+      - level: None
+        resources:
+        - group: ""
+          resources: ["pods/exec", "pods/portforward", "pods/proxy", "services/proxy"]
+
+- name: insecure sample 3 should fail
+  pass: false
+  input: |
+    apiVersion: audit.k8s.io/v1 # This is required.
+    kind: Policy
+    # Don't generate audit events for all requests in RequestReceived stage.
+    omitStages:
+      - "RequestReceived"
+    rules:
+      - level: Metadata
+        resources:
+        - group: ""
+          resources: ["secrets","configmaps","tokenreviews"]
+      - level: Metadata
+        resources:
+        - group: ""
+          resources: ["pods"]
+      - level: RequestResponse
+        resources:
+        - group: ""
+          resources: ["pods/exec", "pods/portforward", "pods/proxy", "services/proxy"]
+
+
+- name: secure sample 1 should pass
+  pass: true
+  input: |
+    apiVersion: audit.k8s.io/v1 # This is required.
+    kind: Policy
+    # Don't generate audit events for all requests in RequestReceived stage.
+    omitStages:
+      - "RequestReceived"
+    rules:
+      - level: Metadata
+        resources:
+        - group: ""
+          resources: ["secrets","configmaps","tokenreviews"]
+      - level: Metadata
+        resources:
+        - group: ""
+          resources: ["pods","deployments"]
+      - level: RequestResponse
+        resources:
+        - group: ""
+          resources: ["pods/exec", "pods/portforward", "pods/proxy", "services/proxy"]

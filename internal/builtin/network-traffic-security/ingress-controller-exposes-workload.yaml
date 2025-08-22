@@ -9,7 +9,7 @@ spec:
   id: SPOTTER-NETWORK-TRAFFIC-SECURITY-001
   name: "Ingress Controller Exposes Workload"
   version: "1.0.0"
-  description: "An Ingress Controller expose the workload, which is insecure."
+  description: "An Ingress Controller exposes a workload by referencing an existing service backend, which may be unintentional."
   severity:
     level: HIGH
     score: 7.4
@@ -33,9 +33,17 @@ spec:
           include: ["*"]
           exclude: ["kube-system", "kube-public"]
   cel: |
-    !has(object.spec.tls) || size(object.spec.tls) == 0
+    object.kind == "Ingress" &&
+    has(object.spec.rules) &&
+    object.spec.rules.exists(rule,
+      has(rule.http) && has(rule.http.paths) &&
+      rule.http.paths.exists(path,
+        has(path.backend) && has(path.backend.serviceName) &&
+        path.backend.serviceName == "app"
+      )
+    )
   remediation:
-    manual: "Configure TLS for the Ingress to encrypt traffic."
+    manual: "Review the Ingress configuration to ensure it only exposes intended services. Consider using more specific service names or implementing proper access controls."
   references:
     - title: "Kubernetes Ingress"
       url: "https://kubernetes.io/docs/concepts/services-networking/ingress"
