@@ -25,10 +25,13 @@ spec:
       kubernetes:
         apiGroups:
           - ""
+          - apps
         versions:
           - "v1"
         kinds:
           - Namespace
+          - Pod
+          - DaemonSet
         namespaces:
           include: ["*"]
           exclude: ["kube-system", "kube-public"]

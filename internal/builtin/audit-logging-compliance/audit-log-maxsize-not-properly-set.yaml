@@ -32,8 +32,19 @@ spec:
   cel: |
     has(object.spec.containers) && object.spec.containers.exists(c,
       has(c.command) && c.command.exists(cmd, cmd == "kube-apiserver") &&
-      has(c.args) && c.args.exists(arg, arg.startsWith("--audit-log-path=")) &&
-      !c.args.exists(arg, arg.startsWith("--audit-log-maxsize="))
+      (
+        // Check if audit-log-maxsize is not set in args or command, or is set to a value < 100
+        (
+          (!has(c.args) || !c.args.exists(arg, arg.startsWith("--audit-log-maxsize="))) &&
+          (!has(c.command) || !c.command.exists(cmd, cmd.startsWith("--audit-log-maxsize=")))
+        ) ||
+        (
+          has(c.args) && c.args.exists(arg, arg.startsWith("--audit-log-maxsize=") && int(arg.split("=")[1]) < 100)
+        ) ||
+        (
+          has(c.command) && c.command.exists(cmd, cmd.startsWith("--audit-log-maxsize=") && int(cmd.split("=")[1]) < 100)
+        )
+      )
     )
   remediation:
     manual: "Edit the kube-apiserver pod specification file and add the --audit-log-maxsize flag, setting it to a suitable value (e.g., 100)."

@@ -25,15 +25,18 @@ spec:
       kubernetes:
         apiGroups:
           - ""
+          - "serving.knative.dev"
         versions:
           - "v1"
         kinds:
           - Pod
+          - Configuration
         namespaces:
           include: ["default", "kube-system", "kube-public"]
           exclude: []
   cel: |
-    object.kind == "Pod" && object.metadata.namespace in ["default", "kube-system", "kube-public"]
+    (object.kind == "Pod" || object.kind == "Configuration") && 
+    (has(object.metadata.namespace) ? object.metadata.namespace in ["default", "kube-system", "kube-public"] : true)
   remediation:
     manual: "Create and use a dedicated namespace for your applications instead of using default or system namespaces."
   references:

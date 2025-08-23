@@ -25,12 +25,23 @@ spec:
       kubernetes:
         apiGroups:
           - ""
+          - "serving.knative.dev"
         versions:
           - v1
         kinds:
           - Pod
+          - Service
   cel: |
-    has(object.spec.containers) && object.spec.containers.exists(c, has(c.command) && c.command.exists(cmd, cmd == "kube-apiserver") && (!has(c.args) || !c.args.exists(arg, arg.startsWith("--audit-policy-file="))))
+    (
+      object.kind == "Pod" && has(object.spec.containers) && 
+      object.spec.containers.exists(c, has(c.command) && c.command.exists(cmd, cmd == "kube-apiserver") && 
+        (!has(c.args) || !c.args.exists(arg, arg.startsWith("--audit-policy-file="))))
+    ) ||
+    (
+      object.kind == "Service" && has(object.spec.template.spec.containers) && 
+      object.spec.template.spec.containers.exists(c, has(c.command) && c.command.exists(cmd, cmd == "kube-apiserver") && 
+        (!has(c.args) || !c.args.exists(arg, arg.startsWith("--audit-policy-file="))))
+    )
   remediation:
     manual: "Configure the API server with an audit policy file by setting the `--audit-policy-file` flag."
   references:

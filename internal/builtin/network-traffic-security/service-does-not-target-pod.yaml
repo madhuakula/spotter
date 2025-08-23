@@ -26,7 +26,7 @@ spec:
         apiGroups:
           - ""
         versions:
-          - v1
+          - "v1"
         kinds:
           - Service
         namespaces:
@@ -34,6 +34,7 @@ spec:
           exclude: ["kube-system", "kube-public"]
   cel: |
     object.kind == "Service" &&
+    object.spec.type != "ExternalName" &&
     (!has(object.spec.selector) || size(object.spec.selector) == 0)
   remediation:
     manual: "Ensure that the Service's `spec.selector` matches the labels of existing pods."

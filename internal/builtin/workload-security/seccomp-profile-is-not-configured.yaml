@@ -39,8 +39,31 @@ spec:
           - kube-system
           - kube-public
   cel: |
-    (object.kind == 'Pod' && has(object.spec.containers) && object.spec.containers.exists(c, !has(c.securityContext) || !has(c.securityContext.seccompProfile) || c.securityContext.seccompProfile.type != "RuntimeDefault")) ||
-    (object.kind != 'Pod' && has(object.spec.template.spec.containers) && object.spec.template.spec.containers.exists(c, !has(c.securityContext) || !has(c.securityContext.seccompProfile) || c.securityContext.seccompProfile.type != "RuntimeDefault"))
+    object.kind in ["Pod", "Deployment", "StatefulSet"] &&
+    (
+      (object.kind == "Pod" &&
+        // Check if pod has no secure seccomp configuration
+        !(
+          (has(object.metadata.annotations) && 'seccomp.security.alpha.kubernetes.io/defaultProfileName' in object.metadata.annotations && object.metadata.annotations['seccomp.security.alpha.kubernetes.io/defaultProfileName'] == 'runtime/default') ||
+          (has(object.spec.securityContext) && has(object.spec.securityContext.seccompProfile) && object.spec.securityContext.seccompProfile.type == "RuntimeDefault")
+        ) &&
+        // And containers don't all have secure seccomp profiles
+        (!has(object.spec.containers) || !object.spec.containers.all(c, 
+          has(c.securityContext) && has(c.securityContext.seccompProfile) && c.securityContext.seccompProfile.type == "RuntimeDefault"
+        ))
+      ) ||
+      (object.kind in ["Deployment", "StatefulSet"] && has(object.spec.template) &&
+        // Check if template has no secure seccomp configuration
+        !(
+          (has(object.spec.template.metadata.annotations) && 'seccomp.security.alpha.kubernetes.io/defaultProfileName' in object.spec.template.metadata.annotations && object.spec.template.metadata.annotations['seccomp.security.alpha.kubernetes.io/defaultProfileName'] == 'runtime/default') ||
+          (has(object.spec.template.spec.securityContext) && has(object.spec.template.spec.securityContext.seccompProfile) && object.spec.template.spec.securityContext.seccompProfile.type == "RuntimeDefault")
+        ) &&
+        // And containers don't all have secure seccomp profiles
+        (!has(object.spec.template.spec.containers) || !object.spec.template.spec.containers.all(c, 
+          has(c.securityContext) && has(c.securityContext.seccompProfile) && c.securityContext.seccompProfile.type == "RuntimeDefault"
+        ))
+      )
+    )
   remediation:
     manual: "Set seccompProfile: RuntimeDefault"
   metadata:

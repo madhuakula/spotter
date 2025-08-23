@@ -30,7 +30,13 @@ spec:
         kinds:
           - Pod
   cel: |
-    has(object.spec.containers) && object.spec.containers.exists(c, has(c.command) && c.command.exists(cmd, cmd == "etcd") && (!has(c.args) || !c.args.exists(arg, arg.startsWith("--client-cert-auth=true")) || !c.args.exists(arg, arg.startsWith("--trusted-ca-file="))))
+    has(object.spec.containers) && object.spec.containers.exists(c, 
+      (has(c.command) && c.command.exists(cmd, cmd == "kube-apiserver")) &&
+      (
+        (!has(c.args) || !c.args.exists(arg, arg.startsWith("--etcd-cafile="))) &&
+        (!has(c.command) || !c.command.exists(cmd, cmd.startsWith("--etcd-cafile=")))
+      )
+    )
   remediation:
     manual: "Ensure that `--client-cert-auth=true` and `--trusted-ca-file` flags are set for Etcd client communication."
   references:

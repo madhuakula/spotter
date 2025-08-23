@@ -27,14 +27,21 @@ spec:
           - "autoscaling"
         versions:
           - "v1"
+          - "v2beta2"
         kinds:
           - HorizontalPodAutoscaler
         namespaces:
           include: ["*"]
           exclude: []
   cel: |
-    has(object.spec.scaleTargetRef) &&
-    !(object.spec.scaleTargetRef.kind in ["Deployment", "StatefulSet", "ReplicaSet"])
+    (has(object.spec.scaleTargetRef) &&
+     !(object.spec.scaleTargetRef.kind in ["Deployment", "StatefulSet", "ReplicaSet"])) ||
+    (has(object.spec.metrics) && 
+     object.spec.metrics.exists(m, 
+       m.type == 'Object' && 
+       has(m.object.describedObject) && 
+       !has(m.object.describedObject.name)
+     ))
   remediation:
     manual: "Ensure that the HorizontalPodAutoscaler targets a valid and scalable object like a Deployment, StatefulSet, or ReplicaSet."
   references:

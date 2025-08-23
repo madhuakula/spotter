@@ -25,12 +25,33 @@ spec:
       kubernetes:
         apiGroups:
           - ""
+          - "kubelet.config.k8s.io"
         versions:
           - "v1"
+          - "v1beta1"
         kinds:
           - Pod
+          - KubeletConfiguration
   cel: |
-    has(object.spec.containers) && object.spec.containers.exists(c, has(c.command) && c.command.exists(cmd, cmd == "kube-apiserver") && has(c.args) && c.args.exists(arg, arg.startsWith("--tls-cipher-suites=")))
+    (object.kind == "Pod" && has(object.spec.containers) && object.spec.containers.exists(c, 
+      (has(c.command) && (c.command.exists(cmd, cmd == "kube-apiserver") || c.command.exists(cmd, cmd == "kubelet"))) &&
+      has(c.args) && c.args.exists(arg, 
+        arg.startsWith("--tls-cipher-suites=") && (
+          arg.contains("TLS_RSA_WITH_RC4_128_SHA") ||
+          arg.contains("TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256") ||
+          arg.contains("TLS_RSA_WITH_AES_128_CBC_SHA") ||
+          arg.contains("TLS_RSA_WITH_3DES_EDE_CBC_SHA")
+        )
+      )
+    )) ||
+    (object.kind == "KubeletConfiguration" && has(object.tlsCipherSuites) && 
+      object.tlsCipherSuites.exists(cipher, 
+        cipher == "TLS_RSA_WITH_RC4_128_SHA" ||
+        cipher == "TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256" ||
+        cipher == "TLS_RSA_WITH_AES_128_CBC_SHA" ||
+        cipher == "TLS_RSA_WITH_3DES_EDE_CBC_SHA"
+      )
+    )
   remediation:
     manual: "Ensure that the `--tls-cipher-suites` flag for the kube-apiserver is set to a list of strong ciphers."
   references:

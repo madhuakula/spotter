@@ -30,10 +30,12 @@ spec:
         kinds:
           - Service
         namespaces:
-          include: ["kube-system"]
+          include: ["*"]
           exclude: []
   cel: |
-    object.kind == "Service" && object.metadata.name == "tiller-deploy"
+    object.kind == "Service" && 
+    (object.metadata.name.contains("tiller") || 
+     (has(object.metadata.labels) && has(object.metadata.labels.name) && object.metadata.labels.name == "tiller"))
   remediation:
     manual: "Delete the Tiller service after migrating to Helm v3."
   references:

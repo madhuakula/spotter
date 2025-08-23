@@ -25,12 +25,33 @@ spec:
       kubernetes:
         apiGroups:
           - ""
+          - kubelet.config.k8s.io
         versions:
           - v1
+          - v1beta1
         kinds:
           - Pod
+          - KubeletConfiguration
   cel: |
-    has(object.spec.containers) && object.spec.containers.exists(c, has(c.command) && c.command.exists(cmd, cmd == "kubelet") && (!has(c.args) || !c.args.exists(arg, arg.startsWith("--streaming-connection-idle-timeout=")) || c.args.exists(arg, arg.startsWith("--streaming-connection-idle-timeout=") && arg.contains("=0s"))))
+    (
+      object.kind == "Pod" && 
+      has(object.spec.containers) && 
+      object.spec.containers.exists(c, 
+        (has(c.command) && c.command.exists(cmd, cmd == "kubelet")) &&
+        (
+          (!has(c.args) || !c.args.exists(arg, arg.startsWith("--streaming-connection-idle-timeout="))) ||
+          (has(c.args) && c.args.exists(arg, arg.startsWith("--streaming-connection-idle-timeout=") && (arg.endsWith("=0") || arg.endsWith("=0s"))))
+        )
+      )
+    ) ||
+    (
+      object.kind == "KubeletConfiguration" &&
+      (
+        !has(object.streamingConnectionIdleTimeout) ||
+        object.streamingConnectionIdleTimeout == "0s" ||
+        object.streamingConnectionIdleTimeout == "0"
+      )
+    )
   remediation:
     manual: "Set `--streaming-connection-idle-timeout` for the Kubelet to a non-zero value (e.g., 5m)."
   references:

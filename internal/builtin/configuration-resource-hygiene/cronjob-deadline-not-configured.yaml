@@ -27,6 +27,7 @@ spec:
           - "batch"
         versions:
           - "v1"
+          - "v1beta1"
         kinds:
           - CronJob
         namespaces:

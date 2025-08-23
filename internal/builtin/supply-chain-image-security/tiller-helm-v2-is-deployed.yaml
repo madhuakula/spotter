@@ -25,12 +25,14 @@ spec:
       kubernetes:
         apiGroups:
           - "apps"
+          - "extensions"
         versions:
           - "v1"
+          - "v1beta1"
         kinds:
           - Deployment
         namespaces:
-          include: ["kube-system"]
+          include: ["*"]
           exclude: []
   cel: |
     object.kind == "Deployment" && object.spec.template.spec.containers.exists(c, c.image.contains("tiller"))

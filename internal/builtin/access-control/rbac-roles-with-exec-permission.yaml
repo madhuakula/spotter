@@ -37,7 +37,10 @@ spec:
           - kube-system
           - kube-public
   cel: |
-    object.kind in ["Role", "ClusterRole"] && object.rules.exists(r, "exec" in r.verbs)
+    object.kind in ["Role", "ClusterRole"] && object.rules.exists(r, 
+      "exec" in r.verbs || 
+      (has(r.resources) && r.resources.exists(res, res.endsWith("/exec")))
+    )
   remediation:
     manual: "Remove exec verbs from RBAC"
   metadata:

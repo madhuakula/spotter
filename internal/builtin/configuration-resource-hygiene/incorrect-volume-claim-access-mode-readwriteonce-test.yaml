@@ -30,7 +30,7 @@
       - metadata:
           name: www
         spec:
-          accessModes: [ "ReadWriteOnce" ]
+          accessModes: [ "ReadWriteMany" ]
           storageClassName: "my-storage-class"
           resources:
             requests:
@@ -38,7 +38,7 @@
       - metadata:
           name: aaa
         spec:
-          accessModes: [ "ReadWriteOnce" ]
+          accessModes: [ "ReadWriteMany" ]
           storageClassName: "my-storage-class"
           resources:
             requests:
@@ -121,7 +121,7 @@
       - metadata:
           name: www
         spec:
-          accessModes: [ "ReadWriteOnce" ]
+          accessModes: [ "ReadWriteMany" ]
           storageClassName: "my-storage-class"
           resources:
             requests:

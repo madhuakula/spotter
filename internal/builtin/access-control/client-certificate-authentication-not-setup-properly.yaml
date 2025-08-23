@@ -24,11 +24,17 @@ spec:
     resources:
       kubernetes:
         apiGroups:
-        - kubeadm.k8s.io
+          - ""
+          - kubeadm.k8s.io
+          - kubelet.config.k8s.io
         versions:
-        - v1beta3
+          - v1
+          - v1beta3
+          - v1beta1
         kinds:
-        - ClusterConfiguration
+          - Pod
+          - ClusterConfiguration
+          - KubeletConfiguration
         namespaces:
           include:
           - '*'
@@ -36,7 +42,12 @@ spec:
           - kube-system
           - kube-public
   cel: |
-    object.kind == "ClusterConfiguration" && !has(object.apiServer.clientCAFile)
+    (object.kind == "ClusterConfiguration" && (!has(object.apiServer) || !has(object.apiServer.clientCAFile))) ||
+    (object.kind == "KubeletConfiguration" && (!has(object.authentication) || !has(object.authentication.x509) || !has(object.authentication.x509.clientCAFile))) ||
+    (object.kind == "Pod" && has(object.spec.containers) && object.spec.containers.exists(c,
+      (has(c.command) && (c.command.exists(cmd, cmd == "kube-apiserver") || c.command.exists(cmd, cmd == "kubelet"))) &&
+      (!has(c.args) || !c.args.exists(arg, arg.startsWith("--client-ca-file=")))
+    ))
   remediation:
     manual: "Enable --client-ca-file"
   metadata:

@@ -24,16 +24,28 @@ spec:
     resources:
       kubernetes:
         apiGroups:
-          - "*"
+          - apps
+          - extensions
+          - networking.k8s.io
+          - batch
+          - policy
         versions:
-          - "*"
+          - v1beta1
+          - v1beta2
         kinds:
-          - "*"
+          - Deployment
+          - DaemonSet
+          - ReplicaSet
+          - StatefulSet
+          - Ingress
+          - NetworkPolicy
+          - CronJob
+          - PodSecurityPolicy
         namespaces:
           include: ["*"]
           exclude: []
   cel: |
-    object.apiVersion.startsWith("extensions/v1beta1") || object.apiVersion.startsWith("apps/v1beta1") || object.apiVersion.startsWith("apps/v1beta2") || (object.apiVersion.startsWith("policy/v1beta1") && object.kind == "PodSecurityPolicy")
+    object.apiVersion.startsWith("extensions/v1beta1") || object.apiVersion.startsWith("apps/v1beta1") || object.apiVersion.startsWith("apps/v1beta2") || object.apiVersion.startsWith("networking.k8s.io/v1beta1") || object.apiVersion.startsWith("batch/v1beta1") || (object.apiVersion.startsWith("policy/v1beta1") && object.kind == "PodSecurityPolicy")
   remediation:
     manual: "Update the API version of the object to a supported and stable version. Refer to Kubernetes API deprecation guide."
   references:

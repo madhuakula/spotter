@@ -25,12 +25,16 @@ spec:
       kubernetes:
         apiGroups:
           - ""
+          - "kubelet.config.k8s.io"
         versions:
           - v1
+          - v1beta1
         kinds:
           - Pod
+          - KubeletConfiguration
   cel: |
-    has(object.spec.containers) && object.spec.containers.exists(c, has(c.command) && c.command.exists(cmd, cmd == "kubelet") && has(c.args) && c.args.exists(arg, arg.startsWith("--read-only-port=") && !arg.contains("=0")))
+    (object.kind == "Pod" && has(object.spec.containers) && object.spec.containers.exists(c, has(c.command) && c.command.exists(cmd, cmd == "kubelet") && has(c.args) && c.args.exists(arg, arg.startsWith("--read-only-port=") && !arg.contains("=0")))) ||
+    (object.kind == "KubeletConfiguration" && has(object.readOnlyPort) && object.readOnlyPort != 0)
   remediation:
     manual: "Set `--read-only-port=0` for the Kubelet."
   references:

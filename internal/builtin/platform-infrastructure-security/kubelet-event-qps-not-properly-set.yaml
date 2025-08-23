@@ -25,12 +25,24 @@ spec:
       kubernetes:
         apiGroups:
           - ""
+          - "kubelet.config.k8s.io"
         versions:
           - v1
+          - v1beta1
         kinds:
           - Pod
+          - KubeletConfiguration
   cel: |
-    has(object.spec.containers) && object.spec.containers.exists(c, has(c.command) && c.command.exists(cmd, cmd == "kubelet") && (!has(c.args) || !c.args.exists(arg, arg.startsWith("--event-qps=")) || c.args.exists(arg, arg.startsWith("--event-qps=") && !arg.contains("50"))))
+    (object.kind == "Pod" && has(object.spec.containers) && object.spec.containers.exists(c, 
+      (has(c.command) && c.command.exists(cmd, cmd == "kubelet")) ||
+      (has(c.args) && c.args.exists(arg, arg == "kubelet"))
+    ) && object.spec.containers.exists(c,
+      (!has(c.args) || !c.args.exists(arg, arg.startsWith("--event-qps="))) ||
+      (has(c.args) && c.args.exists(arg, arg.startsWith("--event-qps=") && 
+        (arg.split("=")[1] == "" || int(arg.split("=")[1]) > 50)))
+    )) ||
+    (object.kind == "KubeletConfiguration" && 
+      (!has(object.eventRecordQPS) || object.eventRecordQPS > 50))
   remediation:
     manual: "Set the `--event-qps` flag for the Kubelet to a reasonable value (e.g., 0 to 50)."
   references:

@@ -25,12 +25,30 @@ spec:
       kubernetes:
         apiGroups:
           - ""
+          - serving.knative.dev
         versions:
-          - "v1"
+          - v1
         kinds:
           - Pod
+          - Configuration
+          - Revision
   cel: |
-    has(object.spec.containers) && object.spec.containers.exists(c, has(c.command) && c.command.exists(cmd, cmd == "kube-apiserver") && has(c.args) && !c.args.exists(arg, arg.startsWith("--audit-log-maxbackup=")))
+    has(object.spec.containers) && object.spec.containers.exists(c,
+      has(c.command) && c.command.exists(cmd, cmd == "kube-apiserver") &&
+      (
+        // Check if audit-log-maxbackup is not set in args or command, or is set to a value < 10
+        (
+          (!has(c.args) || !c.args.exists(arg, arg.startsWith("--audit-log-maxbackup="))) &&
+          (!has(c.command) || !c.command.exists(cmd, cmd.startsWith("--audit-log-maxbackup=")))
+        ) ||
+        (
+          has(c.args) && c.args.exists(arg, arg.startsWith("--audit-log-maxbackup=") && int(arg.split("=")[1]) < 10)
+        ) ||
+        (
+          has(c.command) && c.command.exists(cmd, cmd.startsWith("--audit-log-maxbackup=") && int(cmd.split("=")[1]) < 10)
+        )
+      )
+    )
   remediation:
     manual: "Set the `--audit-log-maxbackup` flag for the kube-apiserver to a value of at least 10."
   references:

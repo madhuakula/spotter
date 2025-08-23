@@ -34,7 +34,12 @@ spec:
           exclude: []
   cel: |
     has(object.metadata.labels) &&
-    object.metadata.labels.exists(k, !k.matches("^[a-zA-Z0-9-._]+$") || !object.metadata.labels[k].matches("^[a-zA-Z0-9-._]*$"))
+    object.metadata.labels.exists(k, 
+      !k.matches("^([a-zA-Z0-9]([a-zA-Z0-9\\-._]*[a-zA-Z0-9])?)?$") || 
+      !object.metadata.labels[k].matches("^([a-zA-Z0-9]([a-zA-Z0-9\\-._]*[a-zA-Z0-9])?)?$") ||
+      k.contains("*") || k.contains("+") ||
+      object.metadata.labels[k].contains("*") || object.metadata.labels[k].contains("+")
+    )
   remediation:
     manual: "Ensure that all metadata labels adhere to the recommended format, which includes only alphanumeric characters, dashes, dots, and underscores."
   references:

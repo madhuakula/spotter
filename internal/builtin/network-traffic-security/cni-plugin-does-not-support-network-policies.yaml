@@ -36,17 +36,17 @@ spec:
     object.kind == "ConfigMap" &&
     has(object.data) &&
     (
-      (has(object.data["cni-conf.json"]) &&
+      ("cni-conf.json" in object.data &&
        object.data["cni-conf.json"].contains('"type": "flannel"')) ||
-      (has(object.data["net-conf.json"]) &&
-       object.metadata.labels.app == "flannel")
+      ("net-conf.json" in object.data &&
+       has(object.metadata.labels) && has(object.metadata.labels.app) && object.metadata.labels.app == "flannel")
     ) &&
     !(
-      (has(object.data["cni-conf.json"]) &&
+      ("cni-conf.json" in object.data &&
        (object.data["cni-conf.json"].contains('"type": "calico"') ||
         object.data["cni-conf.json"].contains('"type": "cilium"') ||
         object.data["cni-conf.json"].contains('"type": "weave"'))) ||
-      (object.metadata.labels.app in ["calico", "cilium", "weave"])
+      (has(object.metadata.labels) && has(object.metadata.labels.app) && object.metadata.labels.app in ["calico", "cilium", "weave"])
     )
   remediation:
     manual: "Ensure that the CNI plugin used in the cluster supports and enforces network policies. Examples of such plugins include Calico, Cilium, and Weave Net."

@@ -30,7 +30,13 @@ spec:
         kinds:
           - Pod
   cel: |
-    has(object.spec.containers) && object.spec.containers.exists(c, has(c.command) && c.command.exists(cmd, cmd == "kube-apiserver") && has(c.args) && c.args.exists(arg, arg.startsWith("--insecure-bind-address=")))
+    has(object.spec.containers) && object.spec.containers.exists(c, 
+      has(c.command) && c.command.exists(cmd, cmd == "kube-apiserver") &&
+      (
+        (has(c.args) && c.args.exists(arg, arg.startsWith("--insecure-bind-address="))) ||
+        (has(c.command) && c.command.exists(cmd, cmd.startsWith("--insecure-bind-address=")))
+      )
+    )
   remediation:
     manual: "Remove the `--insecure-bind-address` flag from the kube-apiserver."
   references:

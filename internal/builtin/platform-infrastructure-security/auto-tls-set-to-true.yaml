@@ -25,12 +25,23 @@ spec:
       kubernetes:
         apiGroups:
           - ""
+          - "apps"
         versions:
           - v1
         kinds:
           - Pod
+          - Deployment
   cel: |
-    has(object.spec.containers) && object.spec.containers.exists(c, has(c.command) && c.command.exists(cmd, cmd == "kube-apiserver") && has(c.args) && c.args.exists(arg, arg == "--auto-tls=true"))
+    (object.kind == 'Pod' && has(object.spec.containers) && object.spec.containers.exists(c, 
+      (has(c.command) && c.command.exists(cmd, cmd == "etcd")) &&
+      ((has(c.args) && c.args.exists(arg, arg == "--auto-tls=true")) ||
+       (has(c.command) && c.command.exists(cmd, cmd == "--auto-tls=true")))
+    )) ||
+    (object.kind != 'Pod' && has(object.spec.template.spec.containers) && object.spec.template.spec.containers.exists(c, 
+      (has(c.command) && c.command.exists(cmd, cmd == "etcd")) &&
+      ((has(c.args) && c.args.exists(arg, arg == "--auto-tls=true")) ||
+       (has(c.command) && c.command.exists(cmd, cmd == "--auto-tls=true")))
+    ))
   remediation:
     manual: "Ensure `--auto-tls` is set to `false` or omitted, and explicitly configure `--tls-cert-file` and `--tls-private-key-file`."
   references:

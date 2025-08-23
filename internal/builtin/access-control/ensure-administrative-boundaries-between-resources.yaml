@@ -30,7 +30,7 @@ spec:
         kinds:
           - Pod
         namespaces:
-          include: ["default"]
+          include: ["*"]
           exclude: []
   cel: |
     object.metadata.namespace == "default"

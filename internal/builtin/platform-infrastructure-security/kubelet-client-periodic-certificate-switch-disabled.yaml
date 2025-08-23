@@ -25,12 +25,16 @@ spec:
       kubernetes:
         apiGroups:
           - ""
+          - "kubelet.config.k8s.io"
         versions:
           - v1
+          - v1beta1
         kinds:
           - Pod
+          - KubeletConfiguration
   cel: |
-    has(object.spec.containers) && object.spec.containers.exists(c, has(c.command) && c.command.exists(cmd, cmd == "kubelet") && (!has(c.args) || !c.args.exists(arg, arg == "--rotate-certificates=true")))
+    (object.kind == "Pod" && has(object.spec.containers) && object.spec.containers.exists(c, has(c.command) && c.command.exists(cmd, cmd == "kubelet") && (!has(c.args) || !c.args.exists(arg, arg == "--rotate-certificates=true")))) ||
+    (object.kind == "KubeletConfiguration" && (!has(object.rotateCertificates) || object.rotateCertificates == false))
   remediation:
     manual: "Set `--rotate-certificates=true` for the Kubelet."
   references:

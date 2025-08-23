@@ -1,0 +1,53 @@
+- name: insecure sample 1 should fail
+  pass: false
+  input: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    metadata:
+      name: impersonator-role
+      namespace: default
+    rules:
+    - apiGroups: [""]
+      resources: ["users", "groups", "serviceaccounts"]
+      verbs: ["impersonate"]
+    ---
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRoleBinding
+    metadata:
+      name: rbac-impersonate-binding
+    subjects:
+    - kind: ServiceAccount
+      name: impersonator-sa
+      namespace: default
+      apiGroup: ""
+    roleRef:
+      kind: ClusterRole
+      name: impersonator-role
+      apiGroup: ""
+
+- name: secure sample 1 should pass
+  pass: true
+  input: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    metadata:
+      name: impersonator-role-neg
+      namespace: default
+    rules:
+    - apiGroups: [""]
+      resources: ["users", "groups", "serviceaccounts"]
+      verbs: ["get"]
+    ---
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRoleBinding
+    metadata:
+      name: rbac-impersonate-binding
+    subjects:
+    - kind: ServiceAccount
+      name: impersonator-sa-neg
+      namespace: default
+      apiGroup: ""
+    roleRef:
+      kind: ClusterRole
+      name: impersonator-role-neg
+      apiGroup: ""

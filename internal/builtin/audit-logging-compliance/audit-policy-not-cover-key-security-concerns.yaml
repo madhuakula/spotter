@@ -24,15 +24,34 @@ spec:
     resources:
       kubernetes:
         apiGroups:
-          - ""
+          - "audit.k8s.io"
         versions:
           - "v1"
         kinds:
-          - Pod
+          - Policy
   cel: |
-    has(object.spec.containers) &&
-    object.spec.containers.exists(c, c.command.exists(cmd, cmd == "kube-apiserver") &&
-      has(c.args) && c.args.exists(arg, arg.startsWith("--audit-policy-file="))
+    object.kind == "Policy" &&
+    (
+      !has(object.rules) || size(object.rules) == 0 ||
+      !object.rules.exists(rule,
+        has(rule.resources) && rule.resources.exists(res,
+          has(res.resources) && (
+            res.resources.exists(r, r == "secrets") ||
+            res.resources.exists(r, r == "configmaps") ||
+            res.resources.exists(r, r == "tokenreviews")
+          )
+        )
+      ) ||
+      !object.rules.exists(rule,
+        has(rule.resources) && rule.resources.exists(res,
+          has(res.resources) && (
+            res.resources.exists(r, r == "pods/exec") ||
+            res.resources.exists(r, r == "pods/portforward") ||
+            res.resources.exists(r, r == "pods/proxy") ||
+            res.resources.exists(r, r == "services/proxy")
+          )
+        )
+      )
     )
   remediation:
     manual: "Review and update the audit policy file to ensure it logs important security events. This includes pod creation, secret access, and changes to RBAC roles and bindings."

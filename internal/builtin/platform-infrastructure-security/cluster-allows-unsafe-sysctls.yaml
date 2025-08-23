@@ -25,15 +25,30 @@ spec:
       kubernetes:
         apiGroups:
           - "policy"
+          - ""
+          - "apps"
         versions:
           - "v1beta1"
+          - "v1"
         kinds:
           - PodSecurityPolicy
+          - Pod
+          - Deployment
         namespaces:
           include: ["*"]
           exclude: []
   cel: |
-    object.kind == "PodSecurityPolicy" && has(object.spec.allowedUnsafeSysctls) && size(object.spec.allowedUnsafeSysctls) > 0
+    (object.kind == "PodSecurityPolicy" && has(object.spec.allowedUnsafeSysctls) && size(object.spec.allowedUnsafeSysctls) > 0) ||
+    (object.kind == "Pod" && has(object.spec.securityContext) && has(object.spec.securityContext.sysctls) && 
+     object.spec.securityContext.sysctls.exists(sysctl, 
+       sysctl.name.startsWith("kernel.msg") || sysctl.name.startsWith("kernel.sem") || sysctl.name == "kernel.shm_rmid_forced" ||
+       sysctl.name.startsWith("net.core") || sysctl.name.startsWith("vm.") || sysctl.name.startsWith("net.ipv4.ip_local_port_range")
+     )) ||
+    (object.kind == "Deployment" && has(object.spec.template.spec.securityContext) && has(object.spec.template.spec.securityContext.sysctls) && 
+     object.spec.template.spec.securityContext.sysctls.exists(sysctl, 
+       sysctl.name.startsWith("kernel.msg") || sysctl.name.startsWith("kernel.sem") || sysctl.name == "kernel.shm_rmid_forced" ||
+       sysctl.name.startsWith("net.core") || sysctl.name.startsWith("vm.") || sysctl.name.startsWith("net.ipv4.ip_local_port_range")
+     ))
   remediation:
     manual: "Remove unsafe sysctls from `allowedUnsafeSysctls` in the PodSecurityPolicy."
   references:

@@ -25,12 +25,30 @@ spec:
       kubernetes:
         apiGroups:
           - ""
+          - kubelet.config.k8s.io
         versions:
           - v1
+          - v1beta1
         kinds:
           - Pod
+          - KubeletConfiguration
+        namespaces:
+          include: ["*"]
+          exclude: []
   cel: |
-    has(object.spec.containers) && object.spec.containers.exists(c, has(c.command) && c.command.exists(cmd, cmd == "kubelet") && has(c.args) && c.args.exists(arg, arg == "--protect-kernel-defaults=false"))
+    (
+      object.kind == "Pod" && 
+      has(object.spec.containers) && 
+      object.spec.containers.exists(c, 
+        (has(c.command) && c.command.exists(cmd, cmd == "kubelet") && 
+         has(c.args) && c.args.exists(arg, arg == "--protect-kernel-defaults=false")) ||
+        (has(c.command) && c.command.exists(cmd, cmd.contains("--protect-kernel-defaults=false")))
+      )
+    ) ||
+    (
+      object.kind == "KubeletConfiguration" &&
+      has(object.protectKernelDefaults) && object.protectKernelDefaults == false
+    )
   remediation:
     manual: "Set `--protect-kernel-defaults=true` for the Kubelet."
   references:

@@ -15,6 +15,23 @@
           args: ["--tls-cipher-suites=TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256"]
       restartPolicy: OnFailure
 
+- name: secure sample 4 should pass
+  pass: true
+  input: |
+    apiVersion: kubelet.config.k8s.io/v1beta1
+    kind: KubeletConfiguration
+    metadata:
+      name: kubelet-config
+    address: "192.168.0.8"
+    port: 20250
+    protectKernelDefaults: true
+    serializeImagePulls: false
+    tlsCertFile: "someFile.txt"
+    tlsPrivateKeyFile: "someFile.txt"
+    tlsCipherSuites: ["TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256","TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"]
+    evictionHard:
+        memory.available:  "200Mi"
+
 - name: insecure sample 2 should fail
   pass: false
   input: |
@@ -37,6 +54,8 @@
   input: |
     apiVersion: kubelet.config.k8s.io/v1beta1
     kind: KubeletConfiguration
+    metadata:
+      name: kubelet-config
     address: "192.168.0.8"
     port: 20250
     protectKernelDefaults: false

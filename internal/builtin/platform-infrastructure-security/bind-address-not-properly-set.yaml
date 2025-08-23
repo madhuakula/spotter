@@ -30,7 +30,14 @@ spec:
         kinds:
           - Pod
   cel: |
-    has(object.spec.containers) && object.spec.containers.exists(c, has(c.command) && (c.command.exists(cmd, cmd == "kube-apiserver") || c.command.exists(cmd, cmd == "kube-controller-manager") || c.command.exists(cmd, cmd == "kube-scheduler")) && has(c.args) && c.args.exists(arg, arg.startsWith("--bind-address=") && arg.contains("=0.0.0.0")))
+    has(object.spec.containers) && object.spec.containers.exists(c, 
+      has(c.command) && (c.command.exists(cmd, cmd == "kube-apiserver") || c.command.exists(cmd, cmd == "kube-controller-manager") || c.command.exists(cmd, cmd == "kube-scheduler")) &&
+      (
+        (has(c.args) && c.args.exists(arg, arg.startsWith("--bind-address=") && arg.contains("=0.0.0.0"))) ||
+        (has(c.command) && c.command.exists(cmd, cmd.startsWith("--bind-address=") && cmd.contains("=0.0.0.0"))) ||
+        (!(has(c.args) && c.args.exists(arg, arg.startsWith("--bind-address="))) && !(has(c.command) && c.command.exists(cmd, cmd.startsWith("--bind-address="))))
+      )
+    )
   remediation:
     manual: "Set `--bind-address` to a specific IP address (e.g., 127.0.0.1) for API server components."
   references:

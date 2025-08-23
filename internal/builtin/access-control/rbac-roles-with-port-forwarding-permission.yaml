@@ -34,7 +34,11 @@ spec:
           include: ["*"]
           exclude: ["kube-system", "kube-public"]
   cel: |
-    object.kind in ["Role", "ClusterRole"] && object.rules.exists(r, "portforward" in r.verbs)
+    object.kind in ["Role", "ClusterRole"] && object.rules.exists(r, 
+      ("portforward" in r.verbs) || 
+      ("pods/portforward" in r.resources && ("create" in r.verbs || "*" in r.verbs)) ||
+      ("*" in r.resources && ("create" in r.verbs || "*" in r.verbs))
+    )
   remediation:
     manual: "Avoid granting `portforward` permissions in RBAC roles unless absolutely necessary."
   references:

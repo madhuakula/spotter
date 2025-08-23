@@ -20,9 +20,7 @@
       name: test-network-policy
       namespace: default
     spec:
-      podSelector:
-        matchLabels:
-          app: rarelabel
+      podSelector: {}
       policyTypes:
       - Ingress
       ingress:

@@ -31,8 +31,9 @@ spec:
           - Pod
   cel: |
     has(object.spec.containers) && object.spec.containers.exists(c,
-      has(c.command) && c.command.exists(cmd, cmd == "kube-apiserver") &&
-      (!has(c.args) || !c.args.exists(arg, arg.startsWith("--client-ca-file=")))
+      has(c.command) && c.command.exists(cmd, cmd == "kube-controller-manager") &&
+      (!has(c.args) || !c.args.exists(arg, arg.startsWith("--root-ca-file="))) &&
+      !c.command.exists(cmd, cmd.startsWith("--root-ca-file="))
     )
   remediation:
     manual: "Configure the kube-apiserver to use a client CA file by setting the `--client-ca-file` flag."

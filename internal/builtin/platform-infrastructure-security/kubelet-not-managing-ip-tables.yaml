@@ -25,14 +25,21 @@ spec:
       kubernetes:
         apiGroups:
           - ""
+          - "kubelet.config.k8s.io"
         versions:
           - v1
+          - v1beta1
         kinds:
           - Pod
+          - KubeletConfiguration
   cel: |
-    has(object.spec.containers) && object.spec.containers.exists(c, has(c.command) && c.command.exists(cmd, cmd == "kubelet") && has(c.args) && c.args.exists(arg, arg == "--iptables-drop-input-filter=false"))
+    (object.kind == "Pod" && has(object.spec.containers) && 
+     object.spec.containers.exists(c, has(c.command) && c.command.exists(cmd, cmd == "kubelet") && 
+       has(c.args) && c.args.exists(arg, arg == "--make-iptables-util-chains=false"))) ||
+    (object.kind == "KubeletConfiguration" && 
+     has(object.makeIPTablesUtilChains) && object.makeIPTablesUtilChains == false)
   remediation:
-    manual: "Ensure `--iptables-drop-input-filter` is not set to `false` or is omitted (defaults to `true`)."
+    manual: "Ensure `--make-iptables-util-chains` is not set to `false` in kubelet arguments or `makeIPTablesUtilChains` is not set to `false` in KubeletConfiguration."
   references:
     - title: "Kubelet Command Line Reference"
       url: "https://kubernetes.io/docs/reference/command-line-tools-reference/kubelet/"

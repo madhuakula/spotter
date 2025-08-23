@@ -30,7 +30,11 @@ spec:
         kinds:
           - Pod
   cel: |
-    has(object.spec.containers) && object.spec.containers.exists(c, has(c.command) && c.command.exists(cmd, cmd == "kube-apiserver") && (!has(c.args) || !c.args.exists(arg, arg.startsWith("--encryption-provider-config="))))
+    has(object.spec.containers) && object.spec.containers.exists(c, 
+      (has(c.command) && c.command.exists(cmd, cmd == "kube-apiserver")) &&
+      (!has(c.args) || !c.args.exists(arg, arg.startsWith("--encryption-provider-config="))) &&
+      (!has(c.command) || !c.command.exists(cmd, cmd.startsWith("--encryption-provider-config=")))
+    )
   remediation:
     manual: "Configure the API server with an encryption provider by setting the `--encryption-provider-config` flag."
   references:

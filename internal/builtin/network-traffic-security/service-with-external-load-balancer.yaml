@@ -37,13 +37,13 @@ spec:
     !(
       (has(object.metadata.annotations) &&
        (
-         (has(object.metadata.annotations["cloud.google.com/load-balancer-type"]) &&
+         ("cloud.google.com/load-balancer-type" in object.metadata.annotations &&
           object.metadata.annotations["cloud.google.com/load-balancer-type"] == "Internal") ||
-         (has(object.metadata.annotations["service.beta.kubernetes.io/aws-load-balancer-internal"]) &&
+         ("service.beta.kubernetes.io/aws-load-balancer-internal" in object.metadata.annotations &&
           object.metadata.annotations["service.beta.kubernetes.io/aws-load-balancer-internal"] == "true") ||
-         (has(object.metadata.annotations["service.beta.kubernetes.io/azure-load-balancer-internal"]) &&
+         ("service.beta.kubernetes.io/azure-load-balancer-internal" in object.metadata.annotations &&
           object.metadata.annotations["service.beta.kubernetes.io/azure-load-balancer-internal"] == "true") ||
-         (has(object.metadata.annotations["networking.gke.io/load-balancer-type"]) &&
+         ("networking.gke.io/load-balancer-type" in object.metadata.annotations &&
           object.metadata.annotations["networking.gke.io/load-balancer-type"] == "Internal")
        ))
     )

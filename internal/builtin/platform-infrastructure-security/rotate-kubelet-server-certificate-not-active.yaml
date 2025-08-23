@@ -25,12 +25,35 @@ spec:
       kubernetes:
         apiGroups:
           - ""
+          - kubelet.config.k8s.io
         versions:
           - v1
+          - v1beta1
         kinds:
           - Pod
+          - KubeletConfiguration
+    namespaces:
+      include: ["*"]
+      exclude: []
   cel: |
-    has(object.spec.containers) && object.spec.containers.exists(c, has(c.command) && c.command.exists(cmd, cmd == "kubelet") && (!has(c.args) || !c.args.exists(arg, arg == "--rotate-server-certificates=true")))
+    (
+      object.kind == "Pod" && 
+      has(object.spec.containers) && 
+      object.spec.containers.exists(c, 
+        (has(c.command) && (c.command.exists(cmd, cmd == "kubelet") || c.command.exists(cmd, cmd == "kube-controller-manager"))) &&
+        (
+          (!has(c.args) || !c.args.exists(arg, arg == "--rotate-server-certificates=true")) ||
+          (has(c.args) && c.args.exists(arg, arg.contains("--feature-gates=") && arg.contains("RotateKubeletServerCertificate=false")))
+        )
+      )
+    ) ||
+    (
+      object.kind == "KubeletConfiguration" &&
+      (
+        (has(object.featureGates) && has(object.featureGates.RotateKubeletServerCertificate) && object.featureGates.RotateKubeletServerCertificate == false) ||
+        (!has(object.featureGates) || !has(object.featureGates.RotateKubeletServerCertificate))
+      )
+    )
   remediation:
     manual: "Set `--rotate-server-certificates=true` for the Kubelet."
   references:

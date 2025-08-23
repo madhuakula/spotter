@@ -33,7 +33,12 @@ spec:
           include: ["*"]
           exclude: ["kube-system", "kube-public"]
   cel: |
-    object.kind == "Deployment" && (!has(object.spec.template.spec.affinity) || !has(object.spec.template.spec.affinity.podAntiAffinity))
+    object.kind == "Deployment" && 
+    (
+      (!has(object.spec.template.spec.affinity) || !has(object.spec.template.spec.affinity.podAntiAffinity)) ||
+      (has(object.spec.template.spec.affinity.podAntiAffinity) && 
+       object.spec.selector.matchLabels != object.spec.template.metadata.labels)
+    )
   remediation:
     manual: "Add `podAntiAffinity` to the Deployment's pod template spec to spread pods across different nodes."
   references:

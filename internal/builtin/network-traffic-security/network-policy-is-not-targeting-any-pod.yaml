@@ -35,8 +35,9 @@ spec:
   cel: |
     object.kind == "NetworkPolicy" &&
     (!has(object.spec.podSelector) || 
-     !has(object.spec.podSelector.matchLabels) || 
-     size(object.spec.podSelector.matchLabels) == 0)
+     (!has(object.spec.podSelector.matchLabels) && !has(object.spec.podSelector.matchExpressions)) ||
+     (has(object.spec.podSelector.matchLabels) && size(object.spec.podSelector.matchLabels) == 0 && 
+      (!has(object.spec.podSelector.matchExpressions) || size(object.spec.podSelector.matchExpressions) == 0)))
   remediation:
     manual: "Ensure that the NetworkPolicy's podSelector matches the labels of the intended pods."
   references:

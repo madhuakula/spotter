@@ -1,7 +1,7 @@
 apiVersion: rules.spotter.run/v1
 kind: SecurityRule
 metadata:
-  name: statefulset-without-poddisruptionbudget
+  name: statefulset-requests-storage
   labels:
     category: "Configuration & Resource Hygiene"
     severity: medium
@@ -9,7 +9,7 @@ spec:
   id: SPOTTER-CONFIGURATION-RESOURCE-HYGIENE-119
   name: "StatefulSet Requests Storage"
   version: "1.0.0"
-  description: "StatefulSets requests volume storage."
+  description: "StatefulSets should have storage requests defined in their volumeClaimTemplates."
   severity:
     level: MEDIUM
     score: 5.5
@@ -33,9 +33,15 @@ spec:
           include: ["*"]
           exclude: ["kube-system", "kube-public"]
   cel: |
-    !has(object.spec.selector) || !has(object.spec.selector.matchLabels) || size(object.spec.selector.matchLabels) == 0
+    has(object.spec.volumeClaimTemplates) &&
+    size(object.spec.volumeClaimTemplates) > 0 &&
+    object.spec.volumeClaimTemplates.exists(vct, 
+      !has(vct.spec.resources) || 
+      !has(vct.spec.resources.requests) || 
+      !has(vct.spec.resources.requests.storage)
+    )
   remediation:
-    manual: "Ensure that the StatefulSet has a volume storage."
+    manual: "Ensure that the StatefulSet has storage requests defined in volumeClaimTemplates."
   references:
     - title: "Kubernetes StatefulSet"
       url: "https://kubernetes.io/docs/concepts/workloads/statefulset"

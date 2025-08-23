@@ -30,7 +30,15 @@ spec:
         kinds:
           - Pod
   cel: |
-    has(object.spec.containers) && object.spec.containers.exists(c, has(c.command) && c.command.exists(cmd, cmd == "kube-controller-manager") && (!has(c.args) || !c.args.exists(arg, arg.startsWith("--terminated-pod-gc-threshold=")) || c.args.exists(arg, arg.startsWith("--terminated-pod-gc-threshold=") && arg.contains("12500"))))
+    has(object.spec.containers) && object.spec.containers.exists(c, 
+      (has(c.command) && c.command.exists(cmd, cmd == "kube-controller-manager")) &&
+      (
+        (!has(c.args) || !c.args.exists(arg, arg.startsWith("--terminated-pod-gc-threshold="))) ||
+        (!has(c.command) || !c.command.exists(cmd, cmd.startsWith("--terminated-pod-gc-threshold="))) ||
+        (has(c.args) && c.args.exists(arg, arg.startsWith("--terminated-pod-gc-threshold=") && (arg.contains("=0") || int(arg.split("=")[1]) > 12500))) ||
+        (has(c.command) && c.command.exists(cmd, cmd.startsWith("--terminated-pod-gc-threshold=") && (cmd.contains("=0") || int(cmd.split("=")[1]) > 12500)))
+      )
+    )
   remediation:
     manual: "Set `--terminated-pod-gc-threshold` for the kube-controller-manager to a reasonable value (e.g., 12500)."
   references:

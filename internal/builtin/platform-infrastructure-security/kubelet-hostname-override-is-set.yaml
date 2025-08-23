@@ -30,7 +30,13 @@ spec:
         kinds:
           - Pod
   cel: |
-    has(object.spec.containers) && object.spec.containers.exists(c, has(c.command) && c.command.exists(cmd, cmd == "kubelet") && has(c.args) && c.args.exists(arg, arg.startsWith("--hostname-override=")))
+    has(object.spec.containers) && object.spec.containers.exists(c, 
+      has(c.command) && c.command.exists(cmd, cmd == "kubelet") &&
+      (
+        (has(c.args) && c.args.exists(arg, arg.startsWith("--hostname-override="))) ||
+        (has(c.command) && c.command.exists(cmd, cmd.startsWith("--hostname-override=")))
+      )
+    )
   remediation:
     manual: "Remove the `--hostname-override` flag from the Kubelet."
   references:

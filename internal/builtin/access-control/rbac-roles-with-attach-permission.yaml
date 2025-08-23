@@ -37,7 +37,10 @@ spec:
           - kube-system
           - kube-public
   cel: |
-    object.kind in ["Role", "ClusterRole"] && object.rules.exists(r, "attach" in r.verbs)
+    object.kind in ["Role", "ClusterRole"] && object.rules.exists(r, 
+      "attach" in r.verbs || 
+      (has(r.resources) && r.resources.exists(res, res.endsWith("/attach")))
+    )
   remediation:
     manual: "Remove attach verb from RBAC"
   metadata:

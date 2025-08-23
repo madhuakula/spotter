@@ -33,7 +33,8 @@ spec:
           include: ["*"]
           exclude: ["kube-system", "kube-public"]
   cel: |
-    !has(object.spec.selector) || !has(object.spec.selector.matchLabels) || size(object.spec.selector.matchLabels) == 0
+    object.kind == "StatefulSet" &&
+    has(object.spec.selector) && has(object.spec.selector.matchLabels) && size(object.spec.selector.matchLabels) > 0
   remediation:
     manual: "Ensure that the StatefulSet has a `spec.selector.matchLabels` defined, and create a PodDisruptionBudget that targets these labels."
   references:

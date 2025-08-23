@@ -26,6 +26,7 @@ spec:
         apiGroups:
           - ""
           - "apps"
+          - "serving.knative.dev"
         versions:
           - "v1"
         kinds:
@@ -34,12 +35,14 @@ spec:
           - StatefulSet
           - DaemonSet
           - Job
+          - Configuration
         namespaces:
           include: ["*"]
           exclude: ["kube-system", "kube-public"]
   cel: |
     (object.kind == 'Pod' && has(object.spec.containers) && object.spec.containers.exists(c, !has(c.resources) || !has(c.resources.limits) || !has(c.resources.limits.cpu))) ||
-    (object.kind != 'Pod' && has(object.spec.template.spec.containers) && object.spec.template.spec.containers.exists(c, !has(c.resources) || !has(c.resources.limits) || !has(c.resources.limits.cpu)))
+    (object.kind == 'Configuration' && has(object.spec.template.spec.containers) && object.spec.template.spec.containers.exists(c, !has(c.resources) || !has(c.resources.limits) || !has(c.resources.limits.cpu))) ||
+    (object.kind in ['Deployment', 'StatefulSet', 'DaemonSet', 'Job'] && has(object.spec.template.spec.containers) && object.spec.template.spec.containers.exists(c, !has(c.resources) || !has(c.resources.limits) || !has(c.resources.limits.cpu)))
   remediation:
     manual: "Set CPU limits for all containers in the pod spec."
   references:

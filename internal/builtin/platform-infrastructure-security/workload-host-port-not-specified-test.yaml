@@ -12,8 +12,10 @@
         ports:
         - containerPort: 80
           hostIP: 10.0.0.1
-          hostPort: 8080
-    ---
+
+- name: insecure sample 2 should fail
+  pass: false
+  input: |
     apiVersion: apps/v1
     kind: Deployment
     metadata:
@@ -27,17 +29,12 @@
             ports:
             - containerPort: 81
               hostIP: 10.0.0.2
-              hostPort: 8081
         metadata:
           labels:
             app: nginx
       selector:
         matchLabels:
           app: nginx
-
-- name: insecure sample 2 should fail
-  pass: false
-  input: |
   
 - name: secure sample 1 should pass
   pass: true
@@ -53,3 +50,4 @@
         ports:
         - containerPort: 80
           hostIP: 10.0.0.1
+          hostPort: 8080

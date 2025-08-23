@@ -25,12 +25,16 @@ spec:
       kubernetes:
         apiGroups:
           - ""
+          - "kubescheduler.config.k8s.io"
         versions:
           - v1
+          - v1beta2
         kinds:
           - Pod
+          - KubeSchedulerConfiguration
   cel: |
-    has(object.spec.containers) && object.spec.containers.exists(c, has(c.command) && (c.command.exists(cmd, cmd == "kube-apiserver") || c.command.exists(cmd, cmd == "kube-controller-manager") || c.command.exists(cmd, cmd == "kube-scheduler") || c.command.exists(cmd, cmd == "kubelet")) && has(c.args) && c.args.exists(arg, arg == "--profiling=true"))
+    (object.kind == "Pod" && has(object.spec.containers) && object.spec.containers.exists(c, has(c.command) && (c.command.exists(cmd, cmd == "kube-apiserver") || c.command.exists(cmd, cmd == "kube-controller-manager") || c.command.exists(cmd, cmd == "kube-scheduler") || c.command.exists(cmd, cmd == "kubelet")) && has(c.args) && c.args.exists(arg, arg == "--profiling=true"))) ||
+    (object.kind == "KubeSchedulerConfiguration" && has(object.enableProfiling) && object.enableProfiling == true)
   remediation:
     manual: "Set `--profiling=false` for API server components and Kubelet."
   references:

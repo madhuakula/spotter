@@ -26,6 +26,7 @@ spec:
         apiGroups:
           - ""
           - "apps"
+          - "serving.knative.dev"
         versions:
           - "v1"
         kinds:
@@ -33,12 +34,14 @@ spec:
           - Deployment
           - StatefulSet
           - DaemonSet
+          - Configuration
         namespaces:
           include: ["*"]
           exclude: ["kube-system", "kube-public"]
   cel: |
     (object.kind == 'Pod' && has(object.spec.hostPID) && object.spec.hostPID == true) ||
-    (object.kind != 'Pod' && has(object.spec.template.spec.hostPID) && object.spec.template.spec.hostPID == true)
+    (object.kind == 'Configuration' && has(object.spec.template.spec.hostPID) && object.spec.template.spec.hostPID == true) ||
+    (object.kind in ['Deployment', 'StatefulSet', 'DaemonSet'] && has(object.spec.template.spec.hostPID) && object.spec.template.spec.hostPID == true)
   remediation:
     manual: "Do not use the host PID namespace for pods unless it is absolutely necessary."
   references:

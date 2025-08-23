@@ -25,15 +25,18 @@ spec:
       kubernetes:
         apiGroups:
           - ""
+          - apps
         versions:
           - v1
         kinds:
           - PersistentVolumeClaim
+          - StatefulSet
         namespaces:
           include: ["*"]
           exclude: ["kube-system", "kube-public"]
   cel: |
-    object.kind == "PersistentVolumeClaim" && has(object.spec.accessModes) && object.spec.accessModes.exists(mode, mode == "ReadWriteOnce")
+    (object.kind == "PersistentVolumeClaim" && has(object.spec.accessModes) && object.spec.accessModes.exists(mode, mode == "ReadWriteOnce")) ||
+    (object.kind == "StatefulSet" && has(object.spec.volumeClaimTemplates) && object.spec.volumeClaimTemplates.exists(vct, has(vct.spec.accessModes) && vct.spec.accessModes.exists(mode, mode == "ReadWriteOnce")))
   remediation:
     manual: "If shared access is required for multiple pods or nodes, consider using `ReadWriteMany` or `ReadOnlyMany` access modes for your PersistentVolumeClaim, if supported by your storage provisioner."
   references:

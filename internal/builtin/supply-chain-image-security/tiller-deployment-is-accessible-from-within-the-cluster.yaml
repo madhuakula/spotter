@@ -30,10 +30,13 @@ spec:
         kinds:
           - Deployment
         namespaces:
-          include: ["kube-system"]
+          include: ["*"]
           exclude: []
   cel: |
-    object.kind == "Deployment" && object.metadata.name == "tiller-deploy" && object.spec.template.spec.containers.exists(c, c.image.contains("tiller") && (!has(c.ports) || c.ports.exists(p, p.containerPort == 44134)))
+    object.kind == "Deployment" && 
+    (object.metadata.name.contains("tiller") || (has(object.metadata.labels) && has(object.metadata.labels.name) && object.metadata.labels.name == "tiller")) &&
+    object.spec.template.spec.containers.exists(c, c.image.contains("tiller") && 
+      (!has(c.args) || !c.args.exists(arg, arg.contains("--listen=127.0.0.1:"))))
   remediation:
     manual: "Remove the Tiller deployment or restrict its accessibility from within the cluster."
   references:

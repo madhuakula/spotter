@@ -25,12 +25,22 @@ spec:
       kubernetes:
         apiGroups:
           - ""
+          - "kubelet.config.k8s.io"
         versions:
           - "v1"
+          - "v1beta1"
         kinds:
           - Pod
+          - KubeletConfiguration
+    namespaces:
+      include: ["*"]
+      exclude: []
   cel: |
-    has(object.spec.containers) && object.spec.containers.exists(c, has(c.command) && c.command.exists(cmd, cmd == "kube-apiserver") && (!has(c.args) || !c.args.exists(arg, arg.startsWith("--tls-cert-file=")) || !c.args.exists(arg, arg.startsWith("--tls-private-key-file="))))
+    (object.kind == "Pod" && has(object.spec.containers) && object.spec.containers.exists(c, 
+      has(c.command) && c.command.exists(cmd, cmd == "kube-apiserver") && 
+      (!has(c.args) || !c.args.exists(arg, arg.startsWith("--tls-cert-file=")) || !c.args.exists(arg, arg.startsWith("--tls-private-key-file=")))
+    )) ||
+    (object.kind == "KubeletConfiguration" && (!has(object.tlsCertFile) || !has(object.tlsPrivateKeyFile)))
   remediation:
     manual: "Ensure that --tls-cert-file and --tls-private-key-file flags are set for the kube-apiserver."
   references:

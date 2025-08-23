@@ -25,12 +25,30 @@ spec:
       kubernetes:
         apiGroups:
           - ""
+          - "apps"
         versions:
-          - v1
+          - "v1"
         kinds:
           - Pod
+          - Deployment
+          - StatefulSet
   cel: |
-    has(object.spec.containers) && object.spec.containers.exists(c, has(c.command) && c.command.exists(cmd, cmd == "etcd") && (!has(c.args) || !c.args.exists(arg, arg.startsWith("--peer-cert-file=")) || !c.args.exists(arg, arg.startsWith("--peer-key-file="))))
+    (
+      (object.kind == "Pod" && has(object.spec.containers) && object.spec.containers.exists(c, 
+        (has(c.command) && c.command.exists(cmd, cmd == "etcd")) &&
+        (
+          (!has(c.args) || !c.args.exists(arg, arg.startsWith("--peer-cert-file=")) || !c.args.exists(arg, arg.startsWith("--peer-key-file="))) ||
+          (!has(c.command) || !c.command.exists(cmd, cmd.startsWith("--peer-cert-file=")) || !c.command.exists(cmd, cmd.startsWith("--peer-key-file=")))
+        )
+      )) ||
+      (object.kind in ["Deployment", "StatefulSet"] && has(object.spec.template.spec.containers) && object.spec.template.spec.containers.exists(c, 
+        (has(c.command) && c.command.exists(cmd, cmd == "etcd")) &&
+        (
+          (!has(c.args) || !c.args.exists(arg, arg.startsWith("--peer-cert-file=")) || !c.args.exists(arg, arg.startsWith("--peer-key-file="))) ||
+          (!has(c.command) || !c.command.exists(cmd, cmd.startsWith("--peer-cert-file=")) || !c.command.exists(cmd, cmd.startsWith("--peer-key-file=")))
+        )
+      ))
+    )
   remediation:
     manual: "Ensure that `--peer-cert-file` and `--peer-key-file` flags are set for Etcd peer communication."
   references:

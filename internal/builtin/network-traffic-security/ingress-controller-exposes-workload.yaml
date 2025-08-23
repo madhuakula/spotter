@@ -25,8 +25,10 @@ spec:
       kubernetes:
         apiGroups:
           - "networking.k8s.io"
+          - "extensions"
         versions:
           - "v1"
+          - "v1beta1"
         kinds:
           - Ingress
         namespaces:
@@ -38,8 +40,10 @@ spec:
     object.spec.rules.exists(rule,
       has(rule.http) && has(rule.http.paths) &&
       rule.http.paths.exists(path,
-        has(path.backend) && has(path.backend.serviceName) &&
-        path.backend.serviceName == "app"
+        has(path.backend) && (
+          (has(path.backend.serviceName) && path.backend.serviceName == "app") ||
+          (has(path.backend.service) && has(path.backend.service.name) && path.backend.service.name == "app")
+        )
       )
     )
   remediation:
