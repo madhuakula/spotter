@@ -4,53 +4,203 @@ import (
 	"time"
 )
 
-// SecurityRule represents the main security rule structure
-type SecurityRule struct {
+// SpotterRule represents the main security rule structure (renamed from SecurityRule)
+type SpotterRule struct {
 	APIVersion string       `yaml:"apiVersion" json:"apiVersion"`
 	Kind       string       `yaml:"kind" json:"kind"`
 	Metadata   RuleMetadata `yaml:"metadata" json:"metadata"`
 	Spec       RuleSpec     `yaml:"spec" json:"spec"`
 }
 
+// SpotterRulePack represents a collection of security rules
+type SpotterRulePack struct {
+	APIVersion string           `yaml:"apiVersion" json:"apiVersion"`
+	Kind       string           `yaml:"kind" json:"kind"`
+	Metadata   RuleMetadata     `yaml:"metadata" json:"metadata"`
+	Spec       RulePackSpec     `yaml:"spec" json:"spec"`
+}
+
+// SecurityRule is an alias for backward compatibility
+type SecurityRule = SpotterRule
+
 // RuleMetadata contains metadata for the security rule
 type RuleMetadata struct {
-	Name   string            `yaml:"name" json:"name"`
-	Labels map[string]string `yaml:"labels,omitempty" json:"labels,omitempty"`
+	Name        string            `yaml:"name" json:"name"`
+	Labels      map[string]string `yaml:"labels,omitempty" json:"labels,omitempty"`
+	Annotations map[string]string `yaml:"annotations,omitempty" json:"annotations,omitempty"`
 }
 
-// RuleSpec contains the specification of the security rule
+// RuleSpec contains the specification of the security rule (simplified to match external API)
 type RuleSpec struct {
-	ID                  string                  `yaml:"id" json:"id"`
-	Name                string                  `yaml:"name" json:"name"`
-	Version             string                  `yaml:"version" json:"version"`
-	Description         string                  `yaml:"description" json:"description"`
-	Severity            Severity                `yaml:"severity" json:"severity"`
-	Category            string                  `yaml:"category" json:"category"`
-	Subcategory         string                  `yaml:"subcategory,omitempty" json:"subcategory,omitempty"`
-	CWE                 string                  `yaml:"cwe,omitempty" json:"cwe,omitempty"`
-	RegulatoryStandards []RegulatoryStandard    `yaml:"regulatoryStandards,omitempty" json:"regulatoryStandards,omitempty"`
-	Match               MatchCriteria           `yaml:"match" json:"match"`
-	CEL                 string                  `yaml:"cel" json:"cel"`
-	Remediation         *Remediation            `yaml:"remediation,omitempty" json:"remediation,omitempty"`
-	References          []Reference             `yaml:"references,omitempty" json:"references,omitempty"`
-	Metadata            *RuleAdditionalMetadata `yaml:"metadata,omitempty" json:"metadata,omitempty"`
+	Match       MatchCriteria `yaml:"match" json:"match"`
+	CEL         string        `yaml:"cel" json:"cel"`
+	Remediation *Remediation  `yaml:"remediation,omitempty" json:"remediation,omitempty"`
+	References  []Reference   `yaml:"references,omitempty" json:"references,omitempty"`
 }
 
-// Severity represents the severity level and risk score
-type Severity struct {
-	Level SeverityLevel `yaml:"level" json:"level"`
-	Score float64       `yaml:"score" json:"score"`
+// RulePackSpec contains the specification of a rule pack
+type RulePackSpec struct {
+	Rules      []string    `yaml:"rules" json:"rules"`
+	References []Reference `yaml:"references,omitempty" json:"references,omitempty"`
 }
 
-// SeverityLevel represents the severity levels
+// Helper methods for SpotterRule to extract metadata from annotations and labels
+
+// GetID returns the rule ID from metadata name
+func (r *SpotterRule) GetID() string {
+	return r.Metadata.Name
+}
+
+// GetTitle returns the rule title from annotations
+func (r *SpotterRule) GetTitle() string {
+	if r.Metadata.Annotations != nil {
+		return r.Metadata.Annotations["rules.spotter.dev/title"]
+	}
+	return ""
+}
+
+// GetVersion returns the rule version from annotations
+func (r *SpotterRule) GetVersion() string {
+	if r.Metadata.Annotations != nil {
+		return r.Metadata.Annotations["rules.spotter.dev/version"]
+	}
+	return ""
+}
+
+// GetDescription returns the rule description from annotations
+func (r *SpotterRule) GetDescription() string {
+	if r.Metadata.Annotations != nil {
+		return r.Metadata.Annotations["rules.spotter.dev/description"]
+	}
+	return ""
+}
+
+// GetCWE returns the CWE identifier from annotations
+func (r *SpotterRule) GetCWE() string {
+	if r.Metadata.Annotations != nil {
+		return r.Metadata.Annotations["rules.spotter.dev/cwe"]
+	}
+	return ""
+}
+
+// GetSeverity returns the severity from labels
+func (r *SpotterRule) GetSeverity() string {
+	if r.Metadata.Labels != nil {
+		return r.Metadata.Labels["severity"]
+	}
+	return ""
+}
+
+// GetCategory returns the category from labels
+func (r *SpotterRule) GetCategory() string {
+	if r.Metadata.Labels != nil {
+		return r.Metadata.Labels["category"]
+	}
+	return ""
+}
+
+// GetSeverityLevel returns the severity as SeverityLevel type
+func (r *SpotterRule) GetSeverityLevel() SeverityLevel {
+	severityStr := r.GetSeverity()
+	return SeverityLevel(severityStr)
+}
+
+// GetRemediation returns the manual remediation text
+func (r *SpotterRule) GetRemediation() string {
+	if r.Spec.Remediation != nil {
+		return r.Spec.Remediation.Manual
+	}
+	return ""
+}
+
+// GetCELExpression returns the CEL expression
+func (r *SpotterRule) GetCELExpression() string {
+	return r.Spec.CEL
+}
+
+// Helper methods for SpotterRulePack to extract metadata from annotations
+
+// GetID returns the rule pack ID from metadata name
+func (rp *SpotterRulePack) GetID() string {
+	return rp.Metadata.Name
+}
+
+// GetTitle returns the rule pack title from annotations
+func (rp *SpotterRulePack) GetTitle() string {
+	if rp.Metadata.Annotations != nil {
+		return rp.Metadata.Annotations["rules.spotter.dev/title"]
+	}
+	return ""
+}
+
+// GetVersion returns the rule pack version from annotations
+func (rp *SpotterRulePack) GetVersion() string {
+	if rp.Metadata.Annotations != nil {
+		return rp.Metadata.Annotations["rules.spotter.dev/version"]
+	}
+	return ""
+}
+
+// GetDescription returns the rule pack description from annotations
+func (rp *SpotterRulePack) GetDescription() string {
+	if rp.Metadata.Annotations != nil {
+		return rp.Metadata.Annotations["rules.spotter.dev/description"]
+	}
+	return ""
+}
+
+// GetAuthor returns the rule pack author from annotations
+func (rp *SpotterRulePack) GetAuthor() string {
+	if rp.Metadata.Annotations != nil {
+		return rp.Metadata.Annotations["rules.spotter.dev/author"]
+	}
+	return ""
+}
+
+// GetRules returns the list of rule IDs in the pack
+func (rp *SpotterRulePack) GetRules() []string {
+	return rp.Spec.Rules
+}
+
 type SeverityLevel string
 
 const (
-	SeverityLow      SeverityLevel = "LOW"
-	SeverityMedium   SeverityLevel = "MEDIUM"
-	SeverityHigh     SeverityLevel = "HIGH"
-	SeverityCritical SeverityLevel = "CRITICAL"
+	SeverityLow      SeverityLevel = "low"
+	SeverityMedium   SeverityLevel = "medium"
+	SeverityHigh     SeverityLevel = "high"
+	SeverityCritical SeverityLevel = "critical"
 )
+
+// String returns the string representation of the severity level
+func (s SeverityLevel) String() string {
+	return string(s)
+}
+
+// IsValid checks if the severity level is valid
+func (s SeverityLevel) IsValid() bool {
+	switch s {
+	case SeverityLow, SeverityMedium, SeverityHigh, SeverityCritical:
+		return true
+	default:
+		return false
+	}
+}
+
+// GetScore returns the numeric score for the severity level
+func (s SeverityLevel) GetScore() float64 {
+	switch s {
+	case SeverityLow:
+		return 3.0
+	case SeverityMedium:
+		return 5.0
+	case SeverityHigh:
+		return 7.0
+	case SeverityCritical:
+		return 9.0
+	default:
+		return 0.0
+	}
+}
 
 // SecurityCategory represents the security rule categories
 // These 10 abstracted categories provide comprehensive coverage of Kubernetes and cloud security domains
@@ -98,11 +248,7 @@ const (
 	PlatformInfrastructureSecurity SecurityCategory = "Platform & Infrastructure Security"
 )
 
-// RegulatoryStandard represents a regulatory compliance standard
-type RegulatoryStandard struct {
-	Name      string `yaml:"name" json:"name"`
-	Reference string `yaml:"reference" json:"reference"`
-}
+
 
 // MatchCriteria defines what resources this rule should be applied to
 type MatchCriteria struct {
@@ -181,19 +327,19 @@ type ScanResult struct {
 
 // ScanSummary represents a summary of scan results
 type ScanSummary struct {
-	TotalResources     int              `json:"totalResources"`
-	ScannedResources   int              `json:"scannedResources"`
-	TotalRules         int              `json:"totalRules"`
-	ExecutedRules      int              `json:"executedRules"`
-	TotalFindings      int              `json:"totalFindings"`
-	FindingsBySeverity map[Severity]int `json:"findingsBySeverity"`
-	FindingsByCategory map[string]int   `json:"findingsByCategory"`
-	ResourceTypes      map[string]int   `json:"resourceTypes"`
-	Namespaces         map[string]int   `json:"namespaces"`
-	HighestSeverity    Severity         `json:"highestSeverity"`
-	ScanDuration       time.Duration    `json:"scanDuration"`
-	Timestamp          time.Time        `json:"timestamp"`
-	Status             ScanStatus       `json:"status"`
+	TotalResources     int                      `json:"totalResources"`
+	ScannedResources   int                      `json:"scannedResources"`
+	TotalRules         int                      `json:"totalRules"`
+	ExecutedRules      int                      `json:"executedRules"`
+	TotalFindings      int                      `json:"totalFindings"`
+	FindingsBySeverity map[SeverityLevel]int    `json:"findingsBySeverity"`
+	FindingsByCategory map[string]int           `json:"findingsByCategory"`
+	ResourceTypes      map[string]int           `json:"resourceTypes"`
+	Namespaces         map[string]int           `json:"namespaces"`
+	HighestSeverity    SeverityLevel            `json:"highestSeverity"`
+	ScanDuration       time.Duration            `json:"scanDuration"`
+	Timestamp          time.Time                `json:"timestamp"`
+	Status             ScanStatus               `json:"status"`
 }
 
 // ScanStatus represents the status of a scan

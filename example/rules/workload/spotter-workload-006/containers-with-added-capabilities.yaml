@@ -1,0 +1,62 @@
+apiVersion: rules.spotter.dev/v1alpha1
+kind: SpotterRule
+metadata:
+  name: spotter-workload-006
+  labels:
+    severity: "critical"
+    category: "workload"
+  annotations:
+    rules.spotter.dev/title: "Containers With Added Capabilities"
+    rules.spotter.dev/version: "1.0.0"
+    rules.spotter.dev/cwe: "CWE-266"
+    rules.spotter.dev/description: "Containers should not add Linux capabilities beyond the default set, as this can increase the attack surface."
+spec:
+  match:
+    resources:
+      kubernetes:
+        apiGroups:
+          - ""
+          - "apps"
+        versions:
+          - "v1"
+        kinds:
+          - Pod
+          - Deployment
+          - StatefulSet
+          - DaemonSet
+        namespaces:
+          include: ["*"]
+          exclude: ["kube-system", "kube-public"]
+        labels:
+          exclude: 
+            rules.spotter.dev/ignore: ["true"]
+  cel: |
+    (object.kind == 'Pod' && (
+      (has(object.spec.containers) && object.spec.containers.exists(c,
+        has(c.securityContext) && has(c.securityContext.capabilities) && has(c.securityContext.capabilities.add) && size(c.securityContext.capabilities.add) > 0 &&
+        !(has(c.securityContext.capabilities.drop) && c.securityContext.capabilities.drop.exists(cap, cap == 'ALL') &&
+          c.securityContext.capabilities.add.all(addCap, addCap == 'NET_BIND_SERVICE'))
+      )) ||
+      (has(object.spec.initContainers) && object.spec.initContainers.exists(c,
+        has(c.securityContext) && has(c.securityContext.capabilities) && has(c.securityContext.capabilities.add) && size(c.securityContext.capabilities.add) > 0 &&
+        !(has(c.securityContext.capabilities.drop) && c.securityContext.capabilities.drop.exists(cap, cap == 'ALL') &&
+          c.securityContext.capabilities.add.all(addCap, addCap == 'NET_BIND_SERVICE'))
+      ))
+    )) ||
+    (object.kind != 'Pod' && (
+      (has(object.spec.template.spec.containers) && object.spec.template.spec.containers.exists(c,
+        has(c.securityContext) && has(c.securityContext.capabilities) && has(c.securityContext.capabilities.add) && size(c.securityContext.capabilities.add) > 0 &&
+        !(has(c.securityContext.capabilities.drop) && c.securityContext.capabilities.drop.exists(cap, cap == 'ALL') &&
+          c.securityContext.capabilities.add.all(addCap, addCap == 'NET_BIND_SERVICE'))
+      )) ||
+      (has(object.spec.template.spec.initContainers) && object.spec.template.spec.initContainers.exists(c,
+        has(c.securityContext) && has(c.securityContext.capabilities) && has(c.securityContext.capabilities.add) && size(c.securityContext.capabilities.add) > 0 &&
+        !(has(c.securityContext.capabilities.drop) && c.securityContext.capabilities.drop.exists(cap, cap == 'ALL') &&
+          c.securityContext.capabilities.add.all(addCap, addCap == 'NET_BIND_SERVICE'))
+      ))
+    ))
+  remediation:
+    manual: "Review and remove any unnecessary added capabilities from the container's security context."
+  references:
+    - title: "Kubernetes Pod Security Standards (Restricted)"
+      url: "https://kubernetes.io/docs/concepts/security/pod-security-standards/#restricted"

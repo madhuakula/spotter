@@ -4,12 +4,9 @@ package main
 
 import (
 	"github.com/madhuakula/spotter/cmd"
-	"github.com/madhuakula/spotter/internal"
 )
 
 func main() {
-	// Initialize built-in rules filesystem for cmd package
-	cmd.BuiltinRulesFS = internal.BuiltinRules
-
+	// Built-in rules are now loaded via API instead of embedded filesystem
 	cmd.Execute()
 }

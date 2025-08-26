@@ -1,0 +1,49 @@
+apiVersion: rules.spotter.dev/v1alpha1
+kind: SpotterRule
+metadata:
+    name: spotter-workload-001
+    labels:
+        category: workload
+        severity: critical
+    annotations:
+        rules.spotter.dev/cwe: CWE-269
+        rules.spotter.dev/description: Containers should not run in privileged mode, as this grants all capabilities to the container and removes all security restrictions.
+        rules.spotter.dev/title: Container Is Privileged
+        rules.spotter.dev/version: 1.0.0
+spec:
+    match:
+        resources:
+            kubernetes:
+                apiGroups:
+                    - ""
+                    - apps
+                versions:
+                    - v1
+                kinds:
+                    - Pod
+                    - Deployment
+                    - StatefulSet
+                    - DaemonSet
+                namespaces:
+                    include:
+                        - '*'
+                    exclude:
+                        - kube-system
+                        - kube-public
+                labels:
+                    exclude:
+                        rules.spotter.dev/ignore:
+                            - "true"
+    cel: |
+        (object.kind == 'Pod' && (
+          (has(object.spec.containers) && object.spec.containers.exists(c, has(c.securityContext) && has(c.securityContext.privileged) && c.securityContext.privileged == true)) ||
+          (has(object.spec.initContainers) && object.spec.initContainers.exists(c, has(c.securityContext) && has(c.securityContext.privileged) && c.securityContext.privileged == true))
+        )) || (object.kind != 'Pod' && (
+          (has(object.spec.template.spec.containers) && object.spec.template.spec.containers.exists(c, has(c.securityContext) && has(c.securityContext.privileged) && c.securityContext.privileged == true)) ||
+          (has(object.spec.template.spec.initContainers) && object.spec.template.spec.initContainers.exists(c, has(c.securityContext) && has(c.securityContext.privileged) && c.securityContext.privileged == true))
+        ))
+    remediation:
+        manual: 'Set `privileged: false` in the container''s security context.'
+    references:
+        - title: Kubernetes Pod Security Standards (Restricted)
+          url: https://kubernetes.io/docs/concepts/security/pod-security-standards/#restricted

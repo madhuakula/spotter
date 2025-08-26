@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -21,9 +20,7 @@ import (
 	"github.com/madhuakula/spotter/pkg/reporter"
 )
 
-// BuiltinRulesFS is a reference to the embedded filesystem from main package
-// This will be set by the main package during initialization
-var BuiltinRulesFS fs.FS
+// Built-in rules are now loaded via API instead of embedded filesystem
 
 // scanCmd represents the scan command
 var scanCmd = &cobra.Command{
@@ -322,7 +319,7 @@ func runClusterScan(cmd *cobra.Command, args []string) error {
 	}
 
 	// Load and filter security rules using resolved config
-	rules, err := loadAndFilterSecurityRules(cmd, scanConfig.DisableBuiltInRules)
+	rules, err := loadAndFilterRules(cmd, scanConfig.DisableBuiltInRules)
 	if err != nil {
 		return fmt.Errorf("failed to load security rules: %w", err)
 	}
@@ -383,7 +380,7 @@ func runManifestsScan(cmd *cobra.Command, args []string) error {
 	}
 
 	// Load and filter security rules using resolved config
-	rules, err := loadAndFilterSecurityRules(cmd, scanConfig.DisableBuiltInRules)
+	rules, err := loadAndFilterRules(cmd, scanConfig.DisableBuiltInRules)
 	if err != nil {
 		return fmt.Errorf("failed to load security rules: %w", err)
 	}
@@ -455,7 +452,7 @@ func runHelmScan(cmd *cobra.Command, args []string) error {
 	}
 
 	// Load and filter security rules using resolved config
-	rules, err := loadAndFilterSecurityRules(cmd, scanConfig.DisableBuiltInRules)
+	rules, err := loadAndFilterRules(cmd, scanConfig.DisableBuiltInRules)
 	if err != nil {
 		return fmt.Errorf("failed to load security rules: %w", err)
 	}
@@ -489,10 +486,10 @@ func runHelmScan(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// loadSecurityRules loads security rules from built-in embedded rules and configured paths
-func loadSecurityRules(disableBuiltins bool) ([]*models.SecurityRule, error) {
+// loadRules loads security rules from built-in embedded rules and configured paths
+func loadRules(disableBuiltins bool) ([]*models.SpotterRule, error) {
 	parser := parser.NewYAMLParser(true)
-	var allRules []*models.SecurityRule
+	var allRules []*models.SpotterRule
 	ruleIDMap := make(map[string]bool) // Track rule IDs to prevent duplicates
 
 	// Load built-in rules unless disabled
@@ -504,9 +501,9 @@ func loadSecurityRules(disableBuiltins bool) ([]*models.SecurityRule, error) {
 
 		// Add builtin rules and track their IDs
 		for _, rule := range builtinRules {
-			if !ruleIDMap[rule.Spec.ID] {
+			if !ruleIDMap[rule.GetID()] {
 				allRules = append(allRules, rule)
-				ruleIDMap[rule.Spec.ID] = true
+				ruleIDMap[rule.GetID()] = true
 			}
 		}
 	}
@@ -521,9 +518,9 @@ func loadSecurityRules(disableBuiltins bool) ([]*models.SecurityRule, error) {
 
 		// Add external rules only if their IDs are not already present
 		for _, rule := range externalRules {
-			if !ruleIDMap[rule.Spec.ID] {
+			if !ruleIDMap[rule.GetID()] {
 				allRules = append(allRules, rule)
-				ruleIDMap[rule.Spec.ID] = true
+				ruleIDMap[rule.GetID()] = true
 			}
 		}
 	}
@@ -531,10 +528,10 @@ func loadSecurityRules(disableBuiltins bool) ([]*models.SecurityRule, error) {
 	return allRules, nil
 }
 
-// loadAndFilterSecurityRules loads security rules and applies include/exclude filtering
-func loadAndFilterSecurityRules(cmd *cobra.Command, disableBuiltins bool) ([]*models.SecurityRule, error) {
+// loadAndFilterRules loads security rules and applies include/exclude filtering
+func loadAndFilterRules(cmd *cobra.Command, disableBuiltins bool) ([]*models.SpotterRule, error) {
 	// Load all rules using the resolved disableBuiltins value
-	allRules, err := loadSecurityRules(disableBuiltins)
+	allRules, err := loadRules(disableBuiltins)
 	if err != nil {
 		return nil, err
 	}
@@ -551,13 +548,13 @@ func loadAndFilterSecurityRules(cmd *cobra.Command, disableBuiltins bool) ([]*mo
 }
 
 // applyRuleFilters filters rules based on include/exclude criteria
-func applyRuleFilters(rules []*models.SecurityRule, includeRules, excludeRules, categories []string) []*models.SecurityRule {
+func applyRuleFilters(rules []*models.SpotterRule, includeRules, excludeRules, categories []string) []*models.SpotterRule {
 	// If no filters specified, return all rules
 	if len(includeRules) == 0 && len(excludeRules) == 0 && len(categories) == 0 {
 		return rules
 	}
 
-	var filteredRules []*models.SecurityRule
+	var filteredRules []*models.SpotterRule
 
 	// Convert slices to maps for faster lookup
 	includeMap := make(map[string]bool)
@@ -576,8 +573,8 @@ func applyRuleFilters(rules []*models.SecurityRule, includeRules, excludeRules, 
 	}
 
 	for _, rule := range rules {
-		ruleID := rule.Spec.ID
-		ruleCategory := strings.ToLower(rule.Spec.Category)
+		ruleID := rule.GetID()
+		ruleCategory := strings.ToLower(rule.GetCategory())
 
 		// Skip if explicitly excluded
 		if excludeMap[ruleID] {
@@ -604,21 +601,17 @@ func applyRuleFilters(rules []*models.SecurityRule, includeRules, excludeRules, 
 	return filteredRules
 }
 
-// loadBuiltinRules loads the embedded built-in security rules
-func loadBuiltinRules(parser *parser.YAMLParser) ([]*models.SecurityRule, error) {
-	if BuiltinRulesFS == nil {
-		return nil, fmt.Errorf("built-in rules filesystem not initialized")
-	}
-	rules, err := parser.ParseRulesFromFS(context.Background(), BuiltinRulesFS, "builtin")
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse built-in rules: %w", err)
-	}
-	return rules, nil
+// loadBuiltinRules loads built-in security rules via API
+// Currently returns empty slice as API integration is not implemented
+func loadBuiltinRules(parser *parser.YAMLParser) ([]*models.SpotterRule, error) {
+	// Built-in rules are not currently supported - use external rules via --rules-path
+	fmt.Println("[INFO] Built-in rules are not currently supported. Use --rules-path to specify custom rules.")
+	return []*models.SpotterRule{}, nil
 }
 
 // loadExternalRules loads security rules from external file paths
-func loadExternalRules(parser *parser.YAMLParser, rulesPaths []string) ([]*models.SecurityRule, error) {
-	var allRules []*models.SecurityRule
+func loadExternalRules(parser *parser.YAMLParser, rulesPaths []string) ([]*models.SpotterRule, error) {
+	var allRules []*models.SpotterRule
 
 	for _, path := range rulesPaths {
 		if _, err := os.Stat(path); os.IsNotExist(err) {
@@ -948,7 +941,7 @@ func initializeEngine() (engine.EvaluationEngine, error) {
 }
 
 // executeClusterScan performs the actual cluster scanning with concurrency control
-func executeClusterScan(ctx context.Context, scanner k8s.ResourceScanner, engine engine.EvaluationEngine, rules []*models.SecurityRule, config *ScanConfig) (*models.ScanResult, error) {
+func executeClusterScan(ctx context.Context, scanner k8s.ResourceScanner, engine engine.EvaluationEngine, rules []*models.SpotterRule, config *ScanConfig) (*models.ScanResult, error) {
 	logger := GetLogger()
 
 	// Convert resource types from strings to GVKs
@@ -1002,7 +995,7 @@ func executeClusterScan(ctx context.Context, scanner k8s.ResourceScanner, engine
 }
 
 // executeManifestsScan performs manifest file scanning with concurrency control
-func executeManifestsScan(ctx context.Context, scanner k8s.ResourceScanner, engine engine.EvaluationEngine, rules []*models.SecurityRule, manifestFiles []string, config *ScanConfig) (*models.ScanResult, error) {
+func executeManifestsScan(ctx context.Context, scanner k8s.ResourceScanner, engine engine.EvaluationEngine, rules []*models.SpotterRule, manifestFiles []string, config *ScanConfig) (*models.ScanResult, error) {
 	logger := GetLogger()
 
 	// Build scan options with dynamic filtering enabled
@@ -1039,7 +1032,7 @@ func executeManifestsScan(ctx context.Context, scanner k8s.ResourceScanner, engi
 }
 
 // executeHelmScan performs Helm chart scanning
-func executeHelmScan(ctx context.Context, scanner k8s.ResourceScanner, engine engine.EvaluationEngine, rules []*models.SecurityRule, chartPaths []string, config *ScanConfig) (*models.ScanResult, error) {
+func executeHelmScan(ctx context.Context, scanner k8s.ResourceScanner, engine engine.EvaluationEngine, rules []*models.SpotterRule, chartPaths []string, config *ScanConfig) (*models.ScanResult, error) {
 	logger := GetLogger()
 
 	// Get Helm-specific flags
@@ -1100,7 +1093,7 @@ func executeHelmScan(ctx context.Context, scanner k8s.ResourceScanner, engine en
 }
 
 // evaluateResourcesConcurrently evaluates rules against resources with controlled concurrency
-func evaluateResourcesConcurrently(ctx context.Context, engine engine.EvaluationEngine, rules []*models.SecurityRule, resources []map[string]interface{}, config *ScanConfig) (*models.ScanResult, error) {
+func evaluateResourcesConcurrently(ctx context.Context, engine engine.EvaluationEngine, rules []*models.SpotterRule, resources []map[string]interface{}, config *ScanConfig) (*models.ScanResult, error) {
 	logger := GetLogger()
 
 	// Initialize progress bar

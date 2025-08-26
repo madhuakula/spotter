@@ -1,0 +1,70 @@
+- name: insecure sample 1 should fail
+  pass: false
+  input: |
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: private-image-test-always
+    spec:
+      containers:
+        - name: uses-private-image
+          image: $PRIVATE_IMAGE_NAME:1.2
+          imagePullPolicy: Never
+          command: [ "echo", "SUCCESS" ]
+
+- name: insecure sample 2 should fail
+  pass: false
+  input: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: deployment-with-image-pull-policy
+    spec:
+      replicas: 3
+      selector:
+        matchLabels:
+          app: nginx
+      template:
+        metadata:
+          labels:
+            app: nginx
+        spec:
+          containers:
+            - name: nginx
+              image: library/nginx:1.20.0
+              imagePullPolicy: IfNotPresent
+
+- name: insecure sample 3 should fail
+  pass: false
+  input: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: deployment-with-image-pull-policy1
+    spec:
+      replicas: 3
+      selector:
+        matchLabels:
+          app: nginx
+      template:
+        metadata:
+          labels:
+            app: nginx
+        spec:
+          containers:
+            - name: nginx
+              image: library/nginx:1.20.0
+
+- name: secure sample 1 should pass
+  pass: true
+  input: |
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: private-image-test-1
+    spec:
+      containers:
+        - name: uses-private-image
+          image: $PRIVATE_IMAGE_NAME
+          imagePullPolicy: Always
+          command: [ "echo", "SUCCESS" ]

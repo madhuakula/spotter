@@ -1,0 +1,32 @@
+apiVersion: rules.spotter.dev/v1alpha1
+kind: SpotterRule
+metadata:
+  name: service-type-is-nodeport
+  labels:
+    severity: "medium"
+    category: "network"
+  annotations:
+    rules.spotter.dev/title: "Service Exposed via NodePort"
+    rules.spotter.dev/version: "1.0.0"
+    rules.spotter.dev/cwe: "CWE-501"
+    rules.spotter.dev/description: "Services of type NodePort are exposed on each node's IP at a static port. This can be a security risk if not properly managed."
+spec:
+  match:
+    resources:
+      kubernetes:
+        apiGroups:
+          - ""
+        versions:
+          - "v1"
+        kinds:
+          - Service
+        namespaces:
+          include: ["*"]
+          exclude: ["kube-system", "kube-public"]
+  cel: |
+    has(object.spec.type) && object.spec.type == "NodePort"
+  remediation:
+    manual: "If the service is not intended to be exposed directly on the node, consider using a different service type like ClusterIP."
+  references:
+    - title: "Kubernetes Service Types"
+      url: "https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types"

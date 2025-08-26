@@ -264,8 +264,8 @@ Spotter includes comprehensive built-in security rules and supports custom rule 
 ### Custom Rule Example
 
 ```yaml
-apiVersion: rules.spotter.run/v1
-kind: SecurityRule
+apiVersion: rules.spotter.dev/v1alpha1
+kind: SpotterRule
 metadata:
   name: unique-name
   labels:

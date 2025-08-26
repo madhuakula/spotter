@@ -1,0 +1,65 @@
+- name: insecure sample 1 should fail
+  pass: false
+  input: |-
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: pod-0
+    spec:
+      containers:
+      - image: k8s.gcr.io/test-webserver
+        name: pod-0
+        volumeMounts:
+        - mountPath: /bin
+          name: vol-0
+        - mountPath: /var
+          name: vol-1
+      volumes:
+      - name: vol-0
+        hostPath:
+          path: /bin
+          type: Directory
+      - name: vol-1
+        hostPath:
+          path: /var
+          type: Directory
+- name: secure sample 1 should pass
+  pass: true
+  input: |-
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: configmap-pod
+    spec:
+      volumes:
+        - name: config-vol
+          configMap:
+            name: log-config
+            items:
+              - key: log_level
+                path: log_level.conf
+      containers:
+        - name: test
+          image: busybox:1.28
+          volumeMounts:
+            - name: config-vol
+              mountPath: /etc/config
+- name: secure sample 2 should pass
+  pass: true
+  input: |-
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: secret-pod
+    spec:
+      containers:
+        - name: test
+          image: busybox:1.28
+          command: ['sh', '-c', 'echo "Secret volume mounted" && tail -f /dev/null']
+          volumeMounts:
+            - name: secret-vol
+              mountPath: /etc/secret
+      volumes:
+        - name: secret-vol
+          secret:
+            secretName: my-secret

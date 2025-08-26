@@ -1,0 +1,29 @@
+apiVersion: rules.spotter.dev/v1alpha1
+kind: SpotterRule
+metadata:
+    name: spotter-platform-001
+    labels:
+        category: platform
+        severity: critical
+    annotations:
+        rules.spotter.dev/cwe: CWE-319
+        rules.spotter.dev/description: The Kubelet should enforce HTTPS for its API to ensure secure communication.
+        rules.spotter.dev/title: Kubelet HTTPS Set To False
+        rules.spotter.dev/version: 1.0.0
+spec:
+    match:
+        resources:
+            kubernetes:
+                apiGroups:
+                    - ""
+                versions:
+                    - v1
+                kinds:
+                    - Pod
+    cel: |
+        has(object.spec.containers) && object.spec.containers.exists(c, has(c.command) && c.command.exists(cmd, cmd == "kubelet") && has(c.args) && c.args.exists(arg, arg == "--https=false"))
+    remediation:
+        manual: Ensure `--https` is not set to `false` or is omitted (defaults to `true`), and explicitly configure `--tls-cert-file` and `--tls-private-key-file`.
+    references:
+        - title: Kubelet Command Line Reference
+          url: https://kubernetes.io/docs/reference/command-line-tools-reference/kubelet/

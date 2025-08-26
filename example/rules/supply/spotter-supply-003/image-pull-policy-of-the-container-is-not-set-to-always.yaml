@@ -1,0 +1,38 @@
+apiVersion: rules.spotter.dev/v1alpha1
+kind: SpotterRule
+metadata:
+  name: spotter-supply-003
+  labels:
+    severity: "medium"
+    category: "supply"
+  annotations:
+    rules.spotter.dev/title: "Image Pull Policy Missing"
+    rules.spotter.dev/version: "1.0.0"
+    rules.spotter.dev/cwe: "CWE-613"
+    rules.spotter.dev/description: "ImagePullPolicy must be Always"
+spec:
+  match:
+    resources:
+      kubernetes:
+        apiGroups:
+        - ''
+        - apps
+        versions:
+        - v1
+        kinds:
+        - Pod
+        - Deployment
+        namespaces:
+          include:
+          - '*'
+          exclude:
+          - kube-system
+          - kube-public
+  cel: |
+    (object.kind == 'Pod' && has(object.spec.containers) && object.spec.containers.exists(c, !has(c.imagePullPolicy) || c.imagePullPolicy != "Always")) ||
+    (object.kind != 'Pod' && has(object.spec.template.spec.containers) && object.spec.template.spec.containers.exists(c, !has(c.imagePullPolicy) || c.imagePullPolicy != "Always"))
+  remediation:
+    manual: "Set imagePullPolicy=Always"
+  references:
+    - title: "CIS Kubernetes Benchmark v1.8.0"
+      url: "https://www.cisecurity.org/benchmark/kubernetes"

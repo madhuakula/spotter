@@ -124,7 +124,7 @@ func runServer(cmd *cobra.Command, args []string) error {
 		"min_severity", config.MinSeverity)
 
 	// Load security rules based on configuration
-	var rules []*models.SecurityRule
+	var rules []*models.SpotterRule
 	if viper.GetBool("server.disable-built-in-rules") {
 		parser := parser.NewYAMLParser(true)
 		rulesPaths := viper.GetStringSlice("server.rules-path")
@@ -135,10 +135,10 @@ func runServer(cmd *cobra.Command, args []string) error {
 				return fmt.Errorf("failed to load external rules: %w", err)
 			}
 		} else {
-			rules = []*models.SecurityRule{}
+			rules = []*models.SpotterRule{}
 		}
 	} else {
-		builtin, err := loadBuiltinSecurityRules()
+		builtin, err := loadBuiltinRulesFromAPI()
 		if err != nil {
 			return fmt.Errorf("failed to load security rules: %w", err)
 		}
@@ -152,12 +152,12 @@ func runServer(cmd *cobra.Command, args []string) error {
 			}
 			seen := map[string]bool{}
 			for _, r := range rules {
-				seen[r.Spec.ID] = true
+				seen[r.GetID()] = true
 			}
 			for _, r := range ext {
-				if !seen[r.Spec.ID] {
+				if !seen[r.GetID()] {
 					rules = append(rules, r)
-					seen[r.Spec.ID] = true
+					seen[r.GetID()] = true
 				}
 			}
 		}
@@ -237,7 +237,7 @@ func runServer(cmd *cobra.Command, args []string) error {
 // AdmissionServer handles admission webhook requests
 type AdmissionServer struct {
 	Config *ServerConfig
-	Rules  []*models.SecurityRule
+	Rules  []*models.SpotterRule
 	Engine engine.EvaluationEngine
 	Logger interface {
 		Info(string, ...interface{})
@@ -523,7 +523,8 @@ func (s *AdmissionServer) healthzHandler(w http.ResponseWriter, r *http.Request)
 
 // readyzHandler handles readiness check requests
 func (s *AdmissionServer) readyzHandler(w http.ResponseWriter, r *http.Request) {
-	// TODO: Add more sophisticated readiness checks
+	// Basic readiness check - server is ready if it can respond
+	// Future enhancements could include rule loading status, dependency checks, etc.
 	w.WriteHeader(http.StatusOK)
 	if _, err := w.Write([]byte("Ready")); err != nil {
 		s.Logger.Error("Failed to write readiness check response", "error", err)
@@ -532,9 +533,11 @@ func (s *AdmissionServer) readyzHandler(w http.ResponseWriter, r *http.Request) 
 
 // metricsHandler handles metrics requests
 func (s *AdmissionServer) metricsHandler(w http.ResponseWriter, r *http.Request) {
-	// TODO: Add Prometheus metrics
+	// Basic metrics endpoint - returns placeholder metrics
+	// Future enhancements could include Prometheus metrics integration
 	w.WriteHeader(http.StatusOK)
-	if _, err := w.Write([]byte("# Metrics endpoint - TODO: implement Prometheus metrics\n")); err != nil {
+	metrics := "# HELP spotter_server_up Server status\n# TYPE spotter_server_up gauge\nspotter_server_up 1\n"
+	if _, err := w.Write([]byte(metrics)); err != nil {
 		s.Logger.Error("Failed to write metrics response", "error", err)
 	}
 }
@@ -593,17 +596,10 @@ func loadTLSConfig(certFile, keyFile string) (*tls.Config, error) {
 	}, nil
 }
 
-// loadBuiltinSecurityRules loads only the built-in embedded security rules
-func loadBuiltinSecurityRules() ([]*models.SecurityRule, error) {
-	if BuiltinRulesFS == nil {
-		return nil, fmt.Errorf("built-in rules filesystem not initialized")
-	}
-
-	parser := parser.NewYAMLParser(true)
-	rules, err := parser.ParseRulesFromFS(context.Background(), BuiltinRulesFS, "builtin")
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse built-in rules: %w", err)
-	}
-
-	return rules, nil
+// loadBuiltinRulesFromAPI loads built-in security rules via API
+// Currently returns empty slice as API integration is not implemented
+func loadBuiltinRulesFromAPI() ([]*models.SpotterRule, error) {
+	// Built-in rules are not currently supported - use external rules via --rules-path
+	fmt.Println("[INFO] Built-in rules are not currently supported. Use --rules-path to specify custom rules.")
+	return []*models.SpotterRule{}, nil
 }

@@ -49,7 +49,7 @@ type ReportOptions struct {
 	IncludePassedRules bool
 
 	// MinSeverity filters results by minimum severity level
-	MinSeverity models.Severity
+	MinSeverity string
 
 	// GroupBy specifies how to group results (resource, rule, severity, category)
 	GroupBy string
@@ -119,7 +119,7 @@ type ScanMetrics struct {
 	TotalRules         int                     `json:"totalRules"`
 	ExecutedRules      int                     `json:"executedRules"`
 	TotalFindings      int                     `json:"totalFindings"`
-	FindingsBySeverity map[models.Severity]int `json:"findingsBySeverity"`
+	FindingsBySeverity map[string]int `json:"findingsBySeverity"`
 	FindingsByCategory map[string]int          `json:"findingsByCategory"`
 	ResourceTypes      map[string]int          `json:"resourceTypes"`
 	Namespaces         map[string]int          `json:"namespaces"`
