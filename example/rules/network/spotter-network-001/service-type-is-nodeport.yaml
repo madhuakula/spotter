@@ -1,7 +1,7 @@
 apiVersion: rules.spotter.dev/v1alpha1
 kind: SpotterRule
 metadata:
-  name: service-type-is-nodeport
+  name: spotter-network-001
   labels:
     severity: "medium"
     category: "network"

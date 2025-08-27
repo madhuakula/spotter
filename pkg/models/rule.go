@@ -14,10 +14,10 @@ type SpotterRule struct {
 
 // SpotterRulePack represents a collection of security rules
 type SpotterRulePack struct {
-	APIVersion string           `yaml:"apiVersion" json:"apiVersion"`
-	Kind       string           `yaml:"kind" json:"kind"`
-	Metadata   RuleMetadata     `yaml:"metadata" json:"metadata"`
-	Spec       RulePackSpec     `yaml:"spec" json:"spec"`
+	APIVersion string       `yaml:"apiVersion" json:"apiVersion"`
+	Kind       string       `yaml:"kind" json:"kind"`
+	Metadata   RuleMetadata `yaml:"metadata" json:"metadata"`
+	Spec       RulePackSpec `yaml:"spec" json:"spec"`
 }
 
 // SecurityRule is an alias for backward compatibility
@@ -231,14 +231,6 @@ const (
 	// provenance, untrusted registries.
 	SupplyChainImageSecurity SecurityCategory = "Supply Chain & Image Security"
 
-	// CICDGitOpsSecurity covers pipeline security, GitHub Actions/Tekton/Argo safety,
-	// Git repo access, shift-left policies.
-	CICDGitOpsSecurity SecurityCategory = "CI/CD & GitOps Security"
-
-	// RuntimeThreatDetection covers anomaly detection, eBPF, runtime policy violations,
-	// malware detection, process/file/network monitoring.
-	RuntimeThreatDetection SecurityCategory = "Runtime Threat Detection"
-
 	// AuditLoggingCompliance covers logging, audit events, governance,
 	// CIS/NIST/PCI benchmarks, custom compliance controls.
 	AuditLoggingCompliance SecurityCategory = "Audit, Logging & Compliance"
@@ -247,8 +239,6 @@ const (
 	// control plane exposure, metadata servers, cloud infra misconfigs (S3, IMDS, etc.).
 	PlatformInfrastructureSecurity SecurityCategory = "Platform & Infrastructure Security"
 )
-
-
 
 // MatchCriteria defines what resources this rule should be applied to
 type MatchCriteria struct {
@@ -327,19 +317,19 @@ type ScanResult struct {
 
 // ScanSummary represents a summary of scan results
 type ScanSummary struct {
-	TotalResources     int                      `json:"totalResources"`
-	ScannedResources   int                      `json:"scannedResources"`
-	TotalRules         int                      `json:"totalRules"`
-	ExecutedRules      int                      `json:"executedRules"`
-	TotalFindings      int                      `json:"totalFindings"`
-	FindingsBySeverity map[SeverityLevel]int    `json:"findingsBySeverity"`
-	FindingsByCategory map[string]int           `json:"findingsByCategory"`
-	ResourceTypes      map[string]int           `json:"resourceTypes"`
-	Namespaces         map[string]int           `json:"namespaces"`
-	HighestSeverity    SeverityLevel            `json:"highestSeverity"`
-	ScanDuration       time.Duration            `json:"scanDuration"`
-	Timestamp          time.Time                `json:"timestamp"`
-	Status             ScanStatus               `json:"status"`
+	TotalResources     int                   `json:"totalResources"`
+	ScannedResources   int                   `json:"scannedResources"`
+	TotalRules         int                   `json:"totalRules"`
+	ExecutedRules      int                   `json:"executedRules"`
+	TotalFindings      int                   `json:"totalFindings"`
+	FindingsBySeverity map[SeverityLevel]int `json:"findingsBySeverity"`
+	FindingsByCategory map[string]int        `json:"findingsByCategory"`
+	ResourceTypes      map[string]int        `json:"resourceTypes"`
+	Namespaces         map[string]int        `json:"namespaces"`
+	HighestSeverity    SeverityLevel         `json:"highestSeverity"`
+	ScanDuration       time.Duration         `json:"scanDuration"`
+	Timestamp          time.Time             `json:"timestamp"`
+	Status             ScanStatus            `json:"status"`
 }
 
 // ScanStatus represents the status of a scan
