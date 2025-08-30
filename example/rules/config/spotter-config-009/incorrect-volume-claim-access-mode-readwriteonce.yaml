@@ -1,0 +1,33 @@
+apiVersion: rules.spotter.dev/v1alpha1
+kind: SpotterRule
+metadata:
+  name: spotter-config-009
+  labels:
+    severity: "low"
+    category: "config"
+  annotations:
+    rules.spotter.dev/title: "Incorrect Volume Claim Access Mode ReadWriteOnce"
+    rules.spotter.dev/version: "1.0.0"
+    rules.spotter.dev/cwe: "CWE-665"
+    rules.spotter.dev/description: "PersistentVolumeClaims with `ReadWriteOnce` access mode can only be mounted by a single node. Ensure this is appropriate for your workload, especially in multi-replica deployments."
+spec:
+  match:
+    resources:
+      kubernetes:
+        apiGroups: ["", "apps"]
+        versions: ["v1"]
+        kinds: ["PersistentVolumeClaim", "StatefulSet"]
+        namespaces:
+          include: ["*"]
+          exclude: ["kube-system", "kube-public"]
+        labels:
+          exclude:
+            rules.spotter.dev/ignore: ["true"]
+  cel: |
+    (object.kind == "PersistentVolumeClaim" && has(object.spec.accessModes) && object.spec.accessModes.exists(mode, mode == "ReadWriteOnce")) ||
+    (object.kind == "StatefulSet" && has(object.spec.volumeClaimTemplates) && object.spec.volumeClaimTemplates.exists(vct, has(vct.spec.accessModes) && vct.spec.accessModes.exists(mode, mode == "ReadWriteOnce")))
+  remediation:
+    manual: "If shared access is required for multiple pods or nodes, consider using `ReadWriteMany` or `ReadOnlyMany` access modes for your PersistentVolumeClaim, if supported by your storage provisioner."
+  references:
+    - title: "Kubernetes Persistent Volumes"
+      url: "https://kubernetes.io/docs/concepts/storage/persistent-volumes/"

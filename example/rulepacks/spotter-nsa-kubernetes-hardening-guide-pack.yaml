@@ -1,0 +1,18 @@
+#NSA Kubernetes Hardening Guide
+apiVersion: rules.spotter.dev/v1alpha1
+kind: SpotterRulePack
+metadata:
+  name: spotter-nsa-kubernetes-hardening-guide-pack
+  annotations:
+    rules.spotter.dev/title: "NSA Kubernetes Hardening Guide"
+    rules.spotter.dev/version: "1.0.0"
+    rules.spotter.dev/author: "Spotter Security Team"
+    rules.spotter.dev/description: "Implements NSA Kubernetes Hardening Guide controls."
+spec:
+  rules:
+    - spotter-workload-001
+    - spotter-platform-001
+    - spotter-network-002
+  references:
+    - title: "NSA Kubernetes Hardening Guide"
+      url: "https://www.nsa.gov/ia/nsa-cyber-center/nsa-kubernetes-hardening-guide/"

@@ -1,0 +1,27 @@
+apiVersion: rules.spotter.dev/v1alpha1
+kind: SpotterRule
+metadata:
+  name: spotter-access-003
+  labels:
+    severity: "critical" 
+    category: "access"
+  annotations:
+    rules.spotter.dev/title: "Cluster Admin Rolebinding With Superuser Permissions"
+    rules.spotter.dev/version: "1.0.0"
+    rules.spotter.dev/cwe: "CWE-266"
+    rules.spotter.dev/description: "The `cluster-admin` role should not be bound to regular users or groups, as it provides unrestricted superuser access to the cluster."
+spec:
+  match:
+    resources:
+      kubernetes:
+        apiGroups: ["rbac.authorization.k8s.io"]
+        versions: ["v1", "v1beta1"]
+        kinds: ["ClusterRoleBinding"]
+  cel: |
+    has(object.roleRef) && object.roleRef.kind == "ClusterRole" && object.roleRef.name == "cluster-admin" &&
+    has(object.subjects) && object.subjects.exists(s, s.kind in ["User", "Group", "ServiceAccount"])
+  remediation:
+    manual: "Avoid binding the `cluster-admin` role to users or groups. Use more specific roles and role bindings to grant only the necessary permissions."
+  references:
+    - title: "Using RBAC Authorization"
+      url: "https://kubernetes.io/docs/reference/access-authn-authz/rbac/"

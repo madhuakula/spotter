@@ -1,0 +1,40 @@
+apiVersion: rules.spotter.dev/v1alpha1
+kind: SpotterRule
+metadata:
+  name: spotter-config-001
+  labels:
+    severity: "medium"
+    category: "config"
+  annotations:
+    rules.spotter.dev/title: "Readiness Probe Not Set"
+    rules.spotter.dev/version: "1.0.0"
+    rules.spotter.dev/cwe: "CWE-248"
+    rules.spotter.dev/description: "Readiness probes are essential for application availability. Without them, Kubernetes may send traffic to a pod that is not yet ready to serve requests."
+spec:
+  match:
+    resources:
+      kubernetes:
+        apiGroups:
+          - ""
+          - "apps"
+        versions:
+          - "v1"
+        kinds:
+          - Pod
+          - Deployment
+          - StatefulSet
+          - DaemonSet
+        namespaces:
+          include: ["*"]
+          exclude: ["kube-system", "kube-public"]
+        labels:
+          exclude:
+            rules.spotter.dev/ignore: ["true"]
+  cel: |
+    (object.kind == 'Pod' && has(object.spec.containers) && object.spec.containers.exists(c, !has(c.readinessProbe))) ||
+    (object.kind != 'Pod' && has(object.spec.template.spec.containers) && object.spec.template.spec.containers.exists(c, !has(c.readinessProbe)))
+  remediation:
+    manual: "Define a readiness probe for each container in the pod spec."
+  references:
+    - title: "Configure Liveness, Readiness and Startup Probes"
+      url: "https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/"

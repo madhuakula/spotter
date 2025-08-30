@@ -17,6 +17,7 @@ import (
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 	"gopkg.in/yaml.v3"
+	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 
 	"github.com/madhuakula/spotter/pkg/cache"
 	"github.com/madhuakula/spotter/pkg/config"
@@ -24,6 +25,7 @@ import (
 	"github.com/madhuakula/spotter/pkg/models"
 	"github.com/madhuakula/spotter/pkg/parser"
 	"github.com/madhuakula/spotter/pkg/progress"
+	"github.com/madhuakula/spotter/pkg/vap"
 )
 
 // RuleWithSource wraps a SpotterRule with its source information
@@ -244,6 +246,36 @@ Examples:
 	},
 }
 
+// exportVAPCmd represents the export-vap subcommand
+var exportVAPCmd = &cobra.Command{
+	Use:   "export-vap [rule-id...]",
+	Short: "Export rules to ValidatingAdmissionPolicy format",
+	Long: `Export Spotter security rules to Kubernetes ValidatingAdmissionPolicy (VAP) format.
+
+This command converts Spotter rules into ValidatingAdmissionPolicy and ValidatingAdmissionPolicyBinding
+resources that can be applied directly to Kubernetes clusters for native policy enforcement.
+
+Examples:
+  # Export a specific rule to VAP
+  spotter rules export-vap privileged-containers
+  
+  # Export multiple rules
+  spotter rules export-vap privileged-containers host-network
+  
+  # Export all local rules
+  spotter rules export-vap
+  
+  # Export with custom namespace and policy name
+  spotter rules export-vap privileged-containers --namespace=security --policy-name=custom-policy
+  
+  # Save to file
+  spotter rules export-vap privileged-containers --output=policy.yaml
+  
+  # Include apply instructions
+  spotter rules export-vap privileged-containers --include-instructions`,
+	RunE: runExportVAP,
+}
+
 // runRulesValidation validates rule files specifically
 func runRulesValidation(path string, runTests bool, outputFormat string, verbose bool) error {
 	// Import validation functionality from validate.go
@@ -256,6 +288,7 @@ func init() {
 	rulesCmd.AddCommand(infoCmd)
 	rulesCmd.AddCommand(generateCmd)
 	rulesCmd.AddCommand(exportCmd)
+	rulesCmd.AddCommand(exportVAPCmd)
 	rulesCmd.AddCommand(pullCmd)
 	rulesCmd.AddCommand(rulesSearchCmd)
 	rulesCmd.AddCommand(rulesValidateCmd)
@@ -298,6 +331,19 @@ func init() {
 	// Validate command flags
 	rulesValidateCmd.Flags().BoolP("test", "t", false, "Run CEL expression tests if test files are found")
 	rulesValidateCmd.Flags().StringP("output", "o", "text", "Output format (text, json)")
+
+	// Export VAP command flags
+	exportVAPCmd.Flags().String("namespace", "default", "target namespace for the ValidatingAdmissionPolicyBinding")
+	exportVAPCmd.Flags().String("policy-name", "", "custom name for the ValidatingAdmissionPolicy (auto-generated if not provided)")
+	exportVAPCmd.Flags().String("binding-name", "", "custom name for the ValidatingAdmissionPolicyBinding (auto-generated if not provided)")
+	exportVAPCmd.Flags().StringSlice("validation-actions", []string{"warn"}, "validation actions for the policy binding (warn, audit, deny)")
+	exportVAPCmd.Flags().String("failure-policy", "Fail", "failure policy for the ValidatingAdmissionPolicy (Fail, Ignore)")
+	exportVAPCmd.Flags().Bool("include-instructions", false, "include apply instructions in the output")
+	exportVAPCmd.Flags().Bool("include-comments", true, "include helpful comments in YAML output")
+	exportVAPCmd.Flags().String("output", "", "output file path (default: stdout)")
+	exportVAPCmd.Flags().StringSlice("match-kinds", []string{}, "override match kinds (e.g., Pod, Deployment)")
+	exportVAPCmd.Flags().StringSlice("match-namespaces", []string{}, "limit policy to specific namespaces")
+	exportVAPCmd.Flags().StringSlice("exclude-namespaces", []string{}, "exclude specific namespaces from policy")
 
 }
 
@@ -458,6 +504,125 @@ func runExportRules(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to write output file: %w", err)
 		}
 		logger.Info("Rules exported", "output_file", outputFile)
+	} else {
+		fmt.Print(string(data))
+	}
+
+	return nil
+}
+
+func runExportVAP(cmd *cobra.Command, args []string) error {
+	logger := GetLogger()
+
+	logger.Debug("Exporting rules to ValidatingAdmissionPolicy format")
+
+	// Load rules based on arguments or all local rules
+	var targetRules []*models.SpotterRule
+	if len(args) > 0 {
+		// Load specific rules by ID
+		for _, ruleID := range args {
+			rule, err := loadRuleByID(ruleID)
+			if err != nil {
+				return fmt.Errorf("failed to load rule %s: %w", ruleID, err)
+			}
+			targetRules = append(targetRules, rule)
+		}
+	} else {
+		// Load all local rules
+		rules, err := loadRulesForCommand(cmd)
+		if err != nil {
+			return fmt.Errorf("failed to load rules: %w", err)
+		}
+		for _, rule := range rules {
+			targetRules = append(targetRules, rule.SpotterRule)
+		}
+	}
+
+	if len(targetRules) == 0 {
+		return fmt.Errorf("no rules found to export")
+	}
+
+	// Get command flags
+	namespace, _ := cmd.Flags().GetString("namespace")
+	validationActions, _ := cmd.Flags().GetStringSlice("validation-actions")
+	failurePolicy, _ := cmd.Flags().GetString("failure-policy")
+	includeInstructions, _ := cmd.Flags().GetBool("include-instructions")
+	includeComments, _ := cmd.Flags().GetBool("include-comments")
+	outputFile, _ := cmd.Flags().GetString("output")
+
+	// Convert validation actions to proper format
+	var vapValidationActions []admissionregistrationv1.ValidationAction
+	for _, action := range validationActions {
+		switch strings.ToLower(action) {
+		case "warn":
+			vapValidationActions = append(vapValidationActions, admissionregistrationv1.Warn)
+		case "audit":
+			vapValidationActions = append(vapValidationActions, admissionregistrationv1.Audit)
+		case "deny":
+			vapValidationActions = append(vapValidationActions, admissionregistrationv1.Deny)
+		default:
+			return fmt.Errorf("invalid validation action: %s (must be warn, audit, or deny)", action)
+		}
+	}
+
+	// Convert failure policy
+	var vapFailurePolicy *admissionregistrationv1.FailurePolicyType
+	switch strings.ToLower(failurePolicy) {
+	case "fail":
+		fp := admissionregistrationv1.Fail
+		vapFailurePolicy = &fp
+	case "ignore":
+		fp := admissionregistrationv1.Ignore
+		vapFailurePolicy = &fp
+	default:
+		return fmt.Errorf("invalid failure policy: %s (must be Fail or Ignore)", failurePolicy)
+	}
+
+	// Prepare export options
+	exportOptions := &vap.ExportOptions{
+		Namespace:         namespace,
+		ValidationActions: vapValidationActions,
+		FailurePolicy:     vapFailurePolicy,
+	}
+
+	// Export rules to VAP
+	var allPolicies []admissionregistrationv1.ValidatingAdmissionPolicy
+	var allBindings []admissionregistrationv1.ValidatingAdmissionPolicyBinding
+
+	for _, rule := range targetRules {
+		policy, binding, err := vap.ExportRuleToVAP(rule, exportOptions)
+		if err != nil {
+			return fmt.Errorf("failed to export rule %s to VAP: %w", rule.GetID(), err)
+		}
+		allPolicies = append(allPolicies, *policy)
+		allBindings = append(allBindings, *binding)
+	}
+
+	// Format output
+	formatOptions := &vap.FormatOptions{
+		Format:          vap.OutputFormatYAML,
+		IncludeComments: includeComments,
+		SeparateFiles:   false,
+		IndentSize:      2,
+	}
+
+	data, err := vap.FormatVAPResources(allPolicies, allBindings, formatOptions)
+	if err != nil {
+		return fmt.Errorf("failed to format VAP resources: %w", err)
+	}
+
+	// Add instructions if requested
+	if includeInstructions {
+		instructions := vap.GenerateApplyInstructions(allPolicies, allBindings)
+		data = append([]byte(instructions), append([]byte("\n\n"), data...)...)
+	}
+
+	// Write to file or stdout
+	if outputFile != "" {
+		if err := os.WriteFile(outputFile, data, 0644); err != nil {
+			return fmt.Errorf("failed to write output file: %w", err)
+		}
+		logger.Info("VAP resources exported", "output_file", outputFile, "policies", len(allPolicies), "bindings", len(allBindings))
 	} else {
 		fmt.Print(string(data))
 	}
@@ -663,6 +828,26 @@ func outputSearchResultsYAML(results []hub.RuleInfo) error {
 }
 
 // Helper functions
+
+// loadRuleByID loads a specific rule by its ID from local cache
+func loadRuleByID(ruleID string) (*models.SpotterRule, error) {
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load config: %w", err)
+	}
+
+	cacheManager := cache.NewCacheManager(cfg)
+	rule, err := cacheManager.GetRule(ruleID)
+	if err != nil {
+		return nil, fmt.Errorf("rule %s not found locally. Use 'spotter rules pull %s' to download it from the hub: %w", ruleID, ruleID, err)
+	}
+
+	if rule == nil {
+		return nil, fmt.Errorf("rule %s not found locally. Use 'spotter rules pull %s' to download it from the hub", ruleID, ruleID)
+	}
+
+	return rule, nil
+}
 
 func loadRulesForCommand(cmd *cobra.Command) ([]*RuleWithSource, error) {
 	parser := parser.NewYAMLParser(true)

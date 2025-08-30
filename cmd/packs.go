@@ -10,11 +10,15 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/madhuakula/spotter/pkg/cache"
 	"github.com/madhuakula/spotter/pkg/config"
 	"github.com/madhuakula/spotter/pkg/hub"
+	"github.com/madhuakula/spotter/pkg/models"
 	"github.com/madhuakula/spotter/pkg/progress"
+	"github.com/madhuakula/spotter/pkg/vap"
 )
 
 // PackWithSource represents a rule pack with its source information
@@ -161,10 +165,234 @@ Examples:
 	},
 }
 
+// packsExportVAPCmd represents the packs export-vap command
+var packsExportVAPCmd = &cobra.Command{
+	Use:   "export-vap <pack-id>",
+	Short: "Export rule pack to ValidatingAdmissionPolicy format",
+	Long: `Export a Spotter rule pack to Kubernetes ValidatingAdmissionPolicy (VAP) format.
+
+This command converts all rules in a Spotter rule pack into ValidatingAdmissionPolicy and
+ValidatingAdmissionPolicyBinding resources that can be applied directly to Kubernetes clusters
+for native policy enforcement.
+
+Examples:
+  # Export a specific rule pack to VAP
+  spotter packs export-vap cis-kubernetes-benchmark
+  
+  # Export with custom namespace and name prefix
+  spotter packs export-vap cis-kubernetes-benchmark --namespace=security --name-prefix=cis
+  
+  # Group rules by category into separate policies
+  spotter packs export-vap cis-kubernetes-benchmark --group-by-category
+  
+  # Group rules by severity level
+  spotter packs export-vap cis-kubernetes-benchmark --group-by-severity
+  
+  # Save to file
+  spotter packs export-vap cis-kubernetes-benchmark --output=policies.yaml
+  
+  # Include apply instructions
+  spotter packs export-vap cis-kubernetes-benchmark --include-instructions`,
+	Args: cobra.ExactArgs(1),
+	RunE: runPacksExportVAP,
+}
+
 // runPacksValidation validates rule pack files specifically
 func runPacksValidation(path string, runTests bool, outputFormat string, verbose bool) error {
 	// Import validation functionality from validate.go
 	return runValidation(path, runTests, outputFormat, verbose)
+}
+
+// runPacksExportVAP exports a rule pack to ValidatingAdmissionPolicy format
+func runPacksExportVAP(cmd *cobra.Command, args []string) error {
+	logger := GetLogger()
+	packID := args[0]
+
+	logger.Debug("Exporting rule pack to ValidatingAdmissionPolicy format", "pack-id", packID)
+
+	// Load configuration
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		cfg = config.DefaultConfig()
+	}
+
+	// Create cache manager
+	cacheManager := cache.NewCacheManager(cfg)
+
+	// Get pack from local cache
+	pack, err := cacheManager.GetRulePack(packID)
+	if err != nil {
+		return fmt.Errorf("rule pack '%s' not found locally. Use 'spotter packs pull %s' to download it from the hub", packID, packID)
+	}
+
+	// Load all rules for the pack
+	var packRules []*models.SpotterRule
+	for _, ruleID := range pack.Rules {
+		rule, err := loadRuleByID(ruleID)
+		if err != nil {
+			logger.Warn("Failed to load rule from pack", "rule-id", ruleID, "error", err)
+			continue
+		}
+		packRules = append(packRules, rule)
+	}
+
+	if len(packRules) == 0 {
+		return fmt.Errorf("no valid rules found in pack %s", packID)
+	}
+
+	// Get command flags
+	namespace, _ := cmd.Flags().GetString("namespace")
+	namePrefix, _ := cmd.Flags().GetString("name-prefix")
+	validationActions, _ := cmd.Flags().GetStringSlice("validation-actions")
+	failurePolicy, _ := cmd.Flags().GetString("failure-policy")
+	groupByCategory, _ := cmd.Flags().GetBool("group-by-category")
+	groupBySeverity, _ := cmd.Flags().GetBool("group-by-severity")
+	outputFile, _ := cmd.Flags().GetString("output")
+	includeInstructions, _ := cmd.Flags().GetBool("include-instructions")
+	includeComments, _ := cmd.Flags().GetBool("include-comments")
+	matchNamespaces, _ := cmd.Flags().GetStringSlice("match-namespaces")
+	excludeNamespaces, _ := cmd.Flags().GetStringSlice("exclude-namespaces")
+
+	// Convert validation actions to proper format
+	var vapValidationActions []admissionregistrationv1.ValidationAction
+	for _, action := range validationActions {
+		switch strings.ToLower(action) {
+		case "warn":
+			vapValidationActions = append(vapValidationActions, admissionregistrationv1.Warn)
+		case "audit":
+			vapValidationActions = append(vapValidationActions, admissionregistrationv1.Audit)
+		case "deny":
+			vapValidationActions = append(vapValidationActions, admissionregistrationv1.Deny)
+		default:
+			return fmt.Errorf("invalid validation action: %s (valid: warn, audit, deny)", action)
+		}
+	}
+
+	// Convert failure policy
+	var vapFailurePolicy *admissionregistrationv1.FailurePolicyType
+	switch strings.ToLower(failurePolicy) {
+	case "fail":
+		fail := admissionregistrationv1.Fail
+		vapFailurePolicy = &fail
+	case "ignore":
+		ignore := admissionregistrationv1.Ignore
+		vapFailurePolicy = &ignore
+	default:
+		return fmt.Errorf("invalid failure policy: %s (valid: fail, ignore)", failurePolicy)
+	}
+
+	// Prepare base export options
+	baseOptions := &vap.ExportOptions{
+		Namespace:         namespace,
+		ValidationActions: vapValidationActions,
+		FailurePolicy:     vapFailurePolicy,
+	}
+
+	// Set namespace selector if match-namespaces is specified
+	if len(matchNamespaces) > 0 {
+		baseOptions.NamespaceSelector = &metav1.LabelSelector{
+			MatchExpressions: []metav1.LabelSelectorRequirement{
+				{
+					Key:      "kubernetes.io/metadata.name",
+					Operator: metav1.LabelSelectorOpIn,
+					Values:   matchNamespaces,
+				},
+			},
+		}
+	}
+
+	// Set namespace exclusion if exclude-namespaces is specified
+	if len(excludeNamespaces) > 0 {
+		if baseOptions.NamespaceSelector == nil {
+			baseOptions.NamespaceSelector = &metav1.LabelSelector{}
+		}
+		baseOptions.NamespaceSelector.MatchExpressions = append(
+			baseOptions.NamespaceSelector.MatchExpressions,
+			metav1.LabelSelectorRequirement{
+				Key:      "kubernetes.io/metadata.name",
+				Operator: metav1.LabelSelectorOpNotIn,
+				Values:   excludeNamespaces,
+			},
+		)
+	}
+
+	// Prepare pack export options
+	packOptions := &vap.PackExportOptions{
+		BaseOptions:     baseOptions,
+		GroupByCategory: groupByCategory,
+		GroupBySeverity: groupBySeverity,
+		NamePrefix:      namePrefix,
+	}
+
+	// Convert hub.RulePackInfo to models.SpotterRulePack
+	spotterPack := &models.SpotterRulePack{
+		APIVersion: "rules.spotter.dev/v1alpha1",
+		Kind:       "SpotterRulePack",
+		Metadata: models.RuleMetadata{
+			Name: pack.ID,
+			Annotations: map[string]string{
+				"rules.spotter.dev/title":       pack.Title,
+				"rules.spotter.dev/description": pack.Description,
+				"rules.spotter.dev/version":     pack.Version,
+				"rules.spotter.dev/author":      pack.Author,
+			},
+		},
+		Spec: models.RulePackSpec{
+			Rules: pack.Rules,
+		},
+	}
+
+	// Export the pack
+	result, err := vap.ExportRulePackToVAP(spotterPack, packRules, packOptions)
+	if err != nil {
+		return fmt.Errorf("failed to export pack to VAP: %w", err)
+	}
+
+	// Report any errors encountered during export
+	if len(result.Errors) > 0 {
+		for _, exportErr := range result.Errors {
+			logger.Warn("Export error", "error", exportErr)
+		}
+	}
+
+	if len(result.Policies) == 0 {
+		return fmt.Errorf("no policies were generated from pack %s", packID)
+	}
+
+	// Prepare format options
+	formatOptions := &vap.FormatOptions{
+		Format:          vap.OutputFormatYAML,
+		IncludeComments: includeComments,
+		SeparateFiles:   false,
+		IndentSize:      2,
+	}
+
+	// Format the output
+	outputBytes, err := vap.FormatVAPResources(result.Policies, result.Bindings, formatOptions)
+	if err != nil {
+		return fmt.Errorf("failed to format VAP resources: %w", err)
+	}
+
+	output := string(outputBytes)
+
+	// Add apply instructions if requested
+	if includeInstructions {
+		instructions := vap.GenerateApplyInstructions(result.Policies, result.Bindings)
+		output = instructions + "\n" + output
+	}
+
+	// Write output
+	if outputFile != "" {
+		err = os.WriteFile(outputFile, []byte(output), 0644)
+		if err != nil {
+			return fmt.Errorf("failed to write output file: %w", err)
+		}
+		fmt.Printf("ValidatingAdmissionPolicy resources exported to %s\n", outputFile)
+	} else {
+		fmt.Print(output)
+	}
+
+	return nil
 }
 
 func init() {
@@ -177,6 +405,7 @@ func init() {
 	packsCmd.AddCommand(packsPullCmd)
 	packsCmd.AddCommand(packsInfoCmd)
 	packsCmd.AddCommand(packsValidateCmd)
+	packsCmd.AddCommand(packsExportVAPCmd)
 
 	// Flags for search command
 	packsSearchCmd.Flags().IntP("limit", "l", 10, "Maximum number of results to return")
@@ -195,6 +424,20 @@ func init() {
 
 	// Flags for validate command
 	packsValidateCmd.Flags().StringP("output", "o", "text", "Output format (text, json)")
+
+	// Flags for export-vap command
+	packsExportVAPCmd.Flags().String("namespace", "default", "target namespace for the ValidatingAdmissionPolicyBinding")
+	packsExportVAPCmd.Flags().String("name-prefix", "", "prefix for generated policy and binding names")
+	packsExportVAPCmd.Flags().StringSlice("validation-actions", []string{"warn"}, "validation actions (warn, audit, deny)")
+	packsExportVAPCmd.Flags().String("failure-policy", "fail", "failure policy (fail, ignore)")
+	packsExportVAPCmd.Flags().Bool("group-by-category", false, "group rules by category into separate policies")
+	packsExportVAPCmd.Flags().Bool("group-by-severity", false, "group rules by severity into separate policies")
+	packsExportVAPCmd.Flags().String("output", "", "output file path (default: stdout)")
+	packsExportVAPCmd.Flags().Bool("include-instructions", false, "include kubectl apply instructions in output")
+	packsExportVAPCmd.Flags().Bool("include-comments", true, "include explanatory comments in YAML output")
+	packsExportVAPCmd.Flags().StringSlice("match-namespaces", []string{}, "namespaces to match (empty for all)")
+	packsExportVAPCmd.Flags().StringSlice("exclude-namespaces", []string{}, "namespaces to exclude")
+	packsExportVAPCmd.Flags().StringSlice("match-kinds", []string{}, "resource kinds to match (empty for all)")
 }
 
 func runPacksSearch(cmd *cobra.Command, args []string) error {
