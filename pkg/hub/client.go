@@ -98,7 +98,7 @@ func (c *Client) SearchRules(ctx context.Context, req SearchRequest) (*SearchRes
 	if err != nil {
 		return nil, fmt.Errorf("failed to get rules: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Parse response
 	var allRulesResp struct {
@@ -144,7 +144,7 @@ func (c *Client) GetRule(ctx context.Context, ruleID string) (*models.SpotterRul
 	if err != nil {
 		return nil, fmt.Errorf("failed to get rules list: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var allRulesResp struct {
 		Rules []RuleInfo `json:"rules"`
@@ -171,7 +171,7 @@ func (c *Client) GetRule(ctx context.Context, ruleID string) (*models.SpotterRul
 	if err != nil {
 		return nil, fmt.Errorf("failed to get rule: %w", err)
 	}
-	defer ruleResp.Body.Close()
+	defer func() { _ = ruleResp.Body.Close() }()
 
 	// Parse the API response which contains the rule in a "raw_rule" field
 	var apiResp struct {
@@ -192,7 +192,7 @@ func (c *Client) GetAllRulePacks(ctx context.Context) ([]RulePackInfo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get rule packs: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Parse response
 	var allPacksResp struct {
@@ -213,7 +213,7 @@ func (c *Client) GetRulePack(ctx context.Context, packName string) (*RulePackInf
 	if err != nil {
 		return nil, fmt.Errorf("failed to get rule pack: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Parse the response
 	var pack RulePackInfo
@@ -229,27 +229,27 @@ func (c *Client) SaveRuleToCache(rule *models.SpotterRule) error {
 	if c.config == nil {
 		return fmt.Errorf("no configuration available for caching")
 	}
-	
+
 	// Ensure rules directory exists
 	if err := os.MkdirAll(c.config.RulesDir, 0755); err != nil {
 		return fmt.Errorf("failed to create rules directory: %w", err)
 	}
-	
+
 	// Create file path
 	filename := fmt.Sprintf("%s.yaml", rule.GetID())
 	filePath := filepath.Join(c.config.RulesDir, filename)
-	
+
 	// Marshal rule to YAML
 	data, err := yaml.Marshal(rule)
 	if err != nil {
 		return fmt.Errorf("failed to marshal rule: %w", err)
 	}
-	
+
 	// Write to file
 	if err := os.WriteFile(filePath, data, 0644); err != nil {
 		return fmt.Errorf("failed to write rule file: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -258,24 +258,24 @@ func (c *Client) SaveRulePackToCache(pack *RulePackInfo) error {
 	if c.config == nil {
 		return fmt.Errorf("no configuration available for caching")
 	}
-	
+
 	// Create pack directory
 	packDir := filepath.Join(c.config.PacksDir, pack.ID)
 	if err := os.MkdirAll(packDir, 0755); err != nil {
 		return fmt.Errorf("failed to create pack directory: %w", err)
 	}
-	
+
 	// Save pack metadata
 	packFile := filepath.Join(packDir, "pack.yaml")
 	data, err := yaml.Marshal(pack)
 	if err != nil {
 		return fmt.Errorf("failed to marshal pack: %w", err)
 	}
-	
+
 	if err := os.WriteFile(packFile, data, 0644); err != nil {
 		return fmt.Errorf("failed to write pack file: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -284,27 +284,27 @@ func (c *Client) GetRuleFromCache(ruleID string) (*models.SpotterRule, error) {
 	if c.config == nil {
 		return nil, fmt.Errorf("no configuration available for caching")
 	}
-	
+
 	filename := fmt.Sprintf("%s.yaml", ruleID)
 	filePath := filepath.Join(c.config.RulesDir, filename)
-	
+
 	// Check if file exists
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		return nil, fmt.Errorf("rule not found in cache: %s", ruleID)
 	}
-	
+
 	// Read file
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read cached rule: %w", err)
 	}
-	
+
 	// Unmarshal YAML
 	var rule models.SpotterRule
 	if err := yaml.Unmarshal(data, &rule); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal cached rule: %w", err)
 	}
-	
+
 	return &rule, nil
 }
 
@@ -313,26 +313,26 @@ func (c *Client) GetRulePackFromCache(packID string) (*RulePackInfo, error) {
 	if c.config == nil {
 		return nil, fmt.Errorf("no configuration available for caching")
 	}
-	
+
 	packFile := filepath.Join(c.config.PacksDir, packID, "pack.yaml")
-	
+
 	// Check if file exists
 	if _, err := os.Stat(packFile); os.IsNotExist(err) {
 		return nil, fmt.Errorf("rule pack not found in cache: %s", packID)
 	}
-	
+
 	// Read file
 	data, err := os.ReadFile(packFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read cached rule pack: %w", err)
 	}
-	
+
 	// Unmarshal YAML
 	var pack RulePackInfo
 	if err := yaml.Unmarshal(data, &pack); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal cached rule pack: %w", err)
 	}
-	
+
 	return &pack, nil
 }
 
@@ -361,7 +361,7 @@ func (c *Client) makeRequest(ctx context.Context, method, endpoint string, body 
 
 	if resp.StatusCode >= 400 {
 		body, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		return nil, fmt.Errorf("API error %d: %s", resp.StatusCode, string(body))
 	}
 

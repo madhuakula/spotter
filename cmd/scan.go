@@ -255,7 +255,6 @@ func init() {
 		panic(fmt.Errorf("failed to bind scan.manifests.follow-symlinks flag: %w", err))
 	}
 
-
 	// Helm flags
 	if err := viper.BindPFlag("scan.helm.values", helmCmd.Flags().Lookup("values")); err != nil {
 		panic(fmt.Errorf("failed to bind scan.helm.values flag: %w", err))

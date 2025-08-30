@@ -9,9 +9,9 @@ import (
 
 func TestValidateSpotterRule(t *testing.T) {
 	tests := []struct {
-		name     string
-		rule     *models.SpotterRule
-		wantValid bool
+		name       string
+		rule       *models.SpotterRule
+		wantValid  bool
 		wantErrors []string
 	}{
 		{
@@ -44,7 +44,7 @@ func TestValidateSpotterRule(t *testing.T) {
 					CEL: "object.spec.containers.exists(c, has(c.securityContext) && has(c.securityContext.privileged) && c.securityContext.privileged == true)",
 				},
 			},
-			wantValid: true,
+			wantValid:  true,
 			wantErrors: nil,
 		},
 		{
@@ -56,7 +56,7 @@ func TestValidateSpotterRule(t *testing.T) {
 					Name: "spotter-workload-001",
 				},
 			},
-			wantValid: false,
+			wantValid:  false,
 			wantErrors: []string{"apiVersion: must be 'rules.spotter.dev/v1alpha1'"},
 		},
 		{
@@ -68,7 +68,7 @@ func TestValidateSpotterRule(t *testing.T) {
 					Name: "spotter-workload-001",
 				},
 			},
-			wantValid: false,
+			wantValid:  false,
 			wantErrors: []string{"kind: must be 'SpotterRule'"},
 		},
 		{
@@ -78,7 +78,7 @@ func TestValidateSpotterRule(t *testing.T) {
 				Kind:       "SpotterRule",
 				Metadata:   models.RuleMetadata{},
 			},
-			wantValid: false,
+			wantValid:  false,
 			wantErrors: []string{"metadata.name: name is required"},
 		},
 		{
@@ -90,7 +90,7 @@ func TestValidateSpotterRule(t *testing.T) {
 					Name: "invalid-name",
 				},
 			},
-			wantValid: false,
+			wantValid:  false,
 			wantErrors: []string{"metadata.name: name must match pattern: spotter-[category]-[number] (e.g., spotter-workload-001)"},
 		},
 		{
@@ -102,7 +102,7 @@ func TestValidateSpotterRule(t *testing.T) {
 					Name: "spotter-workload-001",
 				},
 			},
-			wantValid: false,
+			wantValid:  false,
 			wantErrors: []string{"metadata.annotations: annotations are required"},
 		},
 		{
@@ -136,7 +136,7 @@ func TestValidateSpotterRule(t *testing.T) {
 					},
 				},
 			},
-			wantValid: false,
+			wantValid:  false,
 			wantErrors: []string{"metadata.labels: labels are required"},
 		},
 		{
@@ -157,7 +157,7 @@ func TestValidateSpotterRule(t *testing.T) {
 					},
 				},
 			},
-			wantValid: false,
+			wantValid:  false,
 			wantErrors: []string{"metadata.labels['rules.spotter.dev/severity']: severity must be one of: low, medium, high, critical"},
 		},
 		{
@@ -187,7 +187,7 @@ func TestValidateSpotterRule(t *testing.T) {
 					},
 				},
 			},
-			wantValid: false,
+			wantValid:  false,
 			wantErrors: []string{"spec.cel: CEL expression is required"},
 		},
 		{
@@ -218,7 +218,7 @@ func TestValidateSpotterRule(t *testing.T) {
 					CEL: "invalid syntax (",
 				},
 			},
-			wantValid: false,
+			wantValid:  false,
 			wantErrors: []string{"spec.cel: invalid CEL expression"},
 		},
 		{
@@ -247,7 +247,7 @@ func TestValidateSpotterRule(t *testing.T) {
 					},
 				},
 			},
-			wantValid: false,
+			wantValid:  false,
 			wantErrors: []string{"spec.match.resources.kubernetes.kinds: at least one Kubernetes kind must be specified"},
 		},
 	}
@@ -302,7 +302,7 @@ func TestValidateSpotterRulePack(t *testing.T) {
 					Rules: []string{"spotter-workload-001", "spotter-platform-001"},
 				},
 			},
-			wantValid: true,
+			wantValid:  true,
 			wantErrors: nil,
 		},
 		{
@@ -311,7 +311,7 @@ func TestValidateSpotterRulePack(t *testing.T) {
 				APIVersion: "v1",
 				Kind:       "SpotterRulePack",
 			},
-			wantValid: false,
+			wantValid:  false,
 			wantErrors: []string{"apiVersion: must be 'rules.spotter.dev/v1alpha1'"},
 		},
 		{
@@ -320,7 +320,7 @@ func TestValidateSpotterRulePack(t *testing.T) {
 				APIVersion: "rules.spotter.dev/v1alpha1",
 				Kind:       "RulePack",
 			},
-			wantValid: false,
+			wantValid:  false,
 			wantErrors: []string{"kind: must be 'SpotterRulePack'"},
 		},
 		{
@@ -332,7 +332,7 @@ func TestValidateSpotterRulePack(t *testing.T) {
 					Name: "invalid-name",
 				},
 			},
-			wantValid: false,
+			wantValid:  false,
 			wantErrors: []string{"metadata.name: name must end with '-pack'"},
 		},
 		{
@@ -352,7 +352,7 @@ func TestValidateSpotterRulePack(t *testing.T) {
 					Rules: []string{},
 				},
 			},
-			wantValid: false,
+			wantValid:  false,
 			wantErrors: []string{"spec.rules: at least one rule must be specified"},
 		},
 		{
@@ -372,7 +372,7 @@ func TestValidateSpotterRulePack(t *testing.T) {
 					Rules: []string{"invalid-rule-id"},
 				},
 			},
-			wantValid: false,
+			wantValid:  false,
 			wantErrors: []string{"spec.rules[0]: rule ID 'invalid-rule-id' must match pattern: spotter-[category]-[number]"},
 		},
 	}
@@ -495,9 +495,9 @@ func TestIsValidRulePackName(t *testing.T) {
 
 // Helper function to check if a string contains a substring
 func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || 
-		(len(s) > len(substr) && 
-			(s[:len(substr)] == substr || 
-			 s[len(s)-len(substr):] == substr || 
-			 strings.Contains(s, substr))))
+	return len(s) >= len(substr) && (s == substr ||
+		(len(s) > len(substr) &&
+			(s[:len(substr)] == substr ||
+				s[len(s)-len(substr):] == substr ||
+				strings.Contains(s, substr))))
 }

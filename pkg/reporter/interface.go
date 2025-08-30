@@ -114,15 +114,15 @@ type MetricsReporter interface {
 
 // ScanMetrics represents scan metrics
 type ScanMetrics struct {
-	TotalResources     int                     `json:"totalResources"`
-	ScannedResources   int                     `json:"scannedResources"`
-	TotalRules         int                     `json:"totalRules"`
-	ExecutedRules      int                     `json:"executedRules"`
-	TotalFindings      int                     `json:"totalFindings"`
+	TotalResources     int            `json:"totalResources"`
+	ScannedResources   int            `json:"scannedResources"`
+	TotalRules         int            `json:"totalRules"`
+	ExecutedRules      int            `json:"executedRules"`
+	TotalFindings      int            `json:"totalFindings"`
 	FindingsBySeverity map[string]int `json:"findingsBySeverity"`
-	FindingsByCategory map[string]int          `json:"findingsByCategory"`
-	ResourceTypes      map[string]int          `json:"resourceTypes"`
-	Namespaces         map[string]int          `json:"namespaces"`
-	ScanDuration       string                  `json:"scanDuration"`
-	Timestamp          string                  `json:"timestamp"`
+	FindingsByCategory map[string]int `json:"findingsByCategory"`
+	ResourceTypes      map[string]int `json:"resourceTypes"`
+	Namespaces         map[string]int `json:"namespaces"`
+	ScanDuration       string         `json:"scanDuration"`
+	Timestamp          string         `json:"timestamp"`
 }

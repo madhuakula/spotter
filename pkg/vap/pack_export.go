@@ -203,12 +203,12 @@ func createGroupedPolicy(pack *models.SpotterRulePack, groupKey string, rules []
 		ObjectMeta: metav1.ObjectMeta{
 			Name: policyName,
 			Annotations: map[string]string{
-				"spotter.dev/pack-id":          pack.GetID(),
-				"spotter.dev/pack-title":       pack.GetTitle(),
-				"spotter.dev/pack-version":     pack.GetVersion(),
-				"spotter.dev/group-key":        groupKey,
-				"spotter.dev/rule-ids":         strings.Join(ruleIDs, ","),
-				"spotter.dev/rule-count":       fmt.Sprintf("%d", len(rules)),
+				"spotter.dev/pack-id":      pack.GetID(),
+				"spotter.dev/pack-title":   pack.GetTitle(),
+				"spotter.dev/pack-version": pack.GetVersion(),
+				"spotter.dev/group-key":    groupKey,
+				"spotter.dev/rule-ids":     strings.Join(ruleIDs, ","),
+				"spotter.dev/rule-count":   fmt.Sprintf("%d", len(rules)),
 			},
 		},
 		Spec: admissionregistrationv1.ValidatingAdmissionPolicySpec{

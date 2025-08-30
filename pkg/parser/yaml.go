@@ -261,8 +261,6 @@ func (p *YAMLParser) validateSpec(spec *models.RuleSpec) error {
 	return nil
 }
 
-
-
 func (p *YAMLParser) validateMatchCriteria(match *models.MatchCriteria) error {
 	kubernetes := &match.Resources.Kubernetes
 

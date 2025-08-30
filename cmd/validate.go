@@ -118,7 +118,7 @@ func validateDirectory(dirPath string, runTests bool, verbose bool) ([]Validatio
 						}
 						continue
 					}
-					
+
 					// Load rules from this specific file for testing
 					fileLoadResult, err := parser.LoadFromFile(ruleFile)
 					if err != nil {
@@ -127,7 +127,7 @@ func validateDirectory(dirPath string, runTests bool, verbose bool) ([]Validatio
 						}
 						continue
 					}
-					
+
 					testRunner, err := testing.NewRuleTestRunner()
 					if err != nil {
 						if verbose {
@@ -135,7 +135,7 @@ func validateDirectory(dirPath string, runTests bool, verbose bool) ([]Validatio
 						}
 						continue
 					}
-					
+
 					// Run tests for each rule in the file
 					for _, rule := range fileLoadResult.Rules {
 						testResult, err := testRunner.RunTestSuite(rule, testSuite)

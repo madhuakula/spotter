@@ -49,16 +49,16 @@ Examples:
 
 // ServerConfig holds the server configuration
 type ServerConfig struct {
-	Mode                string // "validating" or "evaluating"
-	Port                int
-	TLSCertFile         string
-	TLSKeyFile          string
-	Namespaces          []string
-	ResourceTypes       []string
-	MinSeverity         string
-	LogFormat           string
-	LogLevel            string
-	RulesPath           []string
+	Mode          string // "validating" or "evaluating"
+	Port          int
+	TLSCertFile   string
+	TLSKeyFile    string
+	Namespaces    []string
+	ResourceTypes []string
+	MinSeverity   string
+	LogFormat     string
+	LogLevel      string
+	RulesPath     []string
 }
 
 // Removed unused variables scheme and codecs
@@ -519,9 +519,9 @@ func buildServerConfig(cmd *cobra.Command) (*ServerConfig, error) {
 		TLSCertFile: viper.GetString("server.tls-cert-file"),
 		TLSKeyFile:  viper.GetString("server.tls-key-file"),
 		MinSeverity: viper.GetString("server.min-severity"),
-		LogFormat: viper.GetString("log-format"),
-		LogLevel:  viper.GetString("log-level"),
-		RulesPath: viper.GetStringSlice("server.rules-path"),
+		LogFormat:   viper.GetString("log-format"),
+		LogLevel:    viper.GetString("log-level"),
+		RulesPath:   viper.GetStringSlice("server.rules-path"),
 	}
 
 	if cmd.Flags().Changed("namespaces") {

@@ -779,7 +779,7 @@ func outputSearchResultsTable(results []hub.RuleInfo, showDescription bool) {
 			// Fallback to Name field if Title is empty
 			ruleName = result.Name
 		}
-		
+
 		row := fmt.Sprintf("%s\t%s\t%s\t%s\t%s",
 			result.ID,
 			ruleName,

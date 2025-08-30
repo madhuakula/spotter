@@ -7,18 +7,18 @@ import (
 
 // SpotterConfig represents the Spotter configuration
 type SpotterConfig struct {
-	HubURL    string `yaml:"hub_url" json:"hub_url"`
-	APIKey    string `yaml:"api_key" json:"api_key"`
-	CacheDir  string `yaml:"cache_dir" json:"cache_dir"`
-	RulesDir  string `yaml:"rules_dir" json:"rules_dir"`
-	PacksDir  string `yaml:"packs_dir" json:"packs_dir"`
+	HubURL   string `yaml:"hub_url" json:"hub_url"`
+	APIKey   string `yaml:"api_key" json:"api_key"`
+	CacheDir string `yaml:"cache_dir" json:"cache_dir"`
+	RulesDir string `yaml:"rules_dir" json:"rules_dir"`
+	PacksDir string `yaml:"packs_dir" json:"packs_dir"`
 }
 
 // DefaultConfig returns the default configuration
 func DefaultConfig() *SpotterConfig {
 	homeDir, _ := os.UserHomeDir()
 	spotterDir := filepath.Join(homeDir, ".spotter")
-	
+
 	return &SpotterConfig{
 		HubURL:   "https://rules.spotter.run/api/v1",
 		APIKey:   "",
@@ -70,12 +70,12 @@ func EnsureDirectories() error {
 	if err != nil {
 		return err
 	}
-	
+
 	// Create main .spotter directory
 	if err := os.MkdirAll(spotterDir, 0755); err != nil {
 		return err
 	}
-	
+
 	// Create rules directory
 	rulesDir, err := GetRulesDir()
 	if err != nil {
@@ -84,7 +84,7 @@ func EnsureDirectories() error {
 	if err := os.MkdirAll(rulesDir, 0755); err != nil {
 		return err
 	}
-	
+
 	// Create rule packs directory
 	packsDir, err := GetRulePacksDir()
 	if err != nil {
@@ -93,6 +93,6 @@ func EnsureDirectories() error {
 	if err := os.MkdirAll(packsDir, 0755); err != nil {
 		return err
 	}
-	
+
 	return nil
 }

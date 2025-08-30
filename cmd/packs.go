@@ -656,11 +656,11 @@ func runPacksInfo(cmd *cobra.Command, args []string) error {
 
 func outputPacksTable(packs []cache.CacheEntry) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tTYPE\tVERSION\tCACHED AT\tLAST UPDATED")
-	fmt.Fprintln(w, "--\t----\t-------\t---------\t------------")
+	_, _ = fmt.Fprintln(w, "ID\tTYPE\tVERSION\tCACHED AT\tLAST UPDATED")
+	_, _ = fmt.Fprintln(w, "--\t----\t-------\t---------\t------------")
 
 	for _, pack := range packs {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
 			pack.ID,
 			pack.Type,
 			pack.Version,
@@ -669,29 +669,7 @@ func outputPacksTable(packs []cache.CacheEntry) {
 		)
 	}
 
-	w.Flush()
-}
-
-func outputPacksWithSourceTable(packs []PackWithSource) {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tTITLE\tVERSION\tSOURCE\tLOCAL")
-	fmt.Fprintln(w, "--\t-----\t-------\t------\t-----")
-
-	for _, pack := range packs {
-		localStatus := "No"
-		if pack.Local {
-			localStatus = "Yes"
-		}
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
-			pack.ID,
-			pack.Title,
-			pack.Version,
-			pack.Source,
-			localStatus,
-		)
-	}
-
-	w.Flush()
+	_ = w.Flush()
 }
 
 func outputPacksJSON(packs []cache.CacheEntry) error {
@@ -704,26 +682,16 @@ func outputPacksJSON(packs []cache.CacheEntry) error {
 	return nil
 }
 
-func outputPacksWithSourceJSON(packs []PackWithSource) error {
-	data, err := json.MarshalIndent(packs, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal packs to JSON: %w", err)
-	}
-
-	fmt.Println(string(data))
-	return nil
-}
-
 func outputPackSearchTable(packs []hub.RulePackInfo, totalCount, limit, offset int) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 
-	fmt.Fprintf(w, "ID\tTITLE\tVERSION\tDESCRIPTION\n")
+	_, _ = fmt.Fprintf(w, "ID\tTITLE\tVERSION\tDESCRIPTION\n")
 	for _, pack := range packs {
 		description := pack.Description
 		if len(description) > 50 {
 			description = description[:47] + "..."
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
 			pack.ID,
 			pack.Title,
 			pack.Version,
@@ -731,7 +699,7 @@ func outputPackSearchTable(packs []hub.RulePackInfo, totalCount, limit, offset i
 		)
 	}
 
-	w.Flush()
+	_ = w.Flush()
 
 	// Show search summary
 	fmt.Printf("\nShowing %d of %d total results", len(packs), totalCount)
@@ -769,18 +737,18 @@ func outputPackSearchJSON(packs []hub.RulePackInfo, totalCount, limit, offset in
 func outputPackInfoTable(pack *hub.RulePackInfo) error {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 
-	fmt.Fprintf(w, "ID:\t%s\n", pack.ID)
-	fmt.Fprintf(w, "Title:\t%s\n", pack.Title)
-	fmt.Fprintf(w, "Description:\t%s\n", pack.Description)
-	fmt.Fprintf(w, "Version:\t%s\n", pack.Version)
-	fmt.Fprintf(w, "Author:\t%s\n", pack.Author)
-	fmt.Fprintf(w, "Rules Count:\t%d\n", len(pack.Rules))
+	_, _ = fmt.Fprintf(w, "ID:\t%s\n", pack.ID)
+	_, _ = fmt.Fprintf(w, "Title:\t%s\n", pack.Title)
+	_, _ = fmt.Fprintf(w, "Description:\t%s\n", pack.Description)
+	_, _ = fmt.Fprintf(w, "Version:\t%s\n", pack.Version)
+	_, _ = fmt.Fprintf(w, "Author:\t%s\n", pack.Author)
+	_, _ = fmt.Fprintf(w, "Rules Count:\t%d\n", len(pack.Rules))
 
 	if len(pack.Rules) > 0 {
-		fmt.Fprintf(w, "Rules:\t%s\n", strings.Join(pack.Rules, ", "))
+		_, _ = fmt.Fprintf(w, "Rules:\t%s\n", strings.Join(pack.Rules, ", "))
 	}
 
-	w.Flush()
+	_ = w.Flush()
 	return nil
 }
 

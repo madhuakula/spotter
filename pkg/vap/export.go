@@ -62,7 +62,7 @@ func ExportRuleToVAP(rule *models.SpotterRule, options *ExportOptions) (*admissi
 			},
 		},
 		Spec: admissionregistrationv1.ValidatingAdmissionPolicySpec{
-			FailurePolicy: options.FailurePolicy,
+			FailurePolicy:    options.FailurePolicy,
 			MatchConstraints: convertMatchConstraints(rule.Spec.Match),
 			Validations: []admissionregistrationv1.Validation{
 				{
@@ -103,7 +103,7 @@ func ExportRuleToVAP(rule *models.SpotterRule, options *ExportOptions) (*admissi
 
 	// Configure match resources
 	matchResources := &admissionregistrationv1.MatchResources{}
-	
+
 	// Set namespace selector
 	if options.NamespaceSelector != nil {
 		matchResources.NamespaceSelector = options.NamespaceSelector
@@ -151,9 +151,9 @@ func generateValidationMessage(rule *models.SpotterRule) string {
 // convertMatchConstraints converts Spotter match criteria to VAP match constraints
 func convertMatchConstraints(match models.MatchCriteria) *admissionregistrationv1.MatchResources {
 	k8sMatch := match.Resources.Kubernetes
-	
+
 	resourceRules := []admissionregistrationv1.NamedRuleWithOperations{}
-	
+
 	// Convert API groups, versions, and kinds
 	for _, kind := range k8sMatch.Kinds {
 		rule := admissionregistrationv1.NamedRuleWithOperations{
@@ -195,7 +195,7 @@ func convertNamespaceSelector(ns *models.NamespaceSelector) *metav1.LabelSelecto
 				break
 			}
 		}
-		
+
 		if !hasWildcard {
 			// Create matchExpressions for included namespaces
 			selector.MatchExpressions = append(selector.MatchExpressions, metav1.LabelSelectorRequirement{
@@ -260,7 +260,7 @@ func convertCELExpression(celExpr string) string {
 	// Spotter CEL expressions should be mostly compatible with VAP CEL
 	// The main difference is that VAP uses 'object' and 'oldObject' variables
 	// while Spotter uses 'object' primarily
-	
+
 	// For now, return the expression as-is since Spotter already uses
 	// the 'object' variable which is compatible with VAP
 	// Future enhancements could include more sophisticated transformations

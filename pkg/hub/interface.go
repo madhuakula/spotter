@@ -10,13 +10,13 @@ import (
 type HubClient interface {
 	// SearchRules searches for rules in the hub
 	SearchRules(ctx context.Context, req SearchRequest) (*SearchResponse, error)
-	
+
 	// GetRule retrieves a specific rule by ID
 	GetRule(ctx context.Context, ruleID string) (*models.SpotterRule, error)
-	
+
 	// GetAllRulePacks retrieves all available rule packs from the hub
 	GetAllRulePacks(ctx context.Context) ([]RulePackInfo, error)
-	
+
 	// GetRulePack retrieves a rule pack by name
 	GetRulePack(ctx context.Context, packName string) (*RulePackInfo, error)
 }
