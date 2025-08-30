@@ -5,49 +5,15 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/spf13/cobra"
-
 	"github.com/madhuakula/spotter/pkg/parser"
 	"github.com/madhuakula/spotter/pkg/testing"
 	"github.com/madhuakula/spotter/pkg/validation"
 )
 
-// validateSchemaCmd represents the validate command for schema validation
-var validateSchemaCmd = &cobra.Command{
-	Use:   "validate [file|directory]",
-	Short: "Validate rules and rulepacks schema and run tests",
-	Long: `Validate SpotterRule and SpotterRulePack YAML files for correct schema,
-and optionally run CEL expression tests against test cases.
-
-Examples:
-  # Validate a single rule file
-  spotter validate rule.yaml
-  
-  # Validate all rules in a directory
-  spotter validate ./rules/
-  
-  # Validate and run tests
-  spotter validate rule.yaml --test
-  
-  # Output results in JSON format
-  spotter validate rule.yaml --output json`,
-	Args: cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		path := args[0]
-		runTests, _ := cmd.Flags().GetBool("test")
-		outputFormat, _ := cmd.Flags().GetString("output")
-		verbose, _ := cmd.Root().PersistentFlags().GetBool("verbose")
-
-		return runValidation(path, runTests, outputFormat, verbose)
-	},
-}
-
-func init() {
-	rootCmd.AddCommand(validateSchemaCmd)
-
-	validateSchemaCmd.Flags().BoolP("test", "t", false, "Run CEL expression tests if test files are found")
-	validateSchemaCmd.Flags().StringP("output", "o", "text", "Output format (text, json)")
-}
+// NOTE: The standalone 'validate' command has been removed.
+// Validation functionality is now available through:
+// - 'spotter rules validate' for validating rules
+// - 'spotter packs validate' for validating rule packs
 
 type ValidationReport struct {
 	Path             string                       `json:"path"`
@@ -132,37 +98,55 @@ func validateDirectory(dirPath string, runTests bool, verbose bool) ([]Validatio
 
 	// Run tests if requested
 	if runTests && len(loadResult.Rules) > 0 {
-		testRunner, err := testing.NewRuleTestRunner()
+		// For directory validation, we need to find rule files and their corresponding test files
+		// Since we don't track source files in rule metadata, we'll scan the directory for rule files
+		ruleFiles, err := collectRuleFiles(dirPath, true, []string{".yaml", ".yml"})
 		if err != nil {
 			if verbose {
-				fmt.Printf("Warning: failed to create test runner: %v\n", err)
+				fmt.Printf("Warning: Failed to collect rule files for testing: %v\n", err)
 			}
 		} else {
-			// Find and run tests for each rule
-			for _, rule := range loadResult.Rules {
-				// Look for test files in the directory
-				testFilePath := parser.GetRuleTestFile(dirPath + "/" + rule.Metadata.Name + ".yaml")
+			// Run tests for each rule file that has a corresponding test file
+			for _, ruleFile := range ruleFiles {
+				testFilePath := parser.GetRuleTestFile(ruleFile)
 				if _, err := os.Stat(testFilePath); err == nil {
 					// Test file exists, load and run tests
 					testSuite, err := parser.LoadTestCases(testFilePath)
 					if err != nil {
 						if verbose {
-							fmt.Printf("Warning: failed to load test cases from %s: %v\n", testFilePath, err)
+							fmt.Printf("Warning: Failed to load test file %s: %v\n", testFilePath, err)
 						}
 						continue
 					}
-
-					testResult, err := testRunner.RunTestSuite(rule, testSuite)
+					
+					// Load rules from this specific file for testing
+					fileLoadResult, err := parser.LoadFromFile(ruleFile)
 					if err != nil {
 						if verbose {
-							fmt.Printf("Warning: failed to run tests for rule %s: %v\n", rule.GetID(), err)
+							fmt.Printf("Warning: Failed to load rules from %s: %v\n", ruleFile, err)
 						}
 						continue
 					}
-
-					report.TestResults = append(report.TestResults, *testResult)
-					if !testResult.Success {
-						report.Valid = false
+					
+					testRunner, err := testing.NewRuleTestRunner()
+					if err != nil {
+						if verbose {
+							fmt.Printf("Warning: Failed to create test runner: %v\n", err)
+						}
+						continue
+					}
+					
+					// Run tests for each rule in the file
+					for _, rule := range fileLoadResult.Rules {
+						testResult, err := testRunner.RunTestSuite(rule, testSuite)
+						if err != nil {
+							if verbose {
+								fmt.Printf("Warning: Failed to run tests for rule %s: %v\n", rule.GetID(), err)
+							}
+							continue
+						}
+						report.TestResults = append(report.TestResults, *testResult)
+						report.TestsRun = true
 					}
 				}
 			}
@@ -215,33 +199,35 @@ func validateFile(filePath string, runTests bool, verbose bool) (*ValidationRepo
 			}
 		} else {
 			report.TestsRun = true
-			for _, rule := range result.Rules {
-				testFilePath := parser.GetRuleTestFile(filePath)
-				if _, err := os.Stat(testFilePath); err == nil {
-					// Test file exists, load and run tests
-					testSuite, err := parser.LoadTestCases(testFilePath)
-					if err != nil {
-						if verbose {
-							fmt.Printf("Warning: failed to load test cases from %s: %v\n", testFilePath, err)
+			// For single file validation, check if there's a corresponding test file
+			// The test file should be named the same as the rule file but with "-test" suffix
+			testFilePath := parser.GetRuleTestFile(filePath)
+			if _, err := os.Stat(testFilePath); err == nil {
+				// Test file exists, load and run tests
+				testSuite, err := parser.LoadTestCases(testFilePath)
+				if err != nil {
+					if verbose {
+						fmt.Printf("Warning: failed to load test cases from %s: %v\n", testFilePath, err)
+					}
+				} else {
+					// Run tests for each rule in the file
+					for _, rule := range result.Rules {
+						testResult, err := testRunner.RunTestSuite(rule, testSuite)
+						if err != nil {
+							if verbose {
+								fmt.Printf("Warning: failed to run tests for rule %s: %v\n", rule.GetID(), err)
+							}
+							continue
 						}
-						continue
-					}
 
-					testResult, err := testRunner.RunTestSuite(rule, testSuite)
-					if err != nil {
-						if verbose {
-							fmt.Printf("Warning: failed to run tests for rule %s: %v\n", rule.GetID(), err)
+						report.TestResults = append(report.TestResults, *testResult)
+						if !testResult.Success {
+							report.Valid = false
 						}
-						continue
 					}
-
-					report.TestResults = append(report.TestResults, *testResult)
-					if !testResult.Success {
-						report.Valid = false
-					}
-				} else if verbose {
-					fmt.Printf("Info: no test file found for rule %s (expected: %s)\n", rule.GetID(), testFilePath)
 				}
+			} else if verbose {
+				fmt.Printf("Info: no test file found for %s (expected: %s)\n", filePath, testFilePath)
 			}
 		}
 	}

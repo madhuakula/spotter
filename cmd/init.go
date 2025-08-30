@@ -129,8 +129,9 @@ scanner:
 
 # Rules configuration
 rules:
-  # Enable built-in security rules
-  builtin_enabled: true
+  # Use rules from the hub
+# Pull rules using: spotter rules pull <rule-id>
+# Pull rule packs using: spotter packs pull <pack-id>
   
   # Custom rule paths
   custom_paths:

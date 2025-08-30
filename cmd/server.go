@@ -32,7 +32,7 @@ This command starts an HTTPS server that acts as a ValidatingAdmissionWebhook
 to scan resources as they are created/updated in the cluster and either 
 allow, deny, or evaluate them based on security rules.
 
-The server uses embedded built-in security rules and provides health check
+The server uses configured security rules and provides health check
 endpoints for monitoring.
 
 Examples:
@@ -58,7 +58,6 @@ type ServerConfig struct {
 	MinSeverity         string
 	LogFormat           string
 	LogLevel            string
-	DisableBuiltinRules bool
 	RulesPath           []string
 }
 
@@ -75,7 +74,6 @@ func init() {
 	serverCmd.Flags().StringSlice("namespaces", []string{}, "namespaces to monitor (empty = all namespaces)")
 	serverCmd.Flags().StringSlice("resource-types", []string{}, "resource types to monitor (empty = all supported types)")
 	serverCmd.Flags().String("min-severity", "medium", "minimum severity level to act upon (low, medium, high, critical)")
-	serverCmd.Flags().Bool("disable-built-in-rules", false, "do not include built-in rules during evaluation")
 	serverCmd.Flags().StringSlice("rules-path", []string{}, "paths to security rules directories or files")
 
 	// Bind flags to viper
@@ -100,9 +98,6 @@ func init() {
 	if err := viper.BindPFlag("server.min-severity", serverCmd.Flags().Lookup("min-severity")); err != nil {
 		panic(fmt.Sprintf("failed to bind server.min-severity flag: %v", err))
 	}
-	if err := viper.BindPFlag("server.disable-built-in-rules", serverCmd.Flags().Lookup("disable-built-in-rules")); err != nil {
-		panic(fmt.Sprintf("failed to bind server.disable-built-in-rules flag: %v", err))
-	}
 	if err := viper.BindPFlag("server.rules-path", serverCmd.Flags().Lookup("rules-path")); err != nil {
 		panic(fmt.Sprintf("failed to bind server.rules-path flag: %v", err))
 	}
@@ -125,42 +120,16 @@ func runServer(cmd *cobra.Command, args []string) error {
 
 	// Load security rules based on configuration
 	var rules []*models.SpotterRule
-	if viper.GetBool("server.disable-built-in-rules") {
+	rulesPaths := viper.GetStringSlice("server.rules-path")
+	if len(rulesPaths) > 0 {
 		parser := parser.NewYAMLParser(true)
-		rulesPaths := viper.GetStringSlice("server.rules-path")
-		if len(rulesPaths) > 0 {
-			var err error
-			rules, err = loadExternalRules(parser, rulesPaths)
-			if err != nil {
-				return fmt.Errorf("failed to load external rules: %w", err)
-			}
-		} else {
-			rules = []*models.SpotterRule{}
-		}
-	} else {
-		builtin, err := loadBuiltinRulesFromAPI()
+		ext, err := loadExternalRules(parser, rulesPaths)
 		if err != nil {
-			return fmt.Errorf("failed to load security rules: %w", err)
+			return fmt.Errorf("failed to load external rules: %w", err)
 		}
-		rules = append(rules, builtin...)
-		rulesPaths := viper.GetStringSlice("server.rules-path")
-		if len(rulesPaths) > 0 {
-			parser := parser.NewYAMLParser(true)
-			ext, err := loadExternalRules(parser, rulesPaths)
-			if err != nil {
-				return fmt.Errorf("failed to load external rules: %w", err)
-			}
-			seen := map[string]bool{}
-			for _, r := range rules {
-				seen[r.GetID()] = true
-			}
-			for _, r := range ext {
-				if !seen[r.GetID()] {
-					rules = append(rules, r)
-					seen[r.GetID()] = true
-				}
-			}
-		}
+		rules = append(rules, ext...)
+	} else {
+		rules = []*models.SpotterRule{}
 	}
 
 	logger.Info("Loaded security rules", "count", len(rules))
@@ -550,8 +519,9 @@ func buildServerConfig(cmd *cobra.Command) (*ServerConfig, error) {
 		TLSCertFile: viper.GetString("server.tls-cert-file"),
 		TLSKeyFile:  viper.GetString("server.tls-key-file"),
 		MinSeverity: viper.GetString("server.min-severity"),
-		LogFormat:   viper.GetString("log-format"),
-		LogLevel:    viper.GetString("log-level"),
+		LogFormat: viper.GetString("log-format"),
+		LogLevel:  viper.GetString("log-level"),
+		RulesPath: viper.GetStringSlice("server.rules-path"),
 	}
 
 	if cmd.Flags().Changed("namespaces") {
@@ -594,12 +564,4 @@ func loadTLSConfig(certFile, keyFile string) (*tls.Config, error) {
 		Certificates: []tls.Certificate{cert},
 		MinVersion:   tls.VersionTLS12,
 	}, nil
-}
-
-// loadBuiltinRulesFromAPI loads built-in security rules via API
-// Currently returns empty slice as API integration is not implemented
-func loadBuiltinRulesFromAPI() ([]*models.SpotterRule, error) {
-	// Built-in rules are not currently supported - use external rules via --rules-path
-	fmt.Println("[INFO] Built-in rules are not currently supported. Use --rules-path to specify custom rules.")
-	return []*models.SpotterRule{}, nil
 }

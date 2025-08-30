@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -41,6 +42,7 @@ Examples:
   
   # Run as admission controller
   spotter server --mode=admission-controller`,
+	SuggestionsMinimumDistance: 2,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		initializeLogger()
 	},
@@ -49,6 +51,15 @@ Examples:
 // Execute adds all child commands to the root command and sets flags appropriately.
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
+		// Check if it's an unknown command error and provide suggestions
+		if strings.Contains(err.Error(), "unknown command") {
+			fmt.Fprintf(os.Stderr, "%s\n\nDid you mean one of these?\n", err.Error())
+			fmt.Fprintf(os.Stderr, "  scan     - Scan Kubernetes resources for vulnerabilities\n")
+			fmt.Fprintf(os.Stderr, "  rules    - Manage security rules\n")
+			fmt.Fprintf(os.Stderr, "  packs    - Manage rule packs\n")
+			fmt.Fprintf(os.Stderr, "  validate - Validate rules or manifests\n")
+			fmt.Fprintf(os.Stderr, "\nRun 'spotter --help' for more information.\n")
+		}
 		os.Exit(1)
 	}
 }

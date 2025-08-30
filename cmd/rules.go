@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/fs"
@@ -9,6 +10,7 @@ import (
 	"sort"
 	"strings"
 	"text/tabwriter"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -16,14 +18,18 @@ import (
 	"golang.org/x/text/language"
 	"gopkg.in/yaml.v3"
 
+	"github.com/madhuakula/spotter/pkg/cache"
+	"github.com/madhuakula/spotter/pkg/config"
+	"github.com/madhuakula/spotter/pkg/hub"
 	"github.com/madhuakula/spotter/pkg/models"
 	"github.com/madhuakula/spotter/pkg/parser"
+	"github.com/madhuakula/spotter/pkg/progress"
 )
 
 // RuleWithSource wraps a SpotterRule with its source information
 type RuleWithSource struct {
 	*models.SpotterRule
-	Source string // "built-in" or "custom"
+	Source string // "local" or "remote"
 }
 
 // rulesCmd represents the rules command
@@ -33,22 +39,22 @@ var rulesCmd = &cobra.Command{
 	Long: `Manage security rules for Spotter scanner.
 
 This command provides various operations for working with security rules:
-- List available rules (built-in and custom)
+- List local rules (pulled from hub)
 - Show detailed information about specific rules
+- Search for rules in the remote hub
+- Pull rules from the hub
 - Generate new rule templates
 - Export rules in different formats
 
-Note: For rule validation, use the standalone 'spotter validate' command.
-
 Examples:
-  # List all available rules
+  # List all local rules
   spotter rules list
   
-  # List only built-in rules
-  spotter rules list --builtin-only
+  # Search for rules in the hub
+  spotter rules search kubernetes
   
-  # List rules by category
-  spotter rules list --category=security
+  # Pull a rule from the hub
+  spotter rules pull privileged-containers
   
   # Show detailed information about a rule
   spotter rules info privileged-containers
@@ -63,18 +69,16 @@ Examples:
 // listCmd represents the list subcommand
 var listCmd = &cobra.Command{
 	Use:   "list",
-	Short: "List available security rules",
-	Long: `List all available security rules including built-in and custom rules.
+	Short: "List local security rules",
+	Long: `List locally stored security rules that have been pulled from the hub.
 
 This command displays rules in a table format showing rule ID, name, severity,
-category, and description. You can filter rules by various criteria.
+category, and description. Only rules that have been pulled from the hub are shown.
+To discover available rules from the hub, use 'spotter rules search'.
 
 Examples:
-  # List all rules
+  # List all local rules
   spotter rules list
-  
-  # List only built-in rules
-  spotter rules list --builtin-only
   
   # List rules by severity
   spotter rules list --severity=high,critical
@@ -86,8 +90,6 @@ Examples:
   spotter rules list --output=json`,
 	RunE: runListRules,
 }
-
-
 
 // infoCmd represents the info subcommand
 var infoCmd = &cobra.Command{
@@ -142,7 +144,7 @@ Examples:
 var exportCmd = &cobra.Command{
 	Use:   "export",
 	Short: "Export rules in different formats",
-	Long: `Export security rules in various formats for integration with other tools.
+	Long: `Export local security rules in various formats for integration with other tools.
 
 Supported export formats:
 - JSON: Machine-readable format
@@ -151,32 +153,118 @@ Supported export formats:
 - CSV: Comma-separated values for spreadsheets
 
 Examples:
-  # Export all rules to JSON
+  # Export all local rules to JSON
   spotter rules export --format=json --output=rules.json
   
-  # Export built-in rules only
-  spotter rules export --builtin-only --format=yaml
-  
   # Export rules by category
-  spotter rules export --category=security --format=sarif`,
+  spotter rules export --category=security --format=sarif
+  
+  # Export rules by severity
+  spotter rules export --severity=high --format=yaml`,
 	RunE: runExportRules,
+}
+
+// pullCmd represents the pull subcommand
+var pullCmd = &cobra.Command{
+	Use:   "pull <rule-id>",
+	Short: "Pull a rule from the hub",
+	Long: `Pull a security rule from the Spotter hub and store it locally.
+
+This command downloads a rule from the remote hub and stores it in the
+local storage for offline use. The rule will be available for use with other
+Spotter commands.
+
+Examples:
+  # Pull a specific rule
+  spotter rules pull privileged-containers
+  
+  # Pull with verbose output
+  spotter rules pull host-network --verbose
+  
+  # Force re-download even if stored locally
+  spotter rules pull privileged-containers --force`,
+	Args: cobra.ExactArgs(1),
+	RunE: runRulesPull,
+}
+
+// rulesSearchCmd represents the rules search command
+var rulesSearchCmd = &cobra.Command{
+	Use:   "search <query>",
+	Short: "Search for rules in the Spotter hub",
+	Long: `Search for security rules in the Spotter hub repository.
+You can search by rule name, category, severity, or keywords.
+
+This command queries the remote hub to find available rules that match
+your search criteria. Use 'spotter rules pull <rule-id>' to download
+rules locally after finding them.
+
+Examples:
+  # Search for rules containing 'privileged'
+  spotter rules search privileged
+  
+  # Search by category
+  spotter rules search containers --category="Workload Security"
+  
+  # Search by severity
+  spotter rules search network --severity=high
+  
+  # Output results in JSON format
+  spotter rules search kubernetes --output=json`,
+	Args: cobra.ExactArgs(1),
+	RunE: runRulesSearch,
+}
+
+// rulesValidateCmd represents the rules validate command
+var rulesValidateCmd = &cobra.Command{
+	Use:   "validate [file|directory]",
+	Short: "Validate rule files schema and run tests",
+	Long: `Validate SpotterRule YAML files for correct schema,
+and optionally run CEL expression tests against test cases.
+
+Examples:
+  # Validate a single rule file
+  spotter rules validate rule.yaml
+  
+  # Validate all rules in a directory
+  spotter rules validate ./rules/
+  
+  # Validate and run tests
+  spotter rules validate rule.yaml --test
+  
+  # Output results in JSON format
+  spotter rules validate rule.yaml --output json`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		path := args[0]
+		runTests, _ := cmd.Flags().GetBool("test")
+		outputFormat, _ := cmd.Flags().GetString("output")
+		verbose, _ := cmd.Root().PersistentFlags().GetBool("verbose")
+
+		return runRulesValidation(path, runTests, outputFormat, verbose)
+	},
+}
+
+// runRulesValidation validates rule files specifically
+func runRulesValidation(path string, runTests bool, outputFormat string, verbose bool) error {
+	// Import validation functionality from validate.go
+	return runValidation(path, runTests, outputFormat, verbose)
 }
 
 func init() {
 	rootCmd.AddCommand(rulesCmd)
 	rulesCmd.AddCommand(listCmd)
-	rulesCmd.AddCommand(generateCmd)
 	rulesCmd.AddCommand(infoCmd)
+	rulesCmd.AddCommand(generateCmd)
 	rulesCmd.AddCommand(exportCmd)
+	rulesCmd.AddCommand(pullCmd)
+	rulesCmd.AddCommand(rulesSearchCmd)
+	rulesCmd.AddCommand(rulesValidateCmd)
 
 	// List command flags
-	listCmd.Flags().Bool("builtin-only", false, "show only built-in rules")
-	listCmd.Flags().Bool("custom-only", false, "show only custom rules")
 	listCmd.Flags().StringSlice("severity", []string{}, "filter by severity levels (low, medium, high, critical)")
 	listCmd.Flags().StringSlice("category", []string{}, "filter by rule categories")
 	listCmd.Flags().String("search", "", "search rules by name or description")
 	listCmd.Flags().Bool("show-description", false, "show rule descriptions in output")
-	listCmd.Flags().Bool("show-source", false, "show rule source (built-in or custom) in output")
 	// Note: 'output' flag is inherited from global persistent flags
 
 	// Info command flags
@@ -193,11 +281,23 @@ func init() {
 	// Export command flags
 	exportCmd.Flags().String("format", "json", "export format (json, yaml, sarif, csv)")
 	// Note: 'output' flag is inherited from global persistent flags (as 'output-file')
-	exportCmd.Flags().Bool("builtin-only", false, "export only built-in rules")
-	exportCmd.Flags().Bool("custom-only", false, "export only custom rules")
 	exportCmd.Flags().StringSlice("category", []string{}, "export rules by category")
 	exportCmd.Flags().StringSlice("severity", []string{}, "export rules by severity")
 	exportCmd.Flags().Bool("include-metadata", true, "include rule metadata in export")
+
+	// Pull command flags
+	pullCmd.Flags().BoolP("force", "f", false, "Force re-download even if rule is stored locally")
+	pullCmd.Flags().BoolP("verbose", "v", false, "Enable verbose output")
+
+	// Search command flags
+	rulesSearchCmd.Flags().StringSlice("category", []string{}, "filter by rule categories")
+	rulesSearchCmd.Flags().StringSlice("severity", []string{}, "filter by severity levels (low, medium, high, critical)")
+	rulesSearchCmd.Flags().Int("limit", 20, "maximum number of results to return")
+	rulesSearchCmd.Flags().Bool("show-description", false, "show rule descriptions in output")
+
+	// Validate command flags
+	rulesValidateCmd.Flags().BoolP("test", "t", false, "Run CEL expression tests if test files are found")
+	rulesValidateCmd.Flags().StringP("output", "o", "text", "Output format (text, json)")
 
 }
 
@@ -230,13 +330,10 @@ func runListRules(cmd *cobra.Command, args []string) error {
 		return outputRulesYAML(filteredRules)
 	default:
 		showDescription, _ := cmd.Flags().GetBool("show-description")
-		showSource, _ := cmd.Flags().GetBool("show-source")
-		outputRulesTable(filteredRules, showDescription, showSource)
+		outputRulesTable(filteredRules, showDescription, false)
 		return nil
 	}
 }
-
-
 
 func runRuleInfo(cmd *cobra.Command, args []string) error {
 	logger := GetLogger()
@@ -244,7 +341,7 @@ func runRuleInfo(cmd *cobra.Command, args []string) error {
 
 	logger.Debug("Looking up rule information", "rule_id", ruleID)
 
-	// Load all rules
+	// Load all rules (local only)
 	rules, err := loadRulesForCommand(cmd)
 	if err != nil {
 		return fmt.Errorf("failed to load rules: %w", err)
@@ -259,8 +356,9 @@ func runRuleInfo(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	// If rule not found locally, return error
 	if targetRule == nil {
-		return fmt.Errorf("rule not found: %s", ruleID)
+		return fmt.Errorf("rule '%s' not found locally. Use 'spotter rules pull %s' to download it from the hub", ruleID, ruleID)
 	}
 
 	// Output rule information
@@ -367,6 +465,203 @@ func runExportRules(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+func runRulesPull(cmd *cobra.Command, args []string) error {
+	ruleID := args[0]
+
+	// Get flags
+	force, _ := cmd.Flags().GetBool("force")
+	verbose, _ := cmd.Flags().GetBool("verbose")
+
+	// Load configuration
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		cfg = config.DefaultConfig()
+	}
+
+	// Initialize cache manager
+	cacheManager := cache.NewCacheManager(cfg)
+
+	// Check if rule is already stored locally
+	if !force && cacheManager.IsRuleCached(ruleID) {
+		if verbose {
+			fmt.Printf("Rule '%s' is already stored locally\n", ruleID)
+		}
+		fmt.Printf("Rule '%s' is already stored locally. Use --force to re-download.\n", ruleID)
+		return nil
+	}
+
+	// Initialize hub client
+	hubClient := hub.NewClientWithConfig(cfg)
+
+	// Initialize progress bar
+	progressBar := progress.NewProgressBar(3, fmt.Sprintf("Pulling rule '%s'", ruleID))
+
+	// Pull rule from hub
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if verbose {
+		fmt.Printf("\nPulling rule '%s' from hub...\n", ruleID)
+	}
+
+	progressBar.Increment() // Step 1: Downloading
+	rule, err := hubClient.GetRule(ctx, ruleID)
+	if err != nil {
+		progressBar.Finish()
+		return fmt.Errorf("failed to pull rule from hub: %w", err)
+	}
+
+	progressBar.Increment() // Step 2: Validating
+	// Rule validation happens in the hub client
+
+	// Save rule locally
+	progressBar.Increment() // Step 3: Storing
+	if err := cacheManager.SaveRule(rule); err != nil {
+		progressBar.Finish()
+		return fmt.Errorf("failed to store rule locally: %w", err)
+	}
+
+	progressBar.Finish()
+
+	if verbose {
+		fmt.Printf("Rule '%s' (version %s) pulled and stored locally successfully\n", rule.GetID(), rule.GetVersion())
+		fmt.Printf("Title: %s\n", rule.GetTitle())
+		fmt.Printf("Description: %s\n", rule.GetDescription())
+	} else {
+		fmt.Printf("Successfully pulled and stored rule '%s'\n", ruleID)
+	}
+
+	return nil
+}
+
+func runRulesSearch(cmd *cobra.Command, args []string) error {
+	logger := GetLogger()
+	query := args[0]
+
+	logger.Debug("Searching for rules in hub", "query", query)
+
+	// Get flags
+	categories, _ := cmd.Flags().GetStringSlice("category")
+	severities, _ := cmd.Flags().GetStringSlice("severity")
+	limit, _ := cmd.Flags().GetInt("limit")
+	showDescription, _ := cmd.Flags().GetBool("show-description")
+
+	// Load configuration
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		cfg = config.DefaultConfig()
+	}
+
+	// Initialize hub client
+	hubClient := hub.NewClientWithConfig(cfg)
+
+	// Create search request
+	searchReq := hub.SearchRequest{
+		Query: query,
+		Limit: limit,
+	}
+
+	// Set category filter (use first category if multiple provided)
+	if len(categories) > 0 {
+		searchReq.Category = categories[0]
+	}
+
+	// Set severity filter (use first severity if multiple provided)
+	if len(severities) > 0 {
+		searchReq.Severity = severities[0]
+	}
+
+	// Search for rules
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	results, err := hubClient.SearchRules(ctx, searchReq)
+	if err != nil {
+		return fmt.Errorf("failed to search rules: %w", err)
+	}
+
+	// Output results
+	outputFormat := viper.GetString("output")
+	switch outputFormat {
+	case "json":
+		return outputSearchResultsJSON(results.Rules)
+	case "yaml":
+		return outputSearchResultsYAML(results.Rules)
+	default:
+		outputSearchResultsTable(results.Rules, showDescription)
+		return nil
+	}
+}
+
+func outputSearchResultsTable(results []hub.RuleInfo, showDescription bool) {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+
+	// Build header
+	header := "ID\tNAME\tSEVERITY\tCATEGORY\tVERSION"
+	if showDescription {
+		header += "\tDESCRIPTION"
+	}
+	if _, err := fmt.Fprintln(w, header); err != nil {
+		logger := GetLogger()
+		logger.Error("Failed to write header", "error", err)
+	}
+
+	// Build rows
+	for _, result := range results {
+		// Use Title field for the name display since that's where the actual rule names are stored
+		ruleName := result.Title
+		if ruleName == "" {
+			// Fallback to Name field if Title is empty
+			ruleName = result.Name
+		}
+		
+		row := fmt.Sprintf("%s\t%s\t%s\t%s\t%s",
+			result.ID,
+			ruleName,
+			result.Severity,
+			result.Category,
+			result.Version)
+
+		if showDescription {
+			desc := result.Description
+			if len(desc) > 50 {
+				desc = desc[:47] + "..."
+			}
+			row += "\t" + desc
+		}
+
+		if _, err := fmt.Fprintln(w, row); err != nil {
+			logger := GetLogger()
+			logger.Error("Failed to write row", "error", err)
+		}
+	}
+
+	if err := w.Flush(); err != nil {
+		logger := GetLogger()
+		logger.Error("Failed to flush writer", "error", err)
+	}
+
+	fmt.Printf("\nFound %d rules. Use 'spotter rules pull <rule-id>' to download a rule.\n", len(results))
+}
+
+func outputSearchResultsJSON(results []hub.RuleInfo) error {
+	data, err := json.MarshalIndent(results, "", "  ")
+	if err != nil {
+		return err
+	}
+	fmt.Println(string(data))
+	return nil
+}
+
+func outputSearchResultsYAML(results []hub.RuleInfo) error {
+	data, err := yaml.Marshal(results)
+	if err != nil {
+		return err
+	}
+	fmt.Print(string(data))
+	return nil
+}
+
 // Helper functions
 
 func loadRulesForCommand(cmd *cobra.Command) ([]*RuleWithSource, error) {
@@ -375,16 +670,40 @@ func loadRulesForCommand(cmd *cobra.Command) ([]*RuleWithSource, error) {
 	ruleIDMap := make(map[string]bool)     // Track rule IDs to prevent duplicates
 	ruleNameMap := make(map[string]string) // Track rule names to detect duplicates with different IDs
 
-	builtinOnly, _ := cmd.Flags().GetBool("builtin-only")
-	customOnly, _ := cmd.Flags().GetBool("custom-only")
-
-	// Load built-in rules unless custom-only is specified
-	if !customOnly {
-		builtinRules, err := loadBuiltinRules(parser)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load built-in rules: %w", err)
+	// Load local rules first
+	cfg, err := config.LoadConfig()
+	if err == nil {
+		cacheManager := cache.NewCacheManager(cfg)
+		localRules, err := cacheManager.ListCachedRules()
+		if err == nil {
+			for _, cacheEntry := range localRules {
+				rule, err := cacheManager.GetRule(cacheEntry.ID)
+				if err == nil && rule != nil {
+					if !ruleIDMap[rule.GetID()] {
+						if existingID, found := ruleNameMap[rule.GetTitle()]; found {
+							logger.Warn("Found duplicate rule with different ID", "name", rule.GetTitle(), "existing_id", existingID, "new_id", rule.GetID())
+							continue
+						}
+						ruleIDMap[rule.GetID()] = true
+						ruleNameMap[rule.GetTitle()] = rule.GetID()
+						allRules = append(allRules, &RuleWithSource{
+							SpotterRule: rule,
+							Source:      "local",
+						})
+					}
+				}
+			}
 		}
-		for _, rule := range builtinRules {
+	}
+
+	// Load external rules
+	rulesPaths := viper.GetStringSlice("rules-path")
+	if len(rulesPaths) > 0 {
+		externalRules, err := loadExternalRules(parser, rulesPaths)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load external rules: %w", err)
+		}
+		for _, rule := range externalRules {
 			// Check if we've already seen this rule ID
 			if !ruleIDMap[rule.GetID()] {
 				// Check if we've seen a rule with the same name but different ID
@@ -397,38 +716,9 @@ func loadRulesForCommand(cmd *cobra.Command) ([]*RuleWithSource, error) {
 				ruleIDMap[rule.GetID()] = true
 				ruleNameMap[rule.GetTitle()] = rule.GetID()
 				allRules = append(allRules, &RuleWithSource{
-				SpotterRule: rule,
-				Source:      "built-in",
-			})
-			}
-		}
-	}
-
-	// Load external rules unless builtin-only is specified
-	if !builtinOnly {
-		rulesPaths := viper.GetStringSlice("rules-path")
-		if len(rulesPaths) > 0 {
-			externalRules, err := loadExternalRules(parser, rulesPaths)
-			if err != nil {
-				return nil, fmt.Errorf("failed to load external rules: %w", err)
-			}
-			for _, rule := range externalRules {
-				// Check if we've already seen this rule ID
-			if !ruleIDMap[rule.GetID()] {
-				// Check if we've seen a rule with the same name but different ID
-				if existingID, found := ruleNameMap[rule.GetTitle()]; found {
-					logger.Warn("Found duplicate rule with different ID", "name", rule.GetTitle(), "existing_id", existingID, "new_id", rule.GetID())
-					// Skip this rule as we already have one with the same name
-					continue
-				}
-
-				ruleIDMap[rule.GetID()] = true
-				ruleNameMap[rule.GetTitle()] = rule.GetID()
-					allRules = append(allRules, &RuleWithSource{
 					SpotterRule: rule,
 					Source:      "custom",
 				})
-				}
 			}
 		}
 	}
@@ -492,9 +782,6 @@ func outputRulesTable(rules []*RuleWithSource, showDescription bool, showSource 
 
 	// Build header
 	header := "ID\tNAME\tSEVERITY\tCATEGORY"
-	if showSource {
-		header += "\tSOURCE"
-	}
 	if showDescription {
 		header += "\tDESCRIPTION"
 	}
@@ -509,10 +796,6 @@ func outputRulesTable(rules []*RuleWithSource, showDescription bool, showSource 
 			rule.GetTitle(),
 			string(rule.GetSeverityLevel()),
 			rule.GetCategory())
-
-		if showSource {
-			row += "\t" + rule.Source
-		}
 
 		if showDescription {
 			desc := rule.GetDescription()
@@ -661,12 +944,6 @@ func isTestFile(filePath string) bool {
 	return strings.HasSuffix(baseName, "-test.yaml") || strings.HasSuffix(baseName, "-test.yml")
 }
 
-
-
-
-
-
-
 func exportToSARIF(rules []*models.SpotterRule) ([]byte, error) {
 	// SARIF export implementation
 	// This is a simplified version - a full implementation would create proper SARIF format
@@ -777,14 +1054,6 @@ type TestCaseFile struct {
 	Expected    bool   `yaml:"expected"`
 	Description string `yaml:"description"`
 }
-
-
-
-
-
-
-
-
 
 func generateRuleTemplate(ruleName, category, severity string, interactive bool) (string, error) {
 	// Convert rule name to DNS-1123 format if provided

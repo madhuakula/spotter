@@ -184,6 +184,27 @@ func (c *Client) GetRule(ctx context.Context, ruleID string) (*models.SpotterRul
 	return &apiResp.RawRule, nil
 }
 
+// GetAllRulePacks retrieves all available rule packs from the hub
+func (c *Client) GetAllRulePacks(ctx context.Context) ([]RulePackInfo, error) {
+	// Get all rule packs from the API
+	endpoint := "/rulepacks.json"
+	resp, err := c.makeRequest(ctx, "GET", endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get rule packs: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Parse response
+	var allPacksResp struct {
+		RulePacks []RulePackInfo `json:"rulepacks"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&allPacksResp); err != nil {
+		return nil, fmt.Errorf("failed to decode rule packs response: %w", err)
+	}
+
+	return allPacksResp.RulePacks, nil
+}
+
 // GetRulePack retrieves a rule pack by name
 func (c *Client) GetRulePack(ctx context.Context, packName string) (*RulePackInfo, error) {
 	// Use the correct API endpoint format for rule packs
