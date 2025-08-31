@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/madhuakula/spotter/pkg/models"
+	"github.com/madhuakula/spotter/pkg/version"
 )
 
 // ResourceStat represents resource statistics for JSON output
@@ -161,7 +162,7 @@ func (r *JSONReporter) buildJSONReport(results *models.ScanResult) *JSONReport {
 	report := &JSONReport{
 		Metadata: JSONMetadata{
 			Timestamp: results.Timestamp,
-			Version:   "1.0.0", // TODO: Get from build info
+			Version:   version.GetVersion(),
 			Duration:  results.Duration.String(),
 		},
 		Summary: JSONSummary{

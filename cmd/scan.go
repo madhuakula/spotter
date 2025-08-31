@@ -3,9 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"io/fs"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -13,18 +11,17 @@ import (
 	"github.com/spf13/viper"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
+	"github.com/madhuakula/spotter/pkg/cache"
+	"github.com/madhuakula/spotter/pkg/config"
 	"github.com/madhuakula/spotter/pkg/engine"
+	"github.com/madhuakula/spotter/pkg/hub"
 	"github.com/madhuakula/spotter/pkg/k8s"
 	"github.com/madhuakula/spotter/pkg/models"
 	"github.com/madhuakula/spotter/pkg/parser"
-	"github.com/madhuakula/spotter/pkg/progress"
 	"github.com/madhuakula/spotter/pkg/recommendations"
 	"github.com/madhuakula/spotter/pkg/reporter"
+	"github.com/madhuakula/spotter/pkg/utils"
 )
-
-// BuiltinRulesFS is a reference to the embedded filesystem from main package
-// This will be set by the main package during initialization
-var BuiltinRulesFS fs.FS
 
 // scanCmd represents the scan command
 var scanCmd = &cobra.Command{
@@ -52,6 +49,15 @@ Examples:
   
   # Output to file
   spotter scan cluster --output=json --output-file=results.json`,
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		// Bind persistent flags from root command
+		if err := viper.BindPFlag("output", cmd.Root().PersistentFlags().Lookup("output")); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to bind output flag: %v\n", err)
+		}
+		if err := viper.BindPFlag("output-file", cmd.Root().PersistentFlags().Lookup("output-file")); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to bind output-file flag: %v\n", err)
+		}
+	},
 }
 
 // clusterCmd represents the cluster scan command
@@ -144,9 +150,7 @@ func init() {
 	// Cluster scan flags
 	clusterCmd.Flags().StringSliceP("namespace", "n", []string{}, "namespaces to scan (default: all non-system namespaces)")
 	clusterCmd.Flags().StringSlice("exclude-namespaces", []string{}, "namespaces to exclude from scanning")
-	clusterCmd.Flags().Bool("exclude-system-namespaces", false, "exclude system namespaces (kube-system, kube-public, etc.)")
 	clusterCmd.Flags().StringSlice("resource-types", []string{}, "specific resource types to scan (format: group/version/kind, e.g., apps/v1/Deployment)")
-	clusterCmd.Flags().Bool("include-cluster-resources", true, "include cluster-scoped resources")
 	clusterCmd.Flags().String("context", "", "kubernetes context to use")
 
 	// Manifests scan flags
@@ -154,8 +158,6 @@ func init() {
 	manifestsCmd.Flags().StringSlice("file-extensions", []string{".yaml", ".yml", ".json"}, "file extensions to scan")
 	manifestsCmd.Flags().StringSlice("include-paths", []string{}, "paths to include in scanning")
 	manifestsCmd.Flags().Bool("follow-symlinks", false, "follow symbolic links when scanning directories")
-	manifestsCmd.Flags().Bool("exclude-system-namespaces", false, "exclude system namespaces (kube-system, kube-public, etc.)")
-	manifestsCmd.Flags().Bool("include-cluster-resources", true, "include cluster-scoped resources")
 
 	// Helm scan flags
 	helmCmd.Flags().StringSlice("values", []string{}, "values files for Helm chart rendering")
@@ -166,8 +168,6 @@ func init() {
 	helmCmd.Flags().Bool("include-dependencies", true, "include chart dependencies in scan")
 	helmCmd.Flags().Bool("validate-schema", true, "validate chart schema before scanning")
 	helmCmd.Flags().String("kube-version", "", "kubernetes version to use for rendering (e.g., 1.28.0)")
-	helmCmd.Flags().Bool("exclude-system-namespaces", false, "exclude system namespaces (kube-system, kube-public, etc.)")
-	helmCmd.Flags().Bool("include-cluster-resources", true, "include cluster-scoped resources")
 	helmCmd.Flags().Bool("skip-tests", false, "skip test templates when scanning")
 	helmCmd.Flags().Bool("skip-crds", false, "skip Custom Resource Definitions when scanning")
 	helmCmd.Flags().String("chart-repo", "", "helm chart repository URL")
@@ -179,12 +179,17 @@ func init() {
 		cmd.Flags().StringSlice("include-rules", []string{}, "specific rule IDs to include")
 		cmd.Flags().StringSlice("exclude-rules", []string{}, "specific rule IDs to exclude")
 		cmd.Flags().StringSlice("categories", []string{}, "rule categories to include")
+		cmd.Flags().StringSlice("rules", []string{}, "specific cached rule IDs to use for scanning")
+		cmd.Flags().StringSlice("packs", []string{}, "specific cached rule pack IDs to use for scanning")
+		cmd.Flags().StringSlice("default-packs", []string{}, "default rule pack IDs to use when no specific rules or packs are specified (auto-pulls if not cached)")
 		cmd.Flags().Int("parallelism", 4, "number of parallel workers for scanning and rule evaluation")
 		cmd.Flags().String("min-severity", "", "minimum severity level to include (low, medium, high, critical)")
 		cmd.Flags().Int("max-violations", 0, "maximum number of violations before stopping scan (0 = no limit)")
 		cmd.Flags().Bool("quiet", false, "suppress non-error output")
 		cmd.Flags().Bool("summary-only", false, "show only summary statistics")
-		cmd.Flags().Bool("disable-built-in-rules", false, "do not include built-in rules during evaluation")
+		cmd.Flags().Bool("exclude-system-namespaces", false, "exclude system namespaces (kube-system, kube-public, etc.)")
+		cmd.Flags().Bool("include-cluster-resources", true, "include cluster-scoped resources")
+
 		// Note: 'no-color' flag is inherited from global persistent flags
 
 		// Bind common flags to viper so they can be set in config file
@@ -196,6 +201,15 @@ func init() {
 		}
 		if err := viper.BindPFlag("scan.categories", cmd.Flags().Lookup("categories")); err != nil {
 			panic(fmt.Errorf("failed to bind categories flag: %w", err))
+		}
+		if err := viper.BindPFlag("scan.rules", cmd.Flags().Lookup("rules")); err != nil {
+			panic(fmt.Errorf("failed to bind rules flag: %w", err))
+		}
+		if err := viper.BindPFlag("scan.packs", cmd.Flags().Lookup("packs")); err != nil {
+			panic(fmt.Errorf("failed to bind packs flag: %w", err))
+		}
+		if err := viper.BindPFlag("scan.default-packs", cmd.Flags().Lookup("default-packs")); err != nil {
+			panic(fmt.Errorf("failed to bind default-packs flag: %w", err))
 		}
 		if err := viper.BindPFlag("scan.parallelism", cmd.Flags().Lookup("parallelism")); err != nil {
 			panic(fmt.Errorf("failed to bind parallelism flag: %w", err))
@@ -212,19 +226,17 @@ func init() {
 		if err := viper.BindPFlag("scan.summary-only", cmd.Flags().Lookup("summary-only")); err != nil {
 			panic(fmt.Errorf("failed to bind summary-only flag: %w", err))
 		}
-		if err := viper.BindPFlag("scan.disable-built-in-rules", cmd.Flags().Lookup("disable-built-in-rules")); err != nil {
-			panic(fmt.Errorf("failed to bind disable-built-in-rules flag: %w", err))
+		if err := viper.BindPFlag("scan.exclude-system-namespaces", cmd.Flags().Lookup("exclude-system-namespaces")); err != nil {
+			panic(fmt.Errorf("failed to bind exclude-system-namespaces flag: %w", err))
 		}
+		if err := viper.BindPFlag("scan.include-cluster-resources", cmd.Flags().Lookup("include-cluster-resources")); err != nil {
+			panic(fmt.Errorf("failed to bind include-cluster-resources flag: %w", err))
+		}
+
 	}
 
 	// Bind scan-specific flags to viper for config file support
 	// Cluster flags
-	if err := viper.BindPFlag("scan.cluster.exclude-system-namespaces", clusterCmd.Flags().Lookup("exclude-system-namespaces")); err != nil {
-		panic(fmt.Errorf("failed to bind scan.cluster.exclude-system-namespaces flag: %w", err))
-	}
-	if err := viper.BindPFlag("scan.cluster.include-cluster-resources", clusterCmd.Flags().Lookup("include-cluster-resources")); err != nil {
-		panic(fmt.Errorf("failed to bind scan.cluster.include-cluster-resources flag: %w", err))
-	}
 	if err := viper.BindPFlag("scan.cluster.namespace", clusterCmd.Flags().Lookup("namespace")); err != nil {
 		panic(fmt.Errorf("failed to bind scan.cluster.namespace flag: %w", err))
 	}
@@ -250,12 +262,6 @@ func init() {
 	}
 	if err := viper.BindPFlag("scan.manifests.follow-symlinks", manifestsCmd.Flags().Lookup("follow-symlinks")); err != nil {
 		panic(fmt.Errorf("failed to bind scan.manifests.follow-symlinks flag: %w", err))
-	}
-	if err := viper.BindPFlag("scan.manifests.exclude-system-namespaces", manifestsCmd.Flags().Lookup("exclude-system-namespaces")); err != nil {
-		panic(fmt.Errorf("failed to bind scan.manifests.exclude-system-namespaces flag: %w", err))
-	}
-	if err := viper.BindPFlag("scan.manifests.include-cluster-resources", manifestsCmd.Flags().Lookup("include-cluster-resources")); err != nil {
-		panic(fmt.Errorf("failed to bind scan.manifests.include-cluster-resources flag: %w", err))
 	}
 
 	// Helm flags
@@ -283,12 +289,7 @@ func init() {
 	if err := viper.BindPFlag("scan.helm.kube-version", helmCmd.Flags().Lookup("kube-version")); err != nil {
 		panic(fmt.Errorf("failed to bind scan.helm.kube-version flag: %w", err))
 	}
-	if err := viper.BindPFlag("scan.helm.exclude-system-namespaces", helmCmd.Flags().Lookup("exclude-system-namespaces")); err != nil {
-		panic(fmt.Errorf("failed to bind scan.helm.exclude-system-namespaces flag: %w", err))
-	}
-	if err := viper.BindPFlag("scan.helm.include-cluster-resources", helmCmd.Flags().Lookup("include-cluster-resources")); err != nil {
-		panic(fmt.Errorf("failed to bind scan.helm.include-cluster-resources flag: %w", err))
-	}
+
 	if err := viper.BindPFlag("scan.helm.skip-tests", helmCmd.Flags().Lookup("skip-tests")); err != nil {
 		panic(fmt.Errorf("failed to bind scan.helm.skip-tests flag: %w", err))
 	}
@@ -304,6 +305,8 @@ func init() {
 	if err := viper.BindPFlag("scan.helm.update-dependencies", helmCmd.Flags().Lookup("update-dependencies")); err != nil {
 		panic(fmt.Errorf("failed to bind scan.helm.update-dependencies flag: %w", err))
 	}
+
+
 }
 
 func runClusterScan(cmd *cobra.Command, args []string) error {
@@ -322,11 +325,19 @@ func runClusterScan(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to build scan configuration: %w", err)
 	}
 
-	// Load and filter security rules using resolved config
-	rules, err := loadAndFilterSecurityRules(cmd, scanConfig.DisableBuiltInRules)
+	// Show startup message unless quiet mode is enabled
+	if !scanConfig.Quiet {
+		fmt.Println("🔍 Starting Kubernetes cluster security scan...")
+	}
+
+	// Load and filter security rules
+	rules, err := loadAndFilterRules(cmd)
 	if err != nil {
 		return fmt.Errorf("failed to load security rules: %w", err)
 	}
+
+	// Show startup message
+	fmt.Fprintf(os.Stderr, "🚀 Starting cluster scan with %d rules...\n", len(rules))
 
 	if logLevel == "debug" {
 		logger.Info("Loaded security rules", "count", len(rules))
@@ -383,11 +394,19 @@ func runManifestsScan(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to build scan configuration: %w", err)
 	}
 
+	// Show startup message unless quiet mode is enabled
+	if !scanConfig.Quiet {
+		fmt.Println("📄 Starting Kubernetes manifest security scan...")
+	}
+
 	// Load and filter security rules using resolved config
-	rules, err := loadAndFilterSecurityRules(cmd, scanConfig.DisableBuiltInRules)
+	rules, err := loadAndFilterRules(cmd)
 	if err != nil {
 		return fmt.Errorf("failed to load security rules: %w", err)
 	}
+
+	// Show startup message
+	fmt.Fprintf(os.Stderr, "🚀 Starting manifests scan with %d rules...\n", len(rules))
 
 	if logLevel == "debug" {
 		logger.Info("Loaded security rules", "count", len(rules))
@@ -404,7 +423,11 @@ func runManifestsScan(cmd *cobra.Command, args []string) error {
 	pathsToScan = append(pathsToScan, includePaths...)
 
 	for _, path := range pathsToScan {
-		files, err := collectManifestFiles(path, recursive, extensions, followSymlinks)
+		files, err := utils.CollectFiles(path, utils.FileCollectionOptions{
+			Recursive:      recursive,
+			Extensions:     extensions,
+			FollowSymlinks: followSymlinks,
+		})
 		if err != nil {
 			return fmt.Errorf("failed to collect manifest files from %s: %w", path, err)
 		}
@@ -455,11 +478,19 @@ func runHelmScan(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to build scan configuration: %w", err)
 	}
 
+	// Show startup message unless quiet mode is enabled
+	if !scanConfig.Quiet {
+		fmt.Println("⎈ Starting Helm chart security scan...")
+	}
+
 	// Load and filter security rules using resolved config
-	rules, err := loadAndFilterSecurityRules(cmd, scanConfig.DisableBuiltInRules)
+	rules, err := loadAndFilterRules(cmd)
 	if err != nil {
 		return fmt.Errorf("failed to load security rules: %w", err)
 	}
+
+	// Show startup message
+	fmt.Fprintf(os.Stderr, "🚀 Starting Helm charts scan with %d rules...\n", len(rules))
 
 	if logLevel == "debug" {
 		logger.Info("Loaded security rules", "count", len(rules))
@@ -490,41 +521,45 @@ func runHelmScan(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// loadSecurityRules loads security rules from built-in embedded rules and configured paths
-func loadSecurityRules(disableBuiltins bool) ([]*models.SecurityRule, error) {
-	parser := parser.NewYAMLParser(true)
-	var allRules []*models.SecurityRule
-	ruleIDMap := make(map[string]bool) // Track rule IDs to prevent duplicates
+// loadSpecificRulesAndPacks loads specific rules and rules from packs
+func loadSpecificRulesAndPacks(ruleIDs, packIDs []string) ([]*models.SpotterRule, error) {
+	cfg, err := config.LoadConfig("")
+	if err != nil {
+		return nil, fmt.Errorf("failed to load config: %w", err)
+	}
 
-	// Load built-in rules unless disabled
-	if !disableBuiltins {
-		builtinRules, err := loadBuiltinRules(parser)
+	cacheManager := cache.NewCacheManager(cfg)
+	allRules := make([]*models.SpotterRule, 0)
+	ruleIDSet := make(map[string]bool)
+
+	// Load specific rules
+	for _, ruleID := range ruleIDs {
+		rule, err := cacheManager.GetRule(ruleID)
 		if err != nil {
-			return nil, fmt.Errorf("failed to load built-in rules: %w", err)
+			return nil, fmt.Errorf("failed to load rule %s: %w", ruleID, err)
 		}
-
-		// Add builtin rules and track their IDs
-		for _, rule := range builtinRules {
-			if !ruleIDMap[rule.Spec.ID] {
-				allRules = append(allRules, rule)
-				ruleIDMap[rule.Spec.ID] = true
-			}
+		if !ruleIDSet[rule.GetID()] {
+			allRules = append(allRules, rule)
+			ruleIDSet[rule.GetID()] = true
 		}
 	}
 
-	// Load external rules if specified
-	rulesPaths := viper.GetStringSlice("rules-path")
-	if len(rulesPaths) > 0 {
-		externalRules, err := loadExternalRules(parser, rulesPaths)
+	// Load rules from specific packs
+	for _, packID := range packIDs {
+		pack, err := cacheManager.GetRulePack(packID)
 		if err != nil {
-			return nil, fmt.Errorf("failed to load external rules: %w", err)
+			return nil, fmt.Errorf("failed to load pack %s: %w", packID, err)
 		}
-
-		// Add external rules only if their IDs are not already present
-		for _, rule := range externalRules {
-			if !ruleIDMap[rule.Spec.ID] {
+		// Add all rules from the pack (Rules field contains rule IDs)
+		for _, ruleID := range pack.Rules {
+			if !ruleIDSet[ruleID] {
+				// Load the actual rule from cache
+				rule, err := cacheManager.GetRule(ruleID)
+				if err != nil {
+					return nil, fmt.Errorf("failed to load rule %s from pack %s: %w", ruleID, packID, err)
+				}
 				allRules = append(allRules, rule)
-				ruleIDMap[rule.Spec.ID] = true
+				ruleIDSet[ruleID] = true
 			}
 		}
 	}
@@ -532,94 +567,102 @@ func loadSecurityRules(disableBuiltins bool) ([]*models.SecurityRule, error) {
 	return allRules, nil
 }
 
-// loadAndFilterSecurityRules loads security rules and applies include/exclude filtering
-func loadAndFilterSecurityRules(cmd *cobra.Command, disableBuiltins bool) ([]*models.SecurityRule, error) {
-	// Load all rules using the resolved disableBuiltins value
-	allRules, err := loadSecurityRules(disableBuiltins)
-	if err != nil {
-		return nil, err
-	}
-
-	// Get filter flags
-	includeRules, _ := cmd.Flags().GetStringSlice("include-rules")
-	excludeRules, _ := cmd.Flags().GetStringSlice("exclude-rules")
-	categories, _ := cmd.Flags().GetStringSlice("categories")
-
-	// Apply filtering
-	filteredRules := applyRuleFilters(allRules, includeRules, excludeRules, categories)
-
-	return filteredRules, nil
-}
-
-// applyRuleFilters filters rules based on include/exclude criteria
-func applyRuleFilters(rules []*models.SecurityRule, includeRules, excludeRules, categories []string) []*models.SecurityRule {
-	// If no filters specified, return all rules
-	if len(includeRules) == 0 && len(excludeRules) == 0 && len(categories) == 0 {
-		return rules
-	}
-
-	var filteredRules []*models.SecurityRule
-
-	// Convert slices to maps for faster lookup
-	includeMap := make(map[string]bool)
-	for _, id := range includeRules {
-		includeMap[id] = true
-	}
-
-	excludeMap := make(map[string]bool)
-	for _, id := range excludeRules {
-		excludeMap[id] = true
-	}
-
-	categoryMap := make(map[string]bool)
-	for _, cat := range categories {
-		categoryMap[strings.ToLower(cat)] = true
-	}
-
-	for _, rule := range rules {
-		ruleID := rule.Spec.ID
-		ruleCategory := strings.ToLower(rule.Spec.Category)
-
-		// Skip if explicitly excluded
-		if excludeMap[ruleID] {
-			continue
+// loadDefaultPacksWithAutoPull loads rules from default packs with auto-pull functionality
+func loadDefaultPacksWithAutoPull(packIDs []string) ([]*models.SpotterRule, error) {
+	cfg, err := config.LoadConfig("")
+		if err != nil {
+			return nil, fmt.Errorf("failed to load config: %w", err)
 		}
 
-		// If include-rules is specified, only include those rules
-		if len(includeRules) > 0 {
-			if !includeMap[ruleID] {
-				continue
+	cacheManager := cache.NewCacheManager(cfg)
+	hubClient := hub.NewClientWithConfig(cfg)
+	allRules := make([]*models.SpotterRule, 0)
+	ruleIDSet := make(map[string]bool)
+
+	// Process each default pack
+	for _, packID := range packIDs {
+		// Check if pack is cached locally
+		if !cacheManager.IsPackCached(packID) {
+			// Auto-pull the pack from hub
+			ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+			pack, err := hubClient.GetRulePack(ctx, packID)
+			cancel()
+			if err != nil {
+				return nil, fmt.Errorf("failed to auto-pull pack %s: %w", packID, err)
+			}
+
+			// Save pack to cache
+			if err := cacheManager.SaveRulePack(pack); err != nil {
+				return nil, fmt.Errorf("failed to cache pack %s: %w", packID, err)
+			}
+
+			// Auto-pull all rules in the pack
+			for _, ruleID := range pack.Rules {
+				if !cacheManager.IsRuleCached(ruleID) {
+					ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+					rule, err := hubClient.GetRule(ctx, ruleID)
+					cancel()
+					if err != nil {
+						return nil, fmt.Errorf("failed to auto-pull rule %s from pack %s: %w", ruleID, packID, err)
+					}
+
+					if err := cacheManager.SaveRule(rule); err != nil {
+						return nil, fmt.Errorf("failed to cache rule %s: %w", ruleID, err)
+					}
+				}
 			}
 		}
 
-		// If categories is specified, only include rules from those categories
-		if len(categories) > 0 {
-			if !categoryMap[ruleCategory] {
-				continue
-			}
+		// Load pack from cache
+		pack, err := cacheManager.GetRulePack(packID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load pack %s: %w", packID, err)
 		}
 
-		filteredRules = append(filteredRules, rule)
+		// Load all rules from the pack
+		for _, ruleID := range pack.Rules {
+			if !ruleIDSet[ruleID] {
+				rule, err := cacheManager.GetRule(ruleID)
+				if err != nil {
+					return nil, fmt.Errorf("failed to load rule %s from pack %s: %w", ruleID, packID, err)
+				}
+				allRules = append(allRules, rule)
+				ruleIDSet[ruleID] = true
+			}
+		}
 	}
 
-	return filteredRules
+	return allRules, nil
 }
 
-// loadBuiltinRules loads the embedded built-in security rules
-func loadBuiltinRules(parser *parser.YAMLParser) ([]*models.SecurityRule, error) {
-	if BuiltinRulesFS == nil {
-		return nil, fmt.Errorf("built-in rules filesystem not initialized")
+
+
+// loadAndFilterRules loads security rules and applies include/exclude filtering
+func loadAndFilterRules(cmd *cobra.Command) ([]*models.SpotterRule, error) {
+	// Get specific rules and packs flags
+	specificRules, _ := cmd.Flags().GetStringSlice("rules")
+	specificPacks, _ := cmd.Flags().GetStringSlice("packs")
+	defaultPacks, _ := cmd.Flags().GetStringSlice("default-packs")
+
+	// If specific rules or packs are provided, load only those
+	if len(specificRules) > 0 || len(specificPacks) > 0 {
+		return loadSpecificRulesAndPacks(specificRules, specificPacks)
 	}
-	rules, err := parser.ParseRulesFromFS(context.Background(), BuiltinRulesFS, "builtin")
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse built-in rules: %w", err)
+
+	// If default packs are specified, use them with auto-pull
+	if len(defaultPacks) > 0 {
+		return loadDefaultPacksWithAutoPull(defaultPacks)
 	}
-	return rules, nil
+
+	// If no specific rules or packs are provided, use spotter-secure-defaults-pack as default
+	return loadDefaultPacksWithAutoPull([]string{"spotter-secure-defaults-pack"})
 }
+
+
 
 // loadExternalRules loads security rules from external file paths
-func loadExternalRules(parser *parser.YAMLParser, rulesPaths []string) ([]*models.SecurityRule, error) {
-	var allRules []*models.SecurityRule
+func loadExternalRules(parser *parser.YAMLParser, rulesPaths []string) ([]*models.SpotterRule, error) {
+	var allRules []*models.SpotterRule
 
 	for _, path := range rulesPaths {
 		if _, err := os.Stat(path); os.IsNotExist(err) {
@@ -649,70 +692,7 @@ func loadExternalRules(parser *parser.YAMLParser, rulesPaths []string) ([]*model
 	return allRules, nil
 }
 
-// collectManifestFiles collects all manifest files from the given path
-func collectManifestFiles(path string, recursive bool, extensions []string, followSymlinks bool) ([]string, error) {
-	var files []string
 
-	info, err := os.Stat(path)
-	if err != nil {
-		return nil, err
-	}
-
-	if !info.IsDir() {
-		// Single file
-		if hasValidExtension(path, extensions) {
-			return []string{path}, nil
-		}
-		return nil, nil
-	}
-
-	// Directory
-	if recursive {
-		err = filepath.WalkDir(path, func(filePath string, d os.DirEntry, err error) error {
-			if err != nil {
-				return err
-			}
-			// Skip symlinks if not following
-			if d.Type()&os.ModeSymlink != 0 && !followSymlinks {
-				return nil
-			}
-			if !d.IsDir() && hasValidExtension(filePath, extensions) {
-				files = append(files, filePath)
-			}
-			return nil
-		})
-	} else {
-		entries, err := os.ReadDir(path)
-		if err != nil {
-			return nil, err
-		}
-		for _, entry := range entries {
-			// Skip symlinks if not following
-			if entry.Type()&os.ModeSymlink != 0 && !followSymlinks {
-				continue
-			}
-			if !entry.IsDir() {
-				filePath := filepath.Join(path, entry.Name())
-				if hasValidExtension(filePath, extensions) {
-					files = append(files, filePath)
-				}
-			}
-		}
-	}
-
-	return files, err
-}
-
-// hasValidExtension checks if the file has a valid extension
-func hasValidExtension(filePath string, extensions []string) bool {
-	ext := strings.ToLower(filepath.Ext(filePath))
-	for _, validExt := range extensions {
-		if ext == strings.ToLower(validExt) {
-			return true
-		}
-	}
-	return false
-}
 
 // parseDuration parses a duration string with fallback
 func parseDuration(s string) time.Duration {
@@ -745,7 +725,6 @@ type ScanConfig struct {
 	FailOnViolations        bool
 	ExcludeSystemNamespaces bool
 	IncludeClusterResources bool
-	DisableBuiltInRules     bool
 }
 
 // buildScanConfig creates scan configuration from command flags
@@ -754,8 +733,14 @@ func buildScanConfig(cmd *cobra.Command) (*ScanConfig, error) {
 	// Get command name to determine which section of config to use
 	cmdName := cmd.Name()
 
+	// Get output format with default fallback
+	outputFormat := viper.GetString("output")
+	if outputFormat == "" {
+		outputFormat = "table" // Default to table format
+	}
+
 	config := &ScanConfig{
-		Output:      viper.GetString("output"),
+		Output:      outputFormat,
 		OutputFile:  viper.GetString("output-file"),
 		Parallelism: 4, // Default parallelism, will be overridden by flag
 		Timeout:     parseDuration(viper.GetString("timeout")),
@@ -839,17 +824,6 @@ func buildScanConfig(cmd *cobra.Command) (*ScanConfig, error) {
 	}
 	if cmd.Flags().Changed("parallelism") {
 		config.Parallelism, _ = cmd.Flags().GetInt("parallelism")
-	}
-
-	// Determine disable built-in rules precedence
-	if cmd.Flags().Changed("disable-built-in-rules") {
-		config.DisableBuiltInRules, _ = cmd.Flags().GetBool("disable-built-in-rules")
-	} else if viper.IsSet("scan.disable-built-in-rules") {
-		config.DisableBuiltInRules = viper.GetBool("scan.disable-built-in-rules")
-	} else if viper.IsSet("disable-built-in-rules") {
-		config.DisableBuiltInRules = viper.GetBool("disable-built-in-rules")
-	} else {
-		config.DisableBuiltInRules = false
 	}
 
 	// Set defaults
@@ -949,7 +923,7 @@ func initializeEngine() (engine.EvaluationEngine, error) {
 }
 
 // executeClusterScan performs the actual cluster scanning with concurrency control
-func executeClusterScan(ctx context.Context, scanner k8s.ResourceScanner, engine engine.EvaluationEngine, rules []*models.SecurityRule, config *ScanConfig) (*models.ScanResult, error) {
+func executeClusterScan(ctx context.Context, scanner k8s.ResourceScanner, engine engine.EvaluationEngine, rules []*models.SpotterRule, config *ScanConfig) (*models.ScanResult, error) {
 	logger := GetLogger()
 
 	// Convert resource types from strings to GVKs
@@ -1003,7 +977,7 @@ func executeClusterScan(ctx context.Context, scanner k8s.ResourceScanner, engine
 }
 
 // executeManifestsScan performs manifest file scanning with concurrency control
-func executeManifestsScan(ctx context.Context, scanner k8s.ResourceScanner, engine engine.EvaluationEngine, rules []*models.SecurityRule, manifestFiles []string, config *ScanConfig) (*models.ScanResult, error) {
+func executeManifestsScan(ctx context.Context, scanner k8s.ResourceScanner, engine engine.EvaluationEngine, rules []*models.SpotterRule, manifestFiles []string, config *ScanConfig) (*models.ScanResult, error) {
 	logger := GetLogger()
 
 	// Build scan options with dynamic filtering enabled
@@ -1040,7 +1014,7 @@ func executeManifestsScan(ctx context.Context, scanner k8s.ResourceScanner, engi
 }
 
 // executeHelmScan performs Helm chart scanning
-func executeHelmScan(ctx context.Context, scanner k8s.ResourceScanner, engine engine.EvaluationEngine, rules []*models.SecurityRule, chartPaths []string, config *ScanConfig) (*models.ScanResult, error) {
+func executeHelmScan(ctx context.Context, scanner k8s.ResourceScanner, engine engine.EvaluationEngine, rules []*models.SpotterRule, chartPaths []string, config *ScanConfig) (*models.ScanResult, error) {
 	logger := GetLogger()
 
 	// Get Helm-specific flags
@@ -1101,23 +1075,14 @@ func executeHelmScan(ctx context.Context, scanner k8s.ResourceScanner, engine en
 }
 
 // evaluateResourcesConcurrently evaluates rules against resources with controlled concurrency
-func evaluateResourcesConcurrently(ctx context.Context, engine engine.EvaluationEngine, rules []*models.SecurityRule, resources []map[string]interface{}, config *ScanConfig) (*models.ScanResult, error) {
+func evaluateResourcesConcurrently(ctx context.Context, engine engine.EvaluationEngine, rules []*models.SpotterRule, resources []map[string]interface{}, config *ScanConfig) (*models.ScanResult, error) {
 	logger := GetLogger()
-
-	// Initialize progress bar
-	progressBar := progress.NewProgressBar(len(resources), "🔍 Scanning resources")
-	defer progressBar.Finish()
 
 	// Use the engine's built-in concurrency with configured parallelism
 	// This avoids the double worker pool issue that was causing duplicate evaluations
 	result, err := engine.EvaluateRulesAgainstResourcesConcurrent(ctx, rules, resources, config.Parallelism)
 	if err != nil {
 		return nil, fmt.Errorf("failed to evaluate resources: %w", err)
-	}
-
-	// Update progress bar to completion
-	for i := 0; i < len(resources); i++ {
-		progressBar.Increment()
 	}
 
 	// Filter by severity if specified

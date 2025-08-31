@@ -56,8 +56,8 @@ spotter scan manifests --path ./k8s-manifests/
 # Scan with custom rules
 spotter scan manifests --path ./manifests/ --rules-path ./custom-rules/
 
-# Scan using only custom rules (disable built-ins)
-spotter scan manifests ./manifests --disable-built-in-rules --rules-path ./rules
+# Scan using custom rules
+spotter scan manifests ./manifests --rules-path ./rules
 
 # Output in JSON format
 spotter scan manifests --path ./manifests/ --output json
@@ -75,7 +75,7 @@ spotter scan cluster --namespace production
 spotter scan cluster --kubeconfig ~/.kube/config
 
 # Scan cluster using only custom rules
-spotter scan cluster --disable-built-in-rules --rules-path ./rules
+spotter scan cluster --rules-path ./rules
 ```
 
 #### Rule Management
@@ -119,7 +119,7 @@ Spotter follows a modular architecture designed for extensibility and performanc
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌───────────┐ │
 │  │  Scanner    │  │    Rules    │  │   Reporter  │  │  Metrics  │ │
 │  │             │  │             │  │             │  │           │ │
-│  │ • Manifest  │  │ • Built-in  │  │ • Formatter │  │ • Timing  │ │
+│  │ • Manifest  │  │ • Local     │  │ • Formatter │  │ • Timing  │ │
 │  │ • Cluster   │  │ • Custom    │  │ • Writer    │  │ • Counts  │ │
 │  │ • Workers   │  │ • CEL       │  │ • Streaming │  │ • Errors  │ │
 │  └─────────────┘  └─────────────┘  └─────────────┘  └───────────┘ │
@@ -137,7 +137,7 @@ Spotter follows a modular architecture designed for extensibility and performanc
 ## 🚀 Features
 
 ### 🔒 Security Scanning
-- **Comprehensive Rule Set**: Built-in security rules covering OWASP Kubernetes Top 10, CIS Kubernetes Benchmark, and NSA/CISA guidelines
+- **Comprehensive Rule Set**: Access to security rules covering OWASP Kubernetes Top 10, CIS Kubernetes Benchmark, and NSA/CISA guidelines via the hub
 - **Custom Rules**: Define your own security rules using CEL expressions
 - **Multi-Resource Support**: Scan Pods, Deployments, Services, ConfigMaps, Secrets, and more
 - **Real-time Cluster Scanning**: Connect to live Kubernetes clusters for runtime security assessment
@@ -246,9 +246,9 @@ spotter scan cluster --config production.yaml --min-severity high --parallelism 
 
 ## 🛡️ Security Rules
 
-Spotter includes comprehensive built-in security rules and supports custom rule creation:
+Spotter provides access to comprehensive security rules via the hub and supports custom rule creation:
 
-### Built-in Rule Categories
+### Available Rule Categories
 
 - Workload Security
 - Access Control
@@ -264,8 +264,8 @@ Spotter includes comprehensive built-in security rules and supports custom rule 
 ### Custom Rule Example
 
 ```yaml
-apiVersion: rules.spotter.run/v1
-kind: SecurityRule
+apiVersion: rules.spotter.dev/v1alpha1
+kind: SpotterRule
 metadata:
   name: unique-name
   labels:

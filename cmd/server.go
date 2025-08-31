@@ -13,13 +13,13 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	admissionv1 "k8s.io/api/admission/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/madhuakula/spotter/pkg/engine"
 	"github.com/madhuakula/spotter/pkg/models"
 	"github.com/madhuakula/spotter/pkg/parser"
+	pkgconfig "github.com/madhuakula/spotter/pkg/config"
 )
 
 // serverCmd represents the server command
@@ -32,7 +32,7 @@ This command starts an HTTPS server that acts as a ValidatingAdmissionWebhook
 to scan resources as they are created/updated in the cluster and either 
 allow, deny, or evaluate them based on security rules.
 
-The server uses embedded built-in security rules and provides health check
+The server uses configured security rules and provides health check
 endpoints for monitoring.
 
 Examples:
@@ -49,17 +49,16 @@ Examples:
 
 // ServerConfig holds the server configuration
 type ServerConfig struct {
-	Mode                string // "validating" or "evaluating"
-	Port                int
-	TLSCertFile         string
-	TLSKeyFile          string
-	Namespaces          []string
-	ResourceTypes       []string
-	MinSeverity         string
-	LogFormat           string
-	LogLevel            string
-	DisableBuiltinRules bool
-	RulesPath           []string
+	Mode          string // "validating" or "evaluating"
+	Port          int
+	TLSCertFile   string
+	TLSKeyFile    string
+	Namespaces    []string
+	ResourceTypes []string
+	MinSeverity   string
+	LogFormat     string
+	LogLevel      string
+	RulesPath     []string
 }
 
 // Removed unused variables scheme and codecs
@@ -75,37 +74,7 @@ func init() {
 	serverCmd.Flags().StringSlice("namespaces", []string{}, "namespaces to monitor (empty = all namespaces)")
 	serverCmd.Flags().StringSlice("resource-types", []string{}, "resource types to monitor (empty = all supported types)")
 	serverCmd.Flags().String("min-severity", "medium", "minimum severity level to act upon (low, medium, high, critical)")
-	serverCmd.Flags().Bool("disable-built-in-rules", false, "do not include built-in rules during evaluation")
 	serverCmd.Flags().StringSlice("rules-path", []string{}, "paths to security rules directories or files")
-
-	// Bind flags to viper
-	if err := viper.BindPFlag("server.mode", serverCmd.Flags().Lookup("mode")); err != nil {
-		panic(fmt.Sprintf("failed to bind server.mode flag: %v", err))
-	}
-	if err := viper.BindPFlag("server.port", serverCmd.Flags().Lookup("port")); err != nil {
-		panic(fmt.Sprintf("failed to bind server.port flag: %v", err))
-	}
-	if err := viper.BindPFlag("server.tls-cert-file", serverCmd.Flags().Lookup("tls-cert-file")); err != nil {
-		panic(fmt.Sprintf("failed to bind server.tls-cert-file flag: %v", err))
-	}
-	if err := viper.BindPFlag("server.tls-key-file", serverCmd.Flags().Lookup("tls-key-file")); err != nil {
-		panic(fmt.Sprintf("failed to bind server.tls-key-file flag: %v", err))
-	}
-	if err := viper.BindPFlag("server.namespaces", serverCmd.Flags().Lookup("namespaces")); err != nil {
-		panic(fmt.Sprintf("failed to bind server.namespaces flag: %v", err))
-	}
-	if err := viper.BindPFlag("server.resource-types", serverCmd.Flags().Lookup("resource-types")); err != nil {
-		panic(fmt.Sprintf("failed to bind server.resource-types flag: %v", err))
-	}
-	if err := viper.BindPFlag("server.min-severity", serverCmd.Flags().Lookup("min-severity")); err != nil {
-		panic(fmt.Sprintf("failed to bind server.min-severity flag: %v", err))
-	}
-	if err := viper.BindPFlag("server.disable-built-in-rules", serverCmd.Flags().Lookup("disable-built-in-rules")); err != nil {
-		panic(fmt.Sprintf("failed to bind server.disable-built-in-rules flag: %v", err))
-	}
-	if err := viper.BindPFlag("server.rules-path", serverCmd.Flags().Lookup("rules-path")); err != nil {
-		panic(fmt.Sprintf("failed to bind server.rules-path flag: %v", err))
-	}
 }
 
 func runServer(cmd *cobra.Command, args []string) error {
@@ -124,43 +93,17 @@ func runServer(cmd *cobra.Command, args []string) error {
 		"min_severity", config.MinSeverity)
 
 	// Load security rules based on configuration
-	var rules []*models.SecurityRule
-	if viper.GetBool("server.disable-built-in-rules") {
+	var rules []*models.SpotterRule
+	rulesPaths := config.RulesPath
+	if len(rulesPaths) > 0 {
 		parser := parser.NewYAMLParser(true)
-		rulesPaths := viper.GetStringSlice("server.rules-path")
-		if len(rulesPaths) > 0 {
-			var err error
-			rules, err = loadExternalRules(parser, rulesPaths)
-			if err != nil {
-				return fmt.Errorf("failed to load external rules: %w", err)
-			}
-		} else {
-			rules = []*models.SecurityRule{}
-		}
-	} else {
-		builtin, err := loadBuiltinSecurityRules()
+		ext, err := loadExternalRules(parser, rulesPaths)
 		if err != nil {
-			return fmt.Errorf("failed to load security rules: %w", err)
+			return fmt.Errorf("failed to load external rules: %w", err)
 		}
-		rules = append(rules, builtin...)
-		rulesPaths := viper.GetStringSlice("server.rules-path")
-		if len(rulesPaths) > 0 {
-			parser := parser.NewYAMLParser(true)
-			ext, err := loadExternalRules(parser, rulesPaths)
-			if err != nil {
-				return fmt.Errorf("failed to load external rules: %w", err)
-			}
-			seen := map[string]bool{}
-			for _, r := range rules {
-				seen[r.Spec.ID] = true
-			}
-			for _, r := range ext {
-				if !seen[r.Spec.ID] {
-					rules = append(rules, r)
-					seen[r.Spec.ID] = true
-				}
-			}
-		}
+		rules = append(rules, ext...)
+	} else {
+		rules = []*models.SpotterRule{}
 	}
 
 	logger.Info("Loaded security rules", "count", len(rules))
@@ -237,7 +180,7 @@ func runServer(cmd *cobra.Command, args []string) error {
 // AdmissionServer handles admission webhook requests
 type AdmissionServer struct {
 	Config *ServerConfig
-	Rules  []*models.SecurityRule
+	Rules  []*models.SpotterRule
 	Engine engine.EvaluationEngine
 	Logger interface {
 		Info(string, ...interface{})
@@ -523,7 +466,8 @@ func (s *AdmissionServer) healthzHandler(w http.ResponseWriter, r *http.Request)
 
 // readyzHandler handles readiness check requests
 func (s *AdmissionServer) readyzHandler(w http.ResponseWriter, r *http.Request) {
-	// TODO: Add more sophisticated readiness checks
+	// Basic readiness check - server is ready if it can respond
+	// Future enhancements could include rule loading status, dependency checks, etc.
 	w.WriteHeader(http.StatusOK)
 	if _, err := w.Write([]byte("Ready")); err != nil {
 		s.Logger.Error("Failed to write readiness check response", "error", err)
@@ -532,23 +476,68 @@ func (s *AdmissionServer) readyzHandler(w http.ResponseWriter, r *http.Request) 
 
 // metricsHandler handles metrics requests
 func (s *AdmissionServer) metricsHandler(w http.ResponseWriter, r *http.Request) {
-	// TODO: Add Prometheus metrics
+	// Basic metrics endpoint - returns placeholder metrics
+	// Future enhancements could include Prometheus metrics integration
 	w.WriteHeader(http.StatusOK)
-	if _, err := w.Write([]byte("# Metrics endpoint - TODO: implement Prometheus metrics\n")); err != nil {
+	metrics := "# HELP spotter_server_up Server status\n# TYPE spotter_server_up gauge\nspotter_server_up 1\n"
+	if _, err := w.Write([]byte(metrics)); err != nil {
 		s.Logger.Error("Failed to write metrics response", "error", err)
 	}
 }
 
 // buildServerConfig creates server configuration from command flags
 func buildServerConfig(cmd *cobra.Command) (*ServerConfig, error) {
+	// Get the global config or use defaults
+	var appConfig *pkgconfig.SpotterConfig
+	if globalConfig != nil {
+		appConfig = globalConfig
+	} else {
+		var err error
+		appConfig, err = pkgconfig.DefaultConfig()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get default config: %w", err)
+		}
+	}
+
 	config := &ServerConfig{
-		Mode:        viper.GetString("server.mode"),
-		Port:        viper.GetInt("server.port"),
-		TLSCertFile: viper.GetString("server.tls-cert-file"),
-		TLSKeyFile:  viper.GetString("server.tls-key-file"),
-		MinSeverity: viper.GetString("server.min-severity"),
-		LogFormat:   viper.GetString("log-format"),
-		LogLevel:    viper.GetString("log-level"),
+		LogFormat: appConfig.Logging.Format,
+		LogLevel:  appConfig.Logging.Level,
+		RulesPath: []string{appConfig.RulesDir},
+	}
+
+	// Override with command line flags
+	if cmd.Flags().Changed("mode") {
+		config.Mode, _ = cmd.Flags().GetString("mode")
+	} else {
+		config.Mode = "validating" // default
+	}
+
+	if cmd.Flags().Changed("port") {
+		config.Port, _ = cmd.Flags().GetInt("port")
+	} else {
+		config.Port = 8443 // default
+	}
+
+	if cmd.Flags().Changed("tls-cert-file") {
+		config.TLSCertFile, _ = cmd.Flags().GetString("tls-cert-file")
+	} else {
+		config.TLSCertFile = "/etc/certs/tls.crt" // default
+	}
+
+	if cmd.Flags().Changed("tls-key-file") {
+		config.TLSKeyFile, _ = cmd.Flags().GetString("tls-key-file")
+	} else {
+		config.TLSKeyFile = "/etc/certs/tls.key" // default
+	}
+
+	if cmd.Flags().Changed("min-severity") {
+		config.MinSeverity, _ = cmd.Flags().GetString("min-severity")
+	} else {
+		config.MinSeverity = "medium" // default
+	}
+
+	if cmd.Flags().Changed("rules-path") {
+		config.RulesPath, _ = cmd.Flags().GetStringSlice("rules-path")
 	}
 
 	if cmd.Flags().Changed("namespaces") {
@@ -591,19 +580,4 @@ func loadTLSConfig(certFile, keyFile string) (*tls.Config, error) {
 		Certificates: []tls.Certificate{cert},
 		MinVersion:   tls.VersionTLS12,
 	}, nil
-}
-
-// loadBuiltinSecurityRules loads only the built-in embedded security rules
-func loadBuiltinSecurityRules() ([]*models.SecurityRule, error) {
-	if BuiltinRulesFS == nil {
-		return nil, fmt.Errorf("built-in rules filesystem not initialized")
-	}
-
-	parser := parser.NewYAMLParser(true)
-	rules, err := parser.ParseRulesFromFS(context.Background(), BuiltinRulesFS, "builtin")
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse built-in rules: %w", err)
-	}
-
-	return rules, nil
 }
