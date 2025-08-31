@@ -1,10 +1,16 @@
 package config
 
 import (
+	_ "embed"
 	"os"
 	"path/filepath"
 	"time"
+
+	"gopkg.in/yaml.v3"
 )
+
+//go:embed default.yaml
+var defaultConfigYAML []byte
 
 // LoggingConfig represents logging configuration
 type LoggingConfig struct {
@@ -157,98 +163,71 @@ type SpotterConfig struct {
 	RulesDir string `yaml:"rules_dir" json:"rules_dir"`
 	PacksDir string `yaml:"packs_dir" json:"packs_dir"`
 
-	// New comprehensive configuration sections
-	Logging      LoggingConfig      `yaml:"logging" json:"logging"`
-	Scanner      ScannerConfig      `yaml:"scanner" json:"scanner"`
-	Rules        RulesConfig        `yaml:"rules" json:"rules"`
-	Output       OutputConfig       `yaml:"output" json:"output"`
-	Kubernetes   KubernetesConfig   `yaml:"kubernetes" json:"kubernetes"`
-	Helm         HelmConfig         `yaml:"helm" json:"helm"`
-	Filtering    FilteringConfig    `yaml:"filtering" json:"filtering"`
-	Performance  PerformanceConfig  `yaml:"performance" json:"performance"`
-	Security     SecurityConfig     `yaml:"security" json:"security"`
-	Reporting    ReportingConfig    `yaml:"reporting" json:"reporting"`
-	Integrations IntegrationsConfig `yaml:"integrations" json:"integrations"`
-	Development  DevelopmentConfig  `yaml:"development" json:"development"`
+	// Implemented configuration sections
+	Logging    LoggingConfig    `yaml:"logging" json:"logging"`
+	Rules      RulesConfig      `yaml:"rules" json:"rules"`
+	Output     OutputConfig     `yaml:"output" json:"output"`
+	Kubernetes KubernetesConfig `yaml:"kubernetes" json:"kubernetes"`
+	Helm       HelmConfig       `yaml:"helm" json:"helm"`
+
+	// TODO: Uncomment when these features are implemented
+	// Scanner      ScannerConfig      `yaml:"scanner" json:"scanner"`
+	// Filtering    FilteringConfig    `yaml:"filtering" json:"filtering"`
+	// Performance  PerformanceConfig  `yaml:"performance" json:"performance"`
+	// Security     SecurityConfig     `yaml:"security" json:"security"`
+	// Reporting    ReportingConfig    `yaml:"reporting" json:"reporting"`
+	// Integrations IntegrationsConfig `yaml:"integrations" json:"integrations"`
+	// Development  DevelopmentConfig  `yaml:"development" json:"development"`
 }
 
 // DefaultConfig returns the default configuration
 func DefaultConfig() *SpotterConfig {
-	homeDir, _ := os.UserHomeDir()
-	spotterDir := filepath.Join(homeDir, ".spotter")
-
-	return &SpotterConfig{
-		// Legacy fields for backward compatibility
-		HubURL:   "https://rules.spotter.run/api/v1",
-		APIKey:   "",
-		CacheDir: spotterDir,
-		RulesDir: filepath.Join(spotterDir, "rules"),
-		PacksDir: filepath.Join(spotterDir, "rulepacks"),
-
-		// New comprehensive configuration sections with defaults
-		Logging: LoggingConfig{
-			Level:  "info",
-			Format: "text",
-		},
-		Scanner: ScannerConfig{
-			// TODO: Add default values when scanner config fields are implemented
-		},
-		Rules: RulesConfig{
-			CustomPaths:    []string{"./custom-rules/", "/etc/spotter/rules/"},
-			SeverityFilter: []string{"CRITICAL", "HIGH", "MEDIUM", "LOW"},
-			MinSeverity:    "",
-			IncludeRules:   []string{},
-			ExcludeRules:   []string{},
-			Categories:     []string{},
-			CustomFilters:  map[string]string{},
-			DefaultPacks:   []string{"spotter-secure-defaults-pack"}, // Set default pack
-		},
-		Output: OutputConfig{
-			Format:  "table",
-			Verbose: false,
-			File:    "",
-			Pretty:  true,
-		},
-		Kubernetes: KubernetesConfig{
-			Kubeconfig: "~/.kube/config",
-			Context:    "",
-			Timeout:    30 * time.Second,
-			Namespace:  "",
-		},
-		Helm: HelmConfig{
-			ReleaseName:        "spotter-scan",
-			Namespace:          "default",
-			KubeVersion:        "",
-			ValuesFiles:        []string{},
-			SetValues:          []string{},
-			SetStringValues:    []string{},
-			SkipCRDs:           false,
-			SkipTests:          false,
-			ValidateSchema:     false,
-			IncludeCRDs:        true,
-			UpdateDependencies: false,
-			ChartRepo:          "",
-			ChartVersion:       "",
-		},
-		Filtering: FilteringConfig{
-			// TODO: Add default values when filtering config fields are implemented
-		},
-		Performance: PerformanceConfig{
-			// TODO: Add default values when performance config fields are implemented
-		},
-		Security: SecurityConfig{
-			// TODO: Add default values when security config fields are implemented
-		},
-		Reporting: ReportingConfig{
-			// TODO: Add default values when reporting config fields are implemented
-		},
-		Integrations: IntegrationsConfig{
-			// TODO: Add default values when integrations config fields are implemented
-		},
-		Development: DevelopmentConfig{
-			// TODO: Add default values when development config fields are implemented
-		},
+	var config SpotterConfig
+	
+	// Parse the embedded default config
+	if err := yaml.Unmarshal(defaultConfigYAML, &config); err != nil {
+		// Fallback to hardcoded defaults if parsing fails
+		homeDir, _ := os.UserHomeDir()
+		spotterDir := filepath.Join(homeDir, ".spotter")
+		
+		return &SpotterConfig{
+			HubURL:   "https://rules.spotter.run/api/v1",
+			APIKey:   "",
+			CacheDir: spotterDir,
+			RulesDir: filepath.Join(spotterDir, "rules"),
+			PacksDir: filepath.Join(spotterDir, "rulepacks"),
+			Logging: LoggingConfig{
+				Level:  "info",
+				Format: "text",
+			},
+			Output: OutputConfig{
+				Format:  "table",
+				Verbose: false,
+				Pretty:  true,
+			},
+			Kubernetes: KubernetesConfig{
+				Kubeconfig: "~/.kube/config",
+				Timeout:    30 * time.Second,
+			},
+		}
 	}
+	
+	// Expand home directory paths
+	homeDir, _ := os.UserHomeDir()
+	if config.CacheDir == "~/.spotter" {
+		config.CacheDir = filepath.Join(homeDir, ".spotter")
+	}
+	if config.RulesDir == "~/.spotter/rules" {
+		config.RulesDir = filepath.Join(homeDir, ".spotter", "rules")
+	}
+	if config.PacksDir == "~/.spotter/rulepacks" {
+		config.PacksDir = filepath.Join(homeDir, ".spotter", "rulepacks")
+	}
+	if config.Kubernetes.Kubeconfig == "~/.kube/config" {
+		config.Kubernetes.Kubeconfig = filepath.Join(homeDir, ".kube", "config")
+	}
+	
+	return &config
 }
 
 // GetSpotterDir returns the Spotter configuration directory
@@ -269,14 +248,7 @@ func GetConfigPath() (string, error) {
 	return filepath.Join(spotterDir, "config.yaml"), nil
 }
 
-// GetLegacyConfigPath returns the path to the legacy .spotter.yaml file
-func GetLegacyConfigPath() (string, error) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(homeDir, ".spotter.yaml"), nil
-}
+
 
 // GetRulesDir returns the rules directory path
 func GetRulesDir() (string, error) {

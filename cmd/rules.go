@@ -637,10 +637,10 @@ func runRulesPull(cmd *cobra.Command, args []string) error {
 	verbose, _ := cmd.Flags().GetBool("verbose")
 
 	// Load configuration
-	cfg, err := config.LoadConfig()
-	if err != nil {
-		cfg = config.DefaultConfig()
-	}
+	cfg, err := config.LoadConfig("")
+		if err != nil {
+			cfg = config.DefaultConfig()
+		}
 
 	// Initialize cache manager
 	cacheManager := cache.NewCacheManager(cfg)
@@ -711,7 +711,7 @@ func runRulesSearch(cmd *cobra.Command, args []string) error {
 	showDescription, _ := cmd.Flags().GetBool("show-description")
 
 	// Load configuration
-	cfg, err := config.LoadConfig()
+	cfg, err := config.LoadConfig("")
 	if err != nil {
 		cfg = config.DefaultConfig()
 	}
@@ -830,7 +830,7 @@ func outputSearchResultsYAML(results []hub.RuleInfo) error {
 
 // loadRuleByID loads a specific rule by its ID from local cache
 func loadRuleByID(ruleID string) (*models.SpotterRule, error) {
-	cfg, err := config.LoadConfig()
+	cfg, err := config.LoadConfig("")
 	if err != nil {
 		return nil, fmt.Errorf("failed to load config: %w", err)
 	}
@@ -855,7 +855,7 @@ func loadRulesForCommand(cmd *cobra.Command) ([]*RuleWithSource, error) {
 	ruleNameMap := make(map[string]string) // Track rule names to detect duplicates with different IDs
 
 	// Load local rules first
-	cfg, err := config.LoadConfig()
+	cfg, err := config.LoadConfig("")
 	if err == nil {
 		cacheManager := cache.NewCacheManager(cfg)
 		localRules, err := cacheManager.ListCachedRules()

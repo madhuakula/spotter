@@ -93,7 +93,7 @@ func init() {
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
 	// Load configuration using the new consolidated config structure
-	config, err := pkgconfig.LoadConfig()
+	config, err := pkgconfig.LoadConfig("")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
 		// Continue with default config on error

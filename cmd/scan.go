@@ -522,7 +522,7 @@ func runHelmScan(cmd *cobra.Command, args []string) error {
 
 // loadSpecificRulesAndPacks loads specific rules and rules from packs
 func loadSpecificRulesAndPacks(ruleIDs, packIDs []string) ([]*models.SpotterRule, error) {
-	cfg, err := config.LoadConfig()
+	cfg, err := config.LoadConfig("")
 	if err != nil {
 		return nil, fmt.Errorf("failed to load config: %w", err)
 	}
@@ -568,10 +568,10 @@ func loadSpecificRulesAndPacks(ruleIDs, packIDs []string) ([]*models.SpotterRule
 
 // loadDefaultPacksWithAutoPull loads rules from default packs with auto-pull functionality
 func loadDefaultPacksWithAutoPull(packIDs []string) ([]*models.SpotterRule, error) {
-	cfg, err := config.LoadConfig()
-	if err != nil {
-		return nil, fmt.Errorf("failed to load config: %w", err)
-	}
+	cfg, err := config.LoadConfig("")
+		if err != nil {
+			return nil, fmt.Errorf("failed to load config: %w", err)
+		}
 
 	cacheManager := cache.NewCacheManager(cfg)
 	hubClient := hub.NewClientWithConfig(cfg)

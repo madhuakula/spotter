@@ -212,7 +212,7 @@ func runPacksExportVAP(cmd *cobra.Command, args []string) error {
 	logger.Debug("Exporting rule pack to ValidatingAdmissionPolicy format", "pack-id", packID)
 
 	// Load configuration
-	cfg, err := config.LoadConfig()
+	cfg, err := config.LoadConfig("")
 	if err != nil {
 		cfg = config.DefaultConfig()
 	}
@@ -443,7 +443,7 @@ func init() {
 
 func runPacksSearch(cmd *cobra.Command, args []string) error {
 	// Load configuration
-	cfg, err := config.LoadConfig()
+	cfg, err := config.LoadConfig("")
 	if err != nil {
 		cfg = config.DefaultConfig()
 	}
@@ -522,7 +522,7 @@ func runPacksSearch(cmd *cobra.Command, args []string) error {
 
 func runPacksList(cmd *cobra.Command, args []string) error {
 	// Load configuration
-	cfg, err := config.LoadConfig()
+	cfg, err := config.LoadConfig("")
 	if err != nil {
 		cfg = config.DefaultConfig()
 	}
@@ -556,7 +556,7 @@ func runPacksPull(cmd *cobra.Command, args []string) error {
 	packID := args[0]
 
 	// Load configuration
-	cfg, err := config.LoadConfig()
+	cfg, err := config.LoadConfig("")
 	if err != nil {
 		cfg = config.DefaultConfig()
 	}
@@ -631,7 +631,7 @@ func runPacksInfo(cmd *cobra.Command, args []string) error {
 	packID := args[0]
 
 	// Load configuration
-	cfg, err := config.LoadConfig()
+	cfg, err := config.LoadConfig("")
 	if err != nil {
 		cfg = config.DefaultConfig()
 	}
