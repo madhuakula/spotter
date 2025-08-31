@@ -4,9 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/fs"
 	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 	"text/tabwriter"
@@ -25,6 +23,7 @@ import (
 	"github.com/madhuakula/spotter/pkg/models"
 	"github.com/madhuakula/spotter/pkg/parser"
 	"github.com/madhuakula/spotter/pkg/progress"
+	"github.com/madhuakula/spotter/pkg/runner"
 	"github.com/madhuakula/spotter/pkg/vap"
 )
 
@@ -278,8 +277,8 @@ Examples:
 
 // runRulesValidation validates rule files specifically
 func runRulesValidation(path string, runTests bool, outputFormat string, verbose bool) error {
-	// Import validation functionality from validate.go
-	return runValidation(path, runTests, outputFormat, verbose)
+	// Import validation functionality from runner package
+	return runner.RunValidation(path, runTests, outputFormat, verbose)
 }
 
 func init() {
@@ -1078,56 +1077,7 @@ func outputRuleInfoYAML(rule *models.SpotterRule) error {
 	return nil
 }
 
-func collectRuleFiles(path string, recursive bool, extensions []string) ([]string, error) {
-	var files []string
 
-	info, err := os.Stat(path)
-	if err != nil {
-		return nil, err
-	}
-
-	if !info.IsDir() {
-		// Single file
-		if hasValidExtension(path, extensions) && !isTestFile(path) {
-			files = append(files, path)
-		}
-		return files, nil
-	}
-
-	// Directory
-	if recursive {
-		err = filepath.WalkDir(path, func(filePath string, d fs.DirEntry, err error) error {
-			if err != nil {
-				return err
-			}
-			if !d.IsDir() && hasValidExtension(filePath, extensions) && !isTestFile(filePath) {
-				files = append(files, filePath)
-			}
-			return nil
-		})
-	} else {
-		entries, err := os.ReadDir(path)
-		if err != nil {
-			return nil, err
-		}
-		for _, entry := range entries {
-			if !entry.IsDir() {
-				filePath := filepath.Join(path, entry.Name())
-				if hasValidExtension(filePath, extensions) && !isTestFile(filePath) {
-					files = append(files, filePath)
-				}
-			}
-		}
-	}
-
-	return files, err
-}
-
-// isTestFile checks if the file is a test file (ends with -test.yaml or -test.yml)
-func isTestFile(filePath string) bool {
-	baseName := filepath.Base(filePath)
-	return strings.HasSuffix(baseName, "-test.yaml") || strings.HasSuffix(baseName, "-test.yml")
-}
 
 func exportToSARIF(rules []*models.SpotterRule) ([]byte, error) {
 	// SARIF export implementation

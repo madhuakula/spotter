@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -21,6 +20,7 @@ import (
 	"github.com/madhuakula/spotter/pkg/parser"
 	"github.com/madhuakula/spotter/pkg/progress"
 	"github.com/madhuakula/spotter/pkg/reporter"
+	"github.com/madhuakula/spotter/pkg/utils"
 )
 
 // scanCmd represents the scan command
@@ -396,7 +396,11 @@ func runManifestsScan(cmd *cobra.Command, args []string) error {
 	pathsToScan = append(pathsToScan, includePaths...)
 
 	for _, path := range pathsToScan {
-		files, err := collectManifestFiles(path, recursive, extensions, followSymlinks)
+		files, err := utils.CollectFiles(path, utils.FileCollectionOptions{
+			Recursive:      recursive,
+			Extensions:     extensions,
+			FollowSymlinks: followSymlinks,
+		})
 		if err != nil {
 			return fmt.Errorf("failed to collect manifest files from %s: %w", path, err)
 		}
@@ -760,70 +764,7 @@ func loadExternalRules(parser *parser.YAMLParser, rulesPaths []string) ([]*model
 	return allRules, nil
 }
 
-// collectManifestFiles collects all manifest files from the given path
-func collectManifestFiles(path string, recursive bool, extensions []string, followSymlinks bool) ([]string, error) {
-	var files []string
 
-	info, err := os.Stat(path)
-	if err != nil {
-		return nil, err
-	}
-
-	if !info.IsDir() {
-		// Single file
-		if hasValidExtension(path, extensions) {
-			return []string{path}, nil
-		}
-		return nil, nil
-	}
-
-	// Directory
-	if recursive {
-		err = filepath.WalkDir(path, func(filePath string, d os.DirEntry, err error) error {
-			if err != nil {
-				return err
-			}
-			// Skip symlinks if not following
-			if d.Type()&os.ModeSymlink != 0 && !followSymlinks {
-				return nil
-			}
-			if !d.IsDir() && hasValidExtension(filePath, extensions) {
-				files = append(files, filePath)
-			}
-			return nil
-		})
-	} else {
-		entries, err := os.ReadDir(path)
-		if err != nil {
-			return nil, err
-		}
-		for _, entry := range entries {
-			// Skip symlinks if not following
-			if entry.Type()&os.ModeSymlink != 0 && !followSymlinks {
-				continue
-			}
-			if !entry.IsDir() {
-				filePath := filepath.Join(path, entry.Name())
-				if hasValidExtension(filePath, extensions) {
-					files = append(files, filePath)
-				}
-			}
-		}
-	}
-
-	return files, err
-}
-
-// hasValidExtension checks if the file has a valid extension
-func hasValidExtension(filePath string, extensions []string) bool {
-	ext := strings.ToLower(filepath.Ext(filePath))
-	for _, validExt := range extensions {
-		if ext == strings.ToLower(validExt) {
-			return true
-		}
-	}
-	return false
-}
 
 // parseDuration parses a duration string with fallback
 func parseDuration(s string) time.Duration {

@@ -18,6 +18,7 @@ import (
 	"github.com/madhuakula/spotter/pkg/hub"
 	"github.com/madhuakula/spotter/pkg/models"
 	"github.com/madhuakula/spotter/pkg/progress"
+	"github.com/madhuakula/spotter/pkg/runner"
 	"github.com/madhuakula/spotter/pkg/vap"
 )
 
@@ -199,8 +200,8 @@ Examples:
 
 // runPacksValidation validates rule pack files specifically
 func runPacksValidation(path string, runTests bool, outputFormat string, verbose bool) error {
-	// Import validation functionality from validate.go
-	return runValidation(path, runTests, outputFormat, verbose)
+	// Import validation functionality from runner package
+	return runner.RunValidation(path, runTests, outputFormat, verbose)
 }
 
 // runPacksExportVAP exports a rule pack to ValidatingAdmissionPolicy format

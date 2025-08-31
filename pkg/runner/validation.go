@@ -1,4 +1,4 @@
-package cmd
+package runner
 
 import (
 	"encoding/json"
@@ -7,14 +7,11 @@ import (
 
 	"github.com/madhuakula/spotter/pkg/parser"
 	"github.com/madhuakula/spotter/pkg/testing"
+	"github.com/madhuakula/spotter/pkg/utils"
 	"github.com/madhuakula/spotter/pkg/validation"
 )
 
-// NOTE: The standalone 'validate' command has been removed.
-// Validation functionality is now available through:
-// - 'spotter rules validate' for validating rules
-// - 'spotter packs validate' for validating rule packs
-
+// ValidationReport represents the result of validating files or directories
 type ValidationReport struct {
 	Path             string                       `json:"path"`
 	Valid            bool                         `json:"valid"`
@@ -26,7 +23,8 @@ type ValidationReport struct {
 	TestsRun         bool                         `json:"testsRun"`
 }
 
-func runValidation(path string, runTests bool, outputFormat string, verbose bool) error {
+// RunValidation validates files or directories and returns results
+func RunValidation(path string, runTests bool, outputFormat string, verbose bool) error {
 	var reports []ValidationReport
 
 	// Check if path is a file or directory
@@ -37,13 +35,13 @@ func runValidation(path string, runTests bool, outputFormat string, verbose bool
 
 	if info.IsDir() {
 		// Validate directory
-		reports, err = validateDirectory(path, runTests, verbose)
+		reports, err = ValidateDirectory(path, runTests, verbose)
 		if err != nil {
 			return err
 		}
 	} else {
 		// Validate single file
-		report, err := validateFile(path, runTests, verbose)
+		report, err := ValidateFile(path, runTests, verbose)
 		if err != nil {
 			return err
 		}
@@ -51,10 +49,11 @@ func runValidation(path string, runTests bool, outputFormat string, verbose bool
 	}
 
 	// Output results
-	return outputResults(reports, outputFormat)
+	return OutputResults(reports, outputFormat)
 }
 
-func validateDirectory(dirPath string, runTests bool, verbose bool) ([]ValidationReport, error) {
+// ValidateDirectory validates all files in a directory
+func ValidateDirectory(dirPath string, runTests bool, verbose bool) ([]ValidationReport, error) {
 	var reports []ValidationReport
 
 	// Load all rules and rulepacks from directory
@@ -100,7 +99,11 @@ func validateDirectory(dirPath string, runTests bool, verbose bool) ([]Validatio
 	if runTests && len(loadResult.Rules) > 0 {
 		// For directory validation, we need to find rule files and their corresponding test files
 		// Since we don't track source files in rule metadata, we'll scan the directory for rule files
-		ruleFiles, err := collectRuleFiles(dirPath, true, []string{".yaml", ".yml"})
+		ruleFiles, err := utils.CollectFiles(dirPath, utils.FileCollectionOptions{
+			Recursive:   true,
+			Extensions:  []string{".yaml", ".yml"},
+			ExcludeTest: true,
+		})
 		if err != nil {
 			if verbose {
 				fmt.Printf("Warning: Failed to collect rule files for testing: %v\n", err)
@@ -155,10 +158,10 @@ func validateDirectory(dirPath string, runTests bool, verbose bool) ([]Validatio
 
 	reports = append(reports, report)
 	return reports, nil
-
 }
 
-func validateFile(filePath string, runTests bool, verbose bool) (*ValidationReport, error) {
+// ValidateFile validates a single file
+func ValidateFile(filePath string, runTests bool, verbose bool) (*ValidationReport, error) {
 	report := &ValidationReport{
 		Path:     filePath,
 		Valid:    true,
@@ -235,18 +238,20 @@ func validateFile(filePath string, runTests bool, verbose bool) (*ValidationRepo
 	return report, nil
 }
 
-func outputResults(reports []ValidationReport, format string) error {
+// OutputResults outputs validation results in the specified format
+func OutputResults(reports []ValidationReport, format string) error {
 	switch format {
 	case "json":
-		return outputJSON(reports)
+		return OutputJSON(reports)
 	case "text":
-		return outputText(reports)
+		return OutputText(reports)
 	default:
 		return fmt.Errorf("unsupported output format: %s", format)
 	}
 }
 
-func outputJSON(reports []ValidationReport) error {
+// OutputJSON outputs results in JSON format
+func OutputJSON(reports []ValidationReport) error {
 	data, err := json.MarshalIndent(reports, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal JSON: %w", err)
@@ -255,7 +260,8 @@ func outputJSON(reports []ValidationReport) error {
 	return nil
 }
 
-func outputText(reports []ValidationReport) error {
+// OutputText outputs results in human-readable text format
+func OutputText(reports []ValidationReport) error {
 	totalFiles := len(reports)
 	validFiles := 0
 	totalRules := 0

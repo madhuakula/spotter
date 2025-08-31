@@ -13,13 +13,13 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	admissionv1 "k8s.io/api/admission/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/madhuakula/spotter/pkg/engine"
 	"github.com/madhuakula/spotter/pkg/models"
 	"github.com/madhuakula/spotter/pkg/parser"
+	pkgconfig "github.com/madhuakula/spotter/pkg/config"
 )
 
 // serverCmd represents the server command
@@ -75,32 +75,6 @@ func init() {
 	serverCmd.Flags().StringSlice("resource-types", []string{}, "resource types to monitor (empty = all supported types)")
 	serverCmd.Flags().String("min-severity", "medium", "minimum severity level to act upon (low, medium, high, critical)")
 	serverCmd.Flags().StringSlice("rules-path", []string{}, "paths to security rules directories or files")
-
-	// Bind flags to viper
-	if err := viper.BindPFlag("server.mode", serverCmd.Flags().Lookup("mode")); err != nil {
-		panic(fmt.Sprintf("failed to bind server.mode flag: %v", err))
-	}
-	if err := viper.BindPFlag("server.port", serverCmd.Flags().Lookup("port")); err != nil {
-		panic(fmt.Sprintf("failed to bind server.port flag: %v", err))
-	}
-	if err := viper.BindPFlag("server.tls-cert-file", serverCmd.Flags().Lookup("tls-cert-file")); err != nil {
-		panic(fmt.Sprintf("failed to bind server.tls-cert-file flag: %v", err))
-	}
-	if err := viper.BindPFlag("server.tls-key-file", serverCmd.Flags().Lookup("tls-key-file")); err != nil {
-		panic(fmt.Sprintf("failed to bind server.tls-key-file flag: %v", err))
-	}
-	if err := viper.BindPFlag("server.namespaces", serverCmd.Flags().Lookup("namespaces")); err != nil {
-		panic(fmt.Sprintf("failed to bind server.namespaces flag: %v", err))
-	}
-	if err := viper.BindPFlag("server.resource-types", serverCmd.Flags().Lookup("resource-types")); err != nil {
-		panic(fmt.Sprintf("failed to bind server.resource-types flag: %v", err))
-	}
-	if err := viper.BindPFlag("server.min-severity", serverCmd.Flags().Lookup("min-severity")); err != nil {
-		panic(fmt.Sprintf("failed to bind server.min-severity flag: %v", err))
-	}
-	if err := viper.BindPFlag("server.rules-path", serverCmd.Flags().Lookup("rules-path")); err != nil {
-		panic(fmt.Sprintf("failed to bind server.rules-path flag: %v", err))
-	}
 }
 
 func runServer(cmd *cobra.Command, args []string) error {
@@ -120,7 +94,7 @@ func runServer(cmd *cobra.Command, args []string) error {
 
 	// Load security rules based on configuration
 	var rules []*models.SpotterRule
-	rulesPaths := viper.GetStringSlice("server.rules-path")
+	rulesPaths := config.RulesPath
 	if len(rulesPaths) > 0 {
 		parser := parser.NewYAMLParser(true)
 		ext, err := loadExternalRules(parser, rulesPaths)
@@ -513,15 +487,53 @@ func (s *AdmissionServer) metricsHandler(w http.ResponseWriter, r *http.Request)
 
 // buildServerConfig creates server configuration from command flags
 func buildServerConfig(cmd *cobra.Command) (*ServerConfig, error) {
+	// Get the global config or use defaults
+	var appConfig *pkgconfig.SpotterConfig
+	if globalConfig != nil {
+		appConfig = globalConfig
+	} else {
+		appConfig = pkgconfig.DefaultConfig()
+	}
+
 	config := &ServerConfig{
-		Mode:        viper.GetString("server.mode"),
-		Port:        viper.GetInt("server.port"),
-		TLSCertFile: viper.GetString("server.tls-cert-file"),
-		TLSKeyFile:  viper.GetString("server.tls-key-file"),
-		MinSeverity: viper.GetString("server.min-severity"),
-		LogFormat:   viper.GetString("log-format"),
-		LogLevel:    viper.GetString("log-level"),
-		RulesPath:   viper.GetStringSlice("server.rules-path"),
+		LogFormat: appConfig.Logging.Format,
+		LogLevel:  appConfig.Logging.Level,
+		RulesPath: []string{appConfig.RulesDir},
+	}
+
+	// Override with command line flags
+	if cmd.Flags().Changed("mode") {
+		config.Mode, _ = cmd.Flags().GetString("mode")
+	} else {
+		config.Mode = "validating" // default
+	}
+
+	if cmd.Flags().Changed("port") {
+		config.Port, _ = cmd.Flags().GetInt("port")
+	} else {
+		config.Port = 8443 // default
+	}
+
+	if cmd.Flags().Changed("tls-cert-file") {
+		config.TLSCertFile, _ = cmd.Flags().GetString("tls-cert-file")
+	} else {
+		config.TLSCertFile = "/etc/certs/tls.crt" // default
+	}
+
+	if cmd.Flags().Changed("tls-key-file") {
+		config.TLSKeyFile, _ = cmd.Flags().GetString("tls-key-file")
+	} else {
+		config.TLSKeyFile = "/etc/certs/tls.key" // default
+	}
+
+	if cmd.Flags().Changed("min-severity") {
+		config.MinSeverity, _ = cmd.Flags().GetString("min-severity")
+	} else {
+		config.MinSeverity = "medium" // default
+	}
+
+	if cmd.Flags().Changed("rules-path") {
+		config.RulesPath, _ = cmd.Flags().GetStringSlice("rules-path")
 	}
 
 	if cmd.Flags().Changed("namespaces") {

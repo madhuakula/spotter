@@ -86,7 +86,7 @@ func (r *SpotterRule) GetCWE() string {
 // GetSeverity returns the severity from labels
 func (r *SpotterRule) GetSeverity() string {
 	if r.Metadata.Labels != nil {
-		return r.Metadata.Labels["severity"]
+		return r.Metadata.Labels["rules.spotter.dev/severity"]
 	}
 	return ""
 }
@@ -94,7 +94,7 @@ func (r *SpotterRule) GetSeverity() string {
 // GetCategory returns the category from labels
 func (r *SpotterRule) GetCategory() string {
 	if r.Metadata.Labels != nil {
-		return r.Metadata.Labels["category"]
+		return r.Metadata.Labels["rules.spotter.dev/category"]
 	}
 	return ""
 }

@@ -57,7 +57,13 @@ func TestValidateSpotterRule(t *testing.T) {
 				},
 			},
 			wantValid:  false,
-			wantErrors: []string{"apiVersion: must be 'rules.spotter.dev/v1alpha1'"},
+			wantErrors: []string{
+				"apiVersion: must be 'rules.spotter.dev/v1alpha1'",
+				"metadata.annotations: annotations are required",
+				"metadata.labels: labels are required",
+				"spec.cel: CEL expression is required",
+				"spec.match.resources.kubernetes.kinds: at least one Kubernetes kind must be specified",
+			},
 		},
 		{
 			name: "invalid kind",
@@ -69,7 +75,13 @@ func TestValidateSpotterRule(t *testing.T) {
 				},
 			},
 			wantValid:  false,
-			wantErrors: []string{"kind: must be 'SpotterRule'"},
+			wantErrors: []string{
+				"kind: must be 'SpotterRule'",
+				"metadata.annotations: annotations are required",
+				"metadata.labels: labels are required",
+				"spec.cel: CEL expression is required",
+				"spec.match.resources.kubernetes.kinds: at least one Kubernetes kind must be specified",
+			},
 		},
 		{
 			name: "missing name",
@@ -79,7 +91,13 @@ func TestValidateSpotterRule(t *testing.T) {
 				Metadata:   models.RuleMetadata{},
 			},
 			wantValid:  false,
-			wantErrors: []string{"metadata.name: name is required"},
+			wantErrors: []string{
+				"metadata.name: name is required",
+				"metadata.annotations: annotations are required",
+				"metadata.labels: labels are required",
+				"spec.cel: CEL expression is required",
+				"spec.match.resources.kubernetes.kinds: at least one Kubernetes kind must be specified",
+			},
 		},
 		{
 			name: "invalid name format",
@@ -91,7 +109,13 @@ func TestValidateSpotterRule(t *testing.T) {
 				},
 			},
 			wantValid:  false,
-			wantErrors: []string{"metadata.name: name must match pattern: spotter-[category]-[number] (e.g., spotter-workload-001)"},
+			wantErrors: []string{
+				"metadata.name: name must match pattern: spotter-[category]-[number] (e.g., spotter-workload-001)",
+				"metadata.annotations: annotations are required",
+				"metadata.labels: labels are required",
+				"spec.cel: CEL expression is required",
+				"spec.match.resources.kubernetes.kinds: at least one Kubernetes kind must be specified",
+			},
 		},
 		{
 			name: "missing annotations",
@@ -103,7 +127,12 @@ func TestValidateSpotterRule(t *testing.T) {
 				},
 			},
 			wantValid:  false,
-			wantErrors: []string{"metadata.annotations: annotations are required"},
+			wantErrors: []string{
+				"metadata.annotations: annotations are required",
+				"metadata.labels: labels are required",
+				"spec.cel: CEL expression is required",
+				"spec.match.resources.kubernetes.kinds: at least one Kubernetes kind must be specified",
+			},
 		},
 		{
 			name: "missing required annotations",
@@ -120,6 +149,9 @@ func TestValidateSpotterRule(t *testing.T) {
 				"metadata.annotations['rules.spotter.dev/title']: title annotation is required",
 				"metadata.annotations['rules.spotter.dev/version']: version annotation is required",
 				"metadata.annotations['rules.spotter.dev/description']: description annotation is required",
+				"metadata.labels: labels are required",
+				"spec.cel: CEL expression is required",
+				"spec.match.resources.kubernetes.kinds: at least one Kubernetes kind must be specified",
 			},
 		},
 		{
@@ -137,7 +169,11 @@ func TestValidateSpotterRule(t *testing.T) {
 				},
 			},
 			wantValid:  false,
-			wantErrors: []string{"metadata.labels: labels are required"},
+			wantErrors: []string{
+				"metadata.labels: labels are required",
+				"spec.cel: CEL expression is required",
+				"spec.match.resources.kubernetes.kinds: at least one Kubernetes kind must be specified",
+			},
 		},
 		{
 			name: "invalid severity",
@@ -158,7 +194,11 @@ func TestValidateSpotterRule(t *testing.T) {
 				},
 			},
 			wantValid:  false,
-			wantErrors: []string{"metadata.labels['rules.spotter.dev/severity']: severity must be one of: low, medium, high, critical"},
+			wantErrors: []string{
+				"metadata.labels['rules.spotter.dev/severity']: severity must be one of: low, medium, high, critical",
+				"spec.cel: CEL expression is required",
+				"spec.match.resources.kubernetes.kinds: at least one Kubernetes kind must be specified",
+			},
 		},
 		{
 			name: "missing CEL expression",
