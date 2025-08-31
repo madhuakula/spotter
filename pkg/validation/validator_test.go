@@ -22,9 +22,9 @@ func TestValidateSpotterRule(t *testing.T) {
 				Metadata: models.RuleMetadata{
 					Name: "spotter-workload-001",
 					Labels: map[string]string{
-						"rules.spotter.dev/severity": "high",
-						"rules.spotter.dev/category": "Workload Security",
-					},
+					"severity": "high",
+					"category": "workload",
+				},
 					Annotations: map[string]string{
 						"rules.spotter.dev/title":       "Container is privileged",
 						"rules.spotter.dev/version":     "1.0.0",
@@ -183,9 +183,9 @@ func TestValidateSpotterRule(t *testing.T) {
 				Metadata: models.RuleMetadata{
 					Name: "spotter-workload-001",
 					Labels: map[string]string{
-						"rules.spotter.dev/severity": "invalid",
-						"rules.spotter.dev/category": "Workload Security",
-					},
+					"severity": "invalid",
+					"category": "workload",
+				},
 					Annotations: map[string]string{
 						"rules.spotter.dev/title":       "Test",
 						"rules.spotter.dev/version":     "1.0.0",
@@ -195,7 +195,7 @@ func TestValidateSpotterRule(t *testing.T) {
 			},
 			wantValid:  false,
 			wantErrors: []string{
-				"metadata.labels['rules.spotter.dev/severity']: severity must be one of: low, medium, high, critical",
+				"metadata.labels.severity: severity must be one of: low, medium, high, critical",
 				"spec.cel: CEL expression is required",
 				"spec.match.resources.kubernetes.kinds: at least one Kubernetes kind must be specified",
 			},
@@ -208,9 +208,9 @@ func TestValidateSpotterRule(t *testing.T) {
 				Metadata: models.RuleMetadata{
 					Name: "spotter-workload-001",
 					Labels: map[string]string{
-						"rules.spotter.dev/severity": "high",
-						"rules.spotter.dev/category": "Workload Security",
-					},
+					"severity": "high",
+					"category": "workload",
+				},
 					Annotations: map[string]string{
 						"rules.spotter.dev/title":       "Test",
 						"rules.spotter.dev/version":     "1.0.0",
@@ -238,9 +238,9 @@ func TestValidateSpotterRule(t *testing.T) {
 				Metadata: models.RuleMetadata{
 					Name: "spotter-workload-001",
 					Labels: map[string]string{
-						"rules.spotter.dev/severity": "high",
-						"rules.spotter.dev/category": "Workload Security",
-					},
+					"severity": "high",
+					"category": "workload",
+				},
 					Annotations: map[string]string{
 						"rules.spotter.dev/title":       "Test",
 						"rules.spotter.dev/version":     "1.0.0",
@@ -269,9 +269,9 @@ func TestValidateSpotterRule(t *testing.T) {
 				Metadata: models.RuleMetadata{
 					Name: "spotter-workload-001",
 					Labels: map[string]string{
-						"rules.spotter.dev/severity": "high",
-						"rules.spotter.dev/category": "Workload Security",
-					},
+					"severity": "high",
+					"category": "workload",
+				},
 					Annotations: map[string]string{
 						"rules.spotter.dev/title":       "Test",
 						"rules.spotter.dev/version":     "1.0.0",

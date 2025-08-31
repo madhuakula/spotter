@@ -94,18 +94,18 @@ func ValidateSpotterRule(rule *models.SpotterRule) ValidationResult {
 	} else {
 		if rule.GetSeverity() == "" {
 			errors = append(errors, ValidationError{
-				Field:   "metadata.labels['rules.spotter.dev/severity']",
+				Field:   "metadata.labels.severity",
 				Message: "severity label is required",
 			})
 		} else if !models.SeverityLevel(rule.GetSeverity()).IsValid() {
 			errors = append(errors, ValidationError{
-				Field:   "metadata.labels['rules.spotter.dev/severity']",
+				Field:   "metadata.labels.severity",
 				Message: "severity must be one of: low, medium, high, critical",
 			})
 		}
 		if rule.GetCategory() == "" {
 			errors = append(errors, ValidationError{
-				Field:   "metadata.labels['rules.spotter.dev/category']",
+				Field:   "metadata.labels.category",
 				Message: "category label is required",
 			})
 		}
