@@ -190,6 +190,13 @@ func init() {
 		cmd.Flags().Bool("exclude-system-namespaces", false, "exclude system namespaces (kube-system, kube-public, etc.)")
 		cmd.Flags().Bool("include-cluster-resources", true, "include cluster-scoped resources")
 
+		// AI flags
+		cmd.Flags().Bool("ai.enable", false, "enable AI recommendations in JSON output")
+		cmd.Flags().String("ai.provider", "ollama", "ai provider: ollama|openai")
+		cmd.Flags().String("ai.host", "http://localhost:11434", "ai endpoint host (for ollama)")
+		cmd.Flags().String("ai.model", "llama3.2:latest", "ai model name")
+		cmd.Flags().String("ai.apikey", "", "ai api key (for providers requiring auth)")
+
 		// Note: 'no-color' flag is inherited from global persistent flags
 
 		// Bind common flags to viper so they can be set in config file
@@ -819,6 +826,23 @@ func buildScanConfig(cmd *cobra.Command) (*ScanConfig, error) {
 		config.Parallelism, _ = cmd.Flags().GetInt("parallelism")
 	}
 
+	// Handle AI flag overrides
+	if cmd.Flags().Changed("ai.enable") {
+		globalConfig.AI.Enable, _ = cmd.Flags().GetBool("ai.enable")
+	}
+	if cmd.Flags().Changed("ai.provider") {
+		globalConfig.AI.Provider, _ = cmd.Flags().GetString("ai.provider")
+	}
+	if cmd.Flags().Changed("ai.host") {
+		globalConfig.AI.Host, _ = cmd.Flags().GetString("ai.host")
+	}
+	if cmd.Flags().Changed("ai.model") {
+		globalConfig.AI.Model, _ = cmd.Flags().GetString("ai.model")
+	}
+	if cmd.Flags().Changed("ai.apikey") {
+		globalConfig.AI.APIKey, _ = cmd.Flags().GetString("ai.apikey")
+	}
+
 	// Set defaults
 	if len(config.FileExtensions) == 0 {
 		config.FileExtensions = []string{".yaml", ".yml", ".json"}
@@ -1161,16 +1185,16 @@ func generateReport(scanResult *models.ScanResult, config *ScanConfig, rules []*
 	ctx := context.Background()
 
 	// AI enrichment: when enabled, add AI recommendations as separate section
-	if viper.GetBool("ai.enable") {
+	if globalConfig.AI.Enable {
 		ctxAI, cancelAI := context.WithTimeout(ctx, parseDuration(viper.GetString("timeout")))
 		defer cancelAI()
 		out, err := recommendations.GenerateRecommendations(ctxAI, *scanResult, recommendations.Params{
 			TopN:     5,
-			Model:    viper.GetString("ai.model"),
-			Host:     viper.GetString("ai.host"),
+			Model:    globalConfig.AI.Model,
+			Host:     globalConfig.AI.Host,
 			Timeout:  parseDuration(viper.GetString("timeout")),
-			Provider: viper.GetString("ai.provider"),
-			APIKey:   viper.GetString("ai.apikey"),
+			Provider: globalConfig.AI.Provider,
+			APIKey:   globalConfig.AI.APIKey,
 			Rules:    rules,
 		})
 		if err == nil {

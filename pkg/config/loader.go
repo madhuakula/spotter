@@ -44,10 +44,6 @@ func loadConfigFromFile(configPath string) (*SpotterConfig, error) {
 	return &config, nil
 }
 
-
-
-
-
 // mergeWithDefaults fills in missing fields with default values
 func mergeWithDefaults(config *SpotterConfig, defaults *SpotterConfig) {
 	// Legacy fields
@@ -83,6 +79,17 @@ func mergeWithDefaults(config *SpotterConfig, defaults *SpotterConfig) {
 	}
 	if config.Kubernetes.Timeout == 0 {
 		config.Kubernetes.Timeout = defaults.Kubernetes.Timeout
+	}
+
+	// Merge AI config
+	if config.AI.Provider == "" {
+		config.AI.Provider = defaults.AI.Provider
+	}
+	if config.AI.Host == "" {
+		config.AI.Host = defaults.AI.Host
+	}
+	if config.AI.Model == "" {
+		config.AI.Model = defaults.AI.Model
 	}
 
 	// Add more merging logic as needed

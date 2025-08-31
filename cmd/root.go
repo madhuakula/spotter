@@ -8,7 +8,6 @@ import (
 
 	pkgconfig "github.com/madhuakula/spotter/pkg/config"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 var (
@@ -93,29 +92,6 @@ func init() {
 	rootCmd.PersistentFlags().Bool("no-color", false, "disable colored output")
 	rootCmd.PersistentFlags().String("timeout", "5m", "timeout for operations")
 
-	// AI flags
-	rootCmd.PersistentFlags().Bool("ai.enable", false, "enable AI recommendations in JSON output")
-	rootCmd.PersistentFlags().String("ai.provider", "ollama", "ai provider: ollama|openai")
-	rootCmd.PersistentFlags().String("ai.host", "http://localhost:11434", "ai endpoint host (for ollama)")
-	rootCmd.PersistentFlags().String("ai.model", "llama3.2:latest", "ai model name")
-	rootCmd.PersistentFlags().String("ai.apikey", "", "ai api key (for providers requiring auth)")
-
-	// Bind AI flags to viper for configuration access with error handling
-	if err := viper.BindPFlag("ai.enable", rootCmd.PersistentFlags().Lookup("ai.enable")); err != nil {
-		panic(fmt.Errorf("failed to bind ai.enable flag: %w", err))
-	}
-	if err := viper.BindPFlag("ai.provider", rootCmd.PersistentFlags().Lookup("ai.provider")); err != nil {
-		panic(fmt.Errorf("failed to bind ai.provider flag: %w", err))
-	}
-	if err := viper.BindPFlag("ai.host", rootCmd.PersistentFlags().Lookup("ai.host")); err != nil {
-		panic(fmt.Errorf("failed to bind ai.host flag: %w", err))
-	}
-	if err := viper.BindPFlag("ai.model", rootCmd.PersistentFlags().Lookup("ai.model")); err != nil {
-		panic(fmt.Errorf("failed to bind ai.model flag: %w", err))
-	}
-	if err := viper.BindPFlag("ai.apikey", rootCmd.PersistentFlags().Lookup("ai.apikey")); err != nil {
-		panic(fmt.Errorf("failed to bind ai.apikey flag: %w", err))
-	}
 }
 
 // initConfig reads in config file and ENV variables if set.
