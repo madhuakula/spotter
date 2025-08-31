@@ -60,6 +60,14 @@ scan:
 # External rules configuration
 rules-path: []
 
+# AI recommendations (minimal)
+ai:
+  enable: true
+  provider: ollama
+  host: http://localhost:11434
+  model: llama3.2:latest
+  apikey: ""
+
 # Server (admission controller) options
 server:
   # When true, server uses only external rules (from server.rules-path)

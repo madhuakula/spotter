@@ -18,6 +18,7 @@ import (
 	"github.com/madhuakula/spotter/pkg/models"
 	"github.com/madhuakula/spotter/pkg/parser"
 	"github.com/madhuakula/spotter/pkg/progress"
+	"github.com/madhuakula/spotter/pkg/recommendations"
 	"github.com/madhuakula/spotter/pkg/reporter"
 )
 
@@ -1200,6 +1201,39 @@ func filterBySeverity(results []models.ValidationResult, minSeverity string) []m
 func generateReport(scanResult *models.ScanResult, config *ScanConfig) error {
 	logger := GetLogger()
 	ctx := context.Background()
+
+	// AI enrichment: when enabled, add AI recommendations as separate section
+	if viper.GetBool("ai.enable") {
+		ctxAI, cancelAI := context.WithTimeout(ctx, parseDuration(viper.GetString("timeout")))
+		defer cancelAI()
+		out, err := recommendations.GenerateRecommendations(ctxAI, *scanResult, recommendations.Params{
+			TopN:     5,
+			Model:    viper.GetString("ai.model"),
+			Host:     viper.GetString("ai.host"),
+			Timeout:  parseDuration(viper.GetString("timeout")),
+			Provider: viper.GetString("ai.provider"),
+			APIKey:   viper.GetString("ai.apikey"),
+		})
+		if err == nil {
+			// Always store AI output (may contain error or recommendations)
+			scanResult.AIRecommendations = out
+			if logLevel := viper.GetString("log-level"); logLevel == "debug" {
+				if out.Error != "" {
+					logger.Debug("AI recommendations generation had issues", "error", out.Error)
+				} else if len(out.Recommendations) > 0 {
+					logger.Debug("AI recommendations generated successfully", "count", len(out.Recommendations))
+				} else {
+					logger.Debug("AI model returned no recommendations")
+				}
+			}
+		} else {
+			// This shouldn't happen with our new error handling, but keep as fallback
+			if logLevel := viper.GetString("log-level"); logLevel == "debug" {
+				logger.Debug("AI recommendations generation failed completely", "error", err)
+			}
+			scanResult.AIRecommendations = nil
+		}
+	}
 
 	// Create reporter factory
 	factory := reporter.NewFactory()

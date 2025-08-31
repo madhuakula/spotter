@@ -2,6 +2,7 @@ package reporter
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"sort"
@@ -110,6 +111,13 @@ func (r *TableReporter) GenerateReport(ctx context.Context, results *models.Scan
 	if len(results.Results) > 0 {
 		output.WriteString(r.formatFindings(results.Results))
 		output.WriteString("\n")
+
+		// AI Recommendations (if available)
+		if results.AIRecommendations != nil {
+			output.WriteString(r.formatAIRecommendations(results.AIRecommendations))
+			output.WriteString("\n")
+		}
+
 		// Add actionable summary (always shown)
 		output.WriteString(r.formatActionableSummary(results))
 	} else {
@@ -1251,4 +1259,121 @@ func (r *TableReporter) getCategoryEmoji(category string) string {
 	default:
 		return "📁"
 	}
+}
+
+// formatAIRecommendations formats AI recommendations in a clean table format
+func (r *TableReporter) formatAIRecommendations(aiRecommendations interface{}) string {
+	var output strings.Builder
+
+	if aiRecommendations == nil {
+		return ""
+	}
+
+	// Convert to JSON and back to handle any struct type
+	jsonBytes, err := json.Marshal(aiRecommendations)
+	if err != nil {
+		return ""
+	}
+
+	var recOutput map[string]interface{}
+	if err := json.Unmarshal(jsonBytes, &recOutput); err != nil {
+		return ""
+	}
+
+	// Check for error in the output first
+	errorMsg, hasError := recOutput["error"].(string)
+
+	recommendations, exists := recOutput["recommendations"]
+	if !exists && !hasError {
+		return ""
+	}
+
+	var recsList []interface{}
+	if exists && recommendations != nil {
+		var ok bool
+		recsList, ok = recommendations.([]interface{})
+		if !ok {
+			recsList = []interface{}{} // Empty list if can't parse
+		}
+	}
+
+	// Header
+	output.WriteString(r.colorize("🤖 AI Security Recommendations\n", "cyan"))
+	output.WriteString(strings.Repeat("─", 80) + "\n")
+
+	// If there's an error, show it and return
+	if hasError && errorMsg != "" {
+		output.WriteString(fmt.Sprintf("%s %s\n",
+			r.colorize("⚠️  Error:", "red"),
+			errorMsg))
+		output.WriteString(fmt.Sprintf("   %s\n",
+			r.colorize("Tip: Ensure your AI model (Ollama) is running and accessible", "yellow")))
+		output.WriteString("\n")
+		return output.String()
+	}
+
+	if len(recsList) == 0 {
+		output.WriteString(fmt.Sprintf("%s %s\n",
+			r.colorize("ℹ️  Info:", "blue"),
+			"No AI recommendations generated"))
+		output.WriteString("\n")
+		return output.String()
+	}
+
+	// Display each recommendation
+	for _, rec := range recsList {
+		recMap, ok := rec.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		title, _ := recMap["title"].(string)
+		priority, _ := recMap["priority"].(float64) // JSON numbers come as float64
+		actionsInterface, _ := recMap["actions"].([]interface{})
+		relatedRulesInterface, _ := recMap["related_rules"].([]interface{})
+
+		// Convert actions from []interface{} to []string
+		var actions []string
+		for _, action := range actionsInterface {
+			if actionStr, ok := action.(string); ok {
+				actions = append(actions, actionStr)
+			}
+		}
+
+		// Convert related rules from []interface{} to []string
+		var relatedRules []string
+		for _, rule := range relatedRulesInterface {
+			if ruleStr, ok := rule.(string); ok {
+				relatedRules = append(relatedRules, ruleStr)
+			}
+		}
+
+		// Format priority and title
+		output.WriteString(fmt.Sprintf("%s %s %d: %s\n",
+			r.colorize("►", "blue"),
+			r.colorize("Priority", "yellow"),
+			int(priority),
+			r.colorize(title, "white")))
+
+		// Format actions
+		if len(actions) > 0 {
+			for _, action := range actions {
+				output.WriteString(fmt.Sprintf("   %s %s\n",
+					r.colorize("Actions:", "green"),
+					action))
+			}
+		}
+
+		// Format related rules (compact)
+		if len(relatedRules) > 0 {
+			rulesStr := strings.Join(relatedRules, ", ")
+			output.WriteString(fmt.Sprintf("   %s %s\n",
+				r.colorize("Related:", "gray"),
+				rulesStr))
+		}
+
+		output.WriteString("\n")
+	}
+
+	return output.String()
 }

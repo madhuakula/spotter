@@ -63,6 +63,7 @@ type JSONReport struct {
 	SeverityAnalysis map[string]SeverityStat `json:"severity_analysis"`
 	ResourceGrouping map[string]ResourceStat `json:"resource_grouping"`
 	Results          []JSONResult            `json:"results"`
+	AIRecommendations interface{}             `json:"ai_recommendations,omitempty"`
 }
 
 // JSONMetadata contains metadata about the scan
@@ -178,6 +179,7 @@ func (r *JSONReporter) buildJSONReport(results *models.ScanResult) *JSONReport {
 		SeverityAnalysis: r.calculateSeverityStats(results.Results),
 		ResourceGrouping: r.calculateResourceGroupingStats(results.Results),
 		Results:          make([]JSONResult, 0, len(results.Results)),
+		AIRecommendations: results.AIRecommendations,
 	}
 
 	// Convert validation results

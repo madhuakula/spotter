@@ -70,6 +70,13 @@ func init() {
 	rootCmd.PersistentFlags().Bool("no-color", false, "disable colored output")
 	rootCmd.PersistentFlags().String("timeout", "5m", "timeout for operations")
 
+	// AI flags (minimal)
+	rootCmd.PersistentFlags().Bool("ai.enable", false, "enable AI recommendations in JSON output")
+	rootCmd.PersistentFlags().String("ai.provider", "ollama", "ai provider: ollama|openai")
+	rootCmd.PersistentFlags().String("ai.host", "http://localhost:11434", "ai endpoint host (for ollama)")
+	rootCmd.PersistentFlags().String("ai.model", "llama3.2:latest", "ai model name")
+	rootCmd.PersistentFlags().String("ai.apikey", "", "ai api key (for providers requiring auth)")
+
 	// Bind flags to viper
 	bindFlags := []struct {
 		name string
@@ -85,6 +92,11 @@ func init() {
 		{"output", "output"},
 		{"output-file", "output-file"},
 		{"no-color", "no-color"},
+		{"ai.enable", "ai.enable"},
+		{"ai.provider", "ai.provider"},
+		{"ai.host", "ai.host"},
+		{"ai.model", "ai.model"},
+		{"ai.apikey", "ai.apikey"},
 	}
 
 	for _, bf := range bindFlags {
