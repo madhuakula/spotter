@@ -28,7 +28,7 @@ func GenerateRecommendations(ctx context.Context, scan models.ScanResult, params
 		scored = scored[:params.TopN]
 	}
 
-	rag, err := LoadRuleContexts(ctx)
+	rag, err := LoadRuleContexts(ctx, params.Rules)
 	if err != nil {
 		return Output{}, err
 	}

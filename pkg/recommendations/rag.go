@@ -2,31 +2,23 @@ package recommendations
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
-	"github.com/madhuakula/spotter/internal"
-	"github.com/madhuakula/spotter/pkg/parser"
+	"github.com/madhuakula/spotter/pkg/models"
 )
 
 // LoadRuleContexts builds a minimal RAG map from embedded builtin rules.
-func LoadRuleContexts(ctx context.Context) (map[string]RuleContext, error) {
-	fsys := internal.GetBuiltinRulesFS()
-	p := parser.NewYAMLParser(true)
-	rules, err := p.ParseRulesFromFS(ctx, fsys, "builtin")
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse builtin rules: %w", err)
-	}
+func LoadRuleContexts(ctx context.Context, rules []*models.SpotterRule) (map[string]RuleContext, error) {
 	m := make(map[string]RuleContext, len(rules))
 	for _, r := range rules {
 		if r == nil {
 			continue
 		}
 		ctx := RuleContext{
-			ID:          r.Spec.ID,
-			Name:        r.Spec.Name,
-			Category:    r.Spec.Category,
-			Description: truncate(r.Spec.Description, 600),
+			ID:          r.GetID(),
+			Name:        r.Metadata.Name,
+			Category:    r.Metadata.Labels["category"],
+			Description: truncate(r.Metadata.Annotations["rules.spotter.dev/description"], 600),
 			Remediation: "",
 		}
 		if r.Spec.Remediation != nil {

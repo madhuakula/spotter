@@ -306,7 +306,6 @@ func init() {
 		panic(fmt.Errorf("failed to bind scan.helm.update-dependencies flag: %w", err))
 	}
 
-
 }
 
 func runClusterScan(cmd *cobra.Command, args []string) error {
@@ -368,7 +367,7 @@ func runClusterScan(cmd *cobra.Command, args []string) error {
 	}
 
 	// Generate and output report
-	if err := generateReport(scanResult, scanConfig); err != nil {
+	if err := generateReport(scanResult, scanConfig, rules); err != nil {
 		return fmt.Errorf("failed to generate report: %w", err)
 	}
 
@@ -452,7 +451,7 @@ func runManifestsScan(cmd *cobra.Command, args []string) error {
 	}
 
 	// Generate and output report
-	if err := generateReport(scanResult, scanConfig); err != nil {
+	if err := generateReport(scanResult, scanConfig, rules); err != nil {
 		return fmt.Errorf("failed to generate report: %w", err)
 	}
 
@@ -511,7 +510,7 @@ func runHelmScan(cmd *cobra.Command, args []string) error {
 	}
 
 	// Generate and output report
-	if err := generateReport(scanResult, scanConfig); err != nil {
+	if err := generateReport(scanResult, scanConfig, rules); err != nil {
 		return fmt.Errorf("failed to generate report: %w", err)
 	}
 
@@ -570,9 +569,9 @@ func loadSpecificRulesAndPacks(ruleIDs, packIDs []string) ([]*models.SpotterRule
 // loadDefaultPacksWithAutoPull loads rules from default packs with auto-pull functionality
 func loadDefaultPacksWithAutoPull(packIDs []string) ([]*models.SpotterRule, error) {
 	cfg, err := config.LoadConfig("")
-		if err != nil {
-			return nil, fmt.Errorf("failed to load config: %w", err)
-		}
+	if err != nil {
+		return nil, fmt.Errorf("failed to load config: %w", err)
+	}
 
 	cacheManager := cache.NewCacheManager(cfg)
 	hubClient := hub.NewClientWithConfig(cfg)
@@ -635,8 +634,6 @@ func loadDefaultPacksWithAutoPull(packIDs []string) ([]*models.SpotterRule, erro
 	return allRules, nil
 }
 
-
-
 // loadAndFilterRules loads security rules and applies include/exclude filtering
 func loadAndFilterRules(cmd *cobra.Command) ([]*models.SpotterRule, error) {
 	// Get specific rules and packs flags
@@ -657,8 +654,6 @@ func loadAndFilterRules(cmd *cobra.Command) ([]*models.SpotterRule, error) {
 	// If no specific rules or packs are provided, use spotter-secure-defaults-pack as default
 	return loadDefaultPacksWithAutoPull([]string{"spotter-secure-defaults-pack"})
 }
-
-
 
 // loadExternalRules loads security rules from external file paths
 func loadExternalRules(parser *parser.YAMLParser, rulesPaths []string) ([]*models.SpotterRule, error) {
@@ -691,8 +686,6 @@ func loadExternalRules(parser *parser.YAMLParser, rulesPaths []string) ([]*model
 
 	return allRules, nil
 }
-
-
 
 // parseDuration parses a duration string with fallback
 func parseDuration(s string) time.Duration {
@@ -1163,7 +1156,7 @@ func filterBySeverity(results []models.ValidationResult, minSeverity string) []m
 }
 
 // generateReport creates and outputs the scan report
-func generateReport(scanResult *models.ScanResult, config *ScanConfig) error {
+func generateReport(scanResult *models.ScanResult, config *ScanConfig, rules []*models.SpotterRule) error {
 	logger := GetLogger()
 	ctx := context.Background()
 
@@ -1178,6 +1171,7 @@ func generateReport(scanResult *models.ScanResult, config *ScanConfig) error {
 			Timeout:  parseDuration(viper.GetString("timeout")),
 			Provider: viper.GetString("ai.provider"),
 			APIKey:   viper.GetString("ai.apikey"),
+			Rules:    rules,
 		})
 		if err == nil {
 			// Always store AI output (may contain error or recommendations)

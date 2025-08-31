@@ -2,6 +2,8 @@ package recommendations
 
 import (
 	"time"
+
+	"github.com/madhuakula/spotter/pkg/models"
 )
 
 // Params configures recommendation generation.
@@ -12,6 +14,7 @@ type Params struct {
 	Timeout  time.Duration
 	Provider string // "ollama" | "openai" | "gemini" (future)
 	APIKey   string // for providers requiring auth
+	Rules    []*models.SpotterRule
 }
 
 // Output is the result of recommendation generation.
