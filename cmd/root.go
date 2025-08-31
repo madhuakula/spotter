@@ -100,12 +100,22 @@ func init() {
 	rootCmd.PersistentFlags().String("ai.model", "llama3.2:latest", "ai model name")
 	rootCmd.PersistentFlags().String("ai.apikey", "", "ai api key (for providers requiring auth)")
 
-	// Bind AI flags to viper for configuration access
-	viper.BindPFlag("ai.enable", rootCmd.PersistentFlags().Lookup("ai.enable"))
-	viper.BindPFlag("ai.provider", rootCmd.PersistentFlags().Lookup("ai.provider"))
-	viper.BindPFlag("ai.host", rootCmd.PersistentFlags().Lookup("ai.host"))
-	viper.BindPFlag("ai.model", rootCmd.PersistentFlags().Lookup("ai.model"))
-	viper.BindPFlag("ai.apikey", rootCmd.PersistentFlags().Lookup("ai.apikey"))
+	// Bind AI flags to viper for configuration access with error handling
+	if err := viper.BindPFlag("ai.enable", rootCmd.PersistentFlags().Lookup("ai.enable")); err != nil {
+		panic(fmt.Errorf("failed to bind ai.enable flag: %w", err))
+	}
+	if err := viper.BindPFlag("ai.provider", rootCmd.PersistentFlags().Lookup("ai.provider")); err != nil {
+		panic(fmt.Errorf("failed to bind ai.provider flag: %w", err))
+	}
+	if err := viper.BindPFlag("ai.host", rootCmd.PersistentFlags().Lookup("ai.host")); err != nil {
+		panic(fmt.Errorf("failed to bind ai.host flag: %w", err))
+	}
+	if err := viper.BindPFlag("ai.model", rootCmd.PersistentFlags().Lookup("ai.model")); err != nil {
+		panic(fmt.Errorf("failed to bind ai.model flag: %w", err))
+	}
+	if err := viper.BindPFlag("ai.apikey", rootCmd.PersistentFlags().Lookup("ai.apikey")); err != nil {
+		panic(fmt.Errorf("failed to bind ai.apikey flag: %w", err))
+	}
 }
 
 // initConfig reads in config file and ENV variables if set.
