@@ -100,58 +100,12 @@ func init() {
 	rootCmd.PersistentFlags().String("ai.model", "llama3.2:latest", "ai model name")
 	rootCmd.PersistentFlags().String("ai.apikey", "", "ai api key (for providers requiring auth)")
 
-	// Bind persistent flags to viper for config file support
-	// Bind the "verbose" persistent flag to viper so that configuration can be loaded from both flags and config files.
-	if err := viper.BindPFlag("verbose", rootCmd.PersistentFlags().Lookup("verbose")); err != nil {
-		panic(fmt.Errorf("failed to bind verbose flag: %w", err))
-	}
-	if err := viper.BindPFlag("log-level", rootCmd.PersistentFlags().Lookup("log-level")); err != nil {
-		panic(fmt.Errorf("failed to bind log-level flag: %w", err))
-	}
-	if err := viper.BindPFlag("log-format", rootCmd.PersistentFlags().Lookup("log-format")); err != nil {
-		panic(fmt.Errorf("failed to bind log-format flag: %w", err))
-	}
-	if err := viper.BindPFlag("kubeconfig", rootCmd.PersistentFlags().Lookup("kubeconfig")); err != nil {
-		panic(fmt.Errorf("failed to bind kubeconfig flag: %w", err))
-	}
-	if err := viper.BindPFlag("context", rootCmd.PersistentFlags().Lookup("context")); err != nil {
-		panic(fmt.Errorf("failed to bind context flag: %w", err))
-	}
-	if err := viper.BindPFlag("namespace", rootCmd.PersistentFlags().Lookup("namespace")); err != nil {
-		panic(fmt.Errorf("failed to bind namespace flag: %w", err))
-	}
-	if err := viper.BindPFlag("rules-path", rootCmd.PersistentFlags().Lookup("rules-path")); err != nil {
-		panic(fmt.Errorf("failed to bind rules-path flag: %w", err))
-	}
-	if err := viper.BindPFlag("output", rootCmd.PersistentFlags().Lookup("output")); err != nil {
-		panic(fmt.Errorf("failed to bind output flag: %w", err))
-	}
-	if err := viper.BindPFlag("output-file", rootCmd.PersistentFlags().Lookup("output-file")); err != nil {
-		panic(fmt.Errorf("failed to bind output-file flag: %w", err))
-	}
-	if err := viper.BindPFlag("no-color", rootCmd.PersistentFlags().Lookup("no-color")); err != nil {
-		panic(fmt.Errorf("failed to bind no-color flag: %w", err))
-	}
-	if err := viper.BindPFlag("timeout", rootCmd.PersistentFlags().Lookup("timeout")); err != nil {
-		panic(fmt.Errorf("failed to bind timeout flag: %w", err))
-	}
-
-	// AI flags
-	if err := viper.BindPFlag("ai.enable", rootCmd.PersistentFlags().Lookup("ai.enable")); err != nil {
-		panic(fmt.Errorf("failed to bind ai.enable flag: %w", err))
-	}
-	if err := viper.BindPFlag("ai.provider", rootCmd.PersistentFlags().Lookup("ai.provider")); err != nil {
-		panic(fmt.Errorf("failed to bind ai.provider flag: %w", err))
-	}
-	if err := viper.BindPFlag("ai.host", rootCmd.PersistentFlags().Lookup("ai.host")); err != nil {
-		panic(fmt.Errorf("failed to bind ai.host flag: %w", err))
-	}
-	if err := viper.BindPFlag("ai.model", rootCmd.PersistentFlags().Lookup("ai.model")); err != nil {
-		panic(fmt.Errorf("failed to bind ai.model flag: %w", err))
-	}
-	if err := viper.BindPFlag("ai.apikey", rootCmd.PersistentFlags().Lookup("ai.apikey")); err != nil {
-		panic(fmt.Errorf("failed to bind ai.apikey flag: %w", err))
-	}
+	// Bind AI flags to viper for configuration access
+	viper.BindPFlag("ai.enable", rootCmd.PersistentFlags().Lookup("ai.enable"))
+	viper.BindPFlag("ai.provider", rootCmd.PersistentFlags().Lookup("ai.provider"))
+	viper.BindPFlag("ai.host", rootCmd.PersistentFlags().Lookup("ai.host"))
+	viper.BindPFlag("ai.model", rootCmd.PersistentFlags().Lookup("ai.model"))
+	viper.BindPFlag("ai.apikey", rootCmd.PersistentFlags().Lookup("ai.apikey"))
 }
 
 // initConfig reads in config file and ENV variables if set.
