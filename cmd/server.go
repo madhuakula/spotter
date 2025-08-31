@@ -492,7 +492,11 @@ func buildServerConfig(cmd *cobra.Command) (*ServerConfig, error) {
 	if globalConfig != nil {
 		appConfig = globalConfig
 	} else {
-		appConfig = pkgconfig.DefaultConfig()
+		var err error
+		appConfig, err = pkgconfig.DefaultConfig()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get default config: %w", err)
+		}
 	}
 
 	config := &ServerConfig{

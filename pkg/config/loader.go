@@ -17,7 +17,7 @@ func LoadConfig(configPath string) (*SpotterConfig, error) {
 	}
 
 	// If no config file found, return default config
-	return DefaultConfig(), nil
+	return DefaultConfig()
 }
 
 // loadConfigFromFile loads configuration from a specific file
@@ -35,7 +35,10 @@ func loadConfigFromFile(configPath string) (*SpotterConfig, error) {
 	}
 
 	// Fill in missing fields with defaults
-	defaultConfig := DefaultConfig()
+	defaultConfig, err := DefaultConfig()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get default config: %w", err)
+	}
 	mergeWithDefaults(&config, defaultConfig)
 
 	return &config, nil

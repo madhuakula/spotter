@@ -87,7 +87,10 @@ func runInit(cmd *cobra.Command) error {
 
 func writeDefaultConfig(path string) error {
 	// Create default config using the consolidated structure
-	defaultConfig := pkgconfig.DefaultConfig()
+	defaultConfig, err := pkgconfig.DefaultConfig()
+	if err != nil {
+		return fmt.Errorf("failed to get default config: %w", err)
+	}
 	
 	// Ensure the directory exists
 	dir := filepath.Dir(path)

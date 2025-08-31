@@ -214,7 +214,10 @@ func runPacksExportVAP(cmd *cobra.Command, args []string) error {
 	// Load configuration
 	cfg, err := config.LoadConfig("")
 	if err != nil {
-		cfg = config.DefaultConfig()
+		cfg, err = config.DefaultConfig()
+		if err != nil {
+			return fmt.Errorf("failed to load default config: %w", err)
+		}
 	}
 
 	// Create cache manager
@@ -445,7 +448,10 @@ func runPacksSearch(cmd *cobra.Command, args []string) error {
 	// Load configuration
 	cfg, err := config.LoadConfig("")
 	if err != nil {
-		cfg = config.DefaultConfig()
+		cfg, err = config.DefaultConfig()
+		if err != nil {
+			return fmt.Errorf("failed to load default config: %w", err)
+		}
 	}
 
 	// Create hub client
@@ -524,7 +530,10 @@ func runPacksList(cmd *cobra.Command, args []string) error {
 	// Load configuration
 	cfg, err := config.LoadConfig("")
 	if err != nil {
-		cfg = config.DefaultConfig()
+		cfg, err = config.DefaultConfig()
+		if err != nil {
+			return fmt.Errorf("failed to load default config: %w", err)
+		}
 	}
 
 	// Create cache manager
@@ -558,7 +567,10 @@ func runPacksPull(cmd *cobra.Command, args []string) error {
 	// Load configuration
 	cfg, err := config.LoadConfig("")
 	if err != nil {
-		cfg = config.DefaultConfig()
+		cfg, err = config.DefaultConfig()
+		if err != nil {
+			return fmt.Errorf("failed to load default config: %w", err)
+		}
 	}
 
 	// Create cache manager and hub client
@@ -633,7 +645,10 @@ func runPacksInfo(cmd *cobra.Command, args []string) error {
 	// Load configuration
 	cfg, err := config.LoadConfig("")
 	if err != nil {
-		cfg = config.DefaultConfig()
+		cfg, err = config.DefaultConfig()
+		if err != nil {
+			return fmt.Errorf("failed to load default config: %w", err)
+		}
 	}
 
 	// Create cache manager

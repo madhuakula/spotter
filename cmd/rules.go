@@ -639,7 +639,10 @@ func runRulesPull(cmd *cobra.Command, args []string) error {
 	// Load configuration
 	cfg, err := config.LoadConfig("")
 		if err != nil {
-			cfg = config.DefaultConfig()
+			cfg, err = config.DefaultConfig()
+			if err != nil {
+				return fmt.Errorf("failed to load default config: %w", err)
+			}
 		}
 
 	// Initialize cache manager
@@ -713,7 +716,10 @@ func runRulesSearch(cmd *cobra.Command, args []string) error {
 	// Load configuration
 	cfg, err := config.LoadConfig("")
 	if err != nil {
-		cfg = config.DefaultConfig()
+		cfg, err = config.DefaultConfig()
+		if err != nil {
+			return fmt.Errorf("failed to load default config: %w", err)
+		}
 	}
 
 	// Initialize hub client

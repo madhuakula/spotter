@@ -48,7 +48,13 @@ Examples:
 		if globalConfig != nil {
 			initializeLogger(globalConfig)
 		} else {
-			initializeLogger(pkgconfig.DefaultConfig())
+			defaultConfig, err := pkgconfig.DefaultConfig()
+			if err != nil {
+				// Fallback to basic logger if default config fails
+				logger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
+				return
+			}
+			initializeLogger(defaultConfig)
 		}
 	},
 }
@@ -97,7 +103,11 @@ func initConfig() {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
 		// Continue with default config on error
-		config = pkgconfig.DefaultConfig()
+		config, err = pkgconfig.DefaultConfig()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error loading default config: %v\n", err)
+			os.Exit(1)
+		}
 	}
 
 	// Store the loaded config globally for access by other commands
@@ -159,7 +169,13 @@ func GetLogger() *slog.Logger {
 		if globalConfig != nil {
 			initializeLogger(globalConfig)
 		} else {
-			initializeLogger(pkgconfig.DefaultConfig())
+			defaultConfig, err := pkgconfig.DefaultConfig()
+	if err != nil {
+		// Fallback to basic logger if default config fails
+		logger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
+		return logger
+	}
+	initializeLogger(defaultConfig)
 		}
 	}
 	return logger

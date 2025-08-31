@@ -2,6 +2,7 @@ package config
 
 import (
 	_ "embed"
+	"fmt"
 	"os"
 	"path/filepath"
 	"time"
@@ -181,35 +182,12 @@ type SpotterConfig struct {
 }
 
 // DefaultConfig returns the default configuration
-func DefaultConfig() *SpotterConfig {
+func DefaultConfig() (*SpotterConfig, error) {
 	var config SpotterConfig
 	
 	// Parse the embedded default config
 	if err := yaml.Unmarshal(defaultConfigYAML, &config); err != nil {
-		// Fallback to hardcoded defaults if parsing fails
-		homeDir, _ := os.UserHomeDir()
-		spotterDir := filepath.Join(homeDir, ".spotter")
-		
-		return &SpotterConfig{
-			HubURL:   "https://rules.spotter.run/api/v1",
-			APIKey:   "",
-			CacheDir: spotterDir,
-			RulesDir: filepath.Join(spotterDir, "rules"),
-			PacksDir: filepath.Join(spotterDir, "rulepacks"),
-			Logging: LoggingConfig{
-				Level:  "info",
-				Format: "text",
-			},
-			Output: OutputConfig{
-				Format:  "table",
-				Verbose: false,
-				Pretty:  true,
-			},
-			Kubernetes: KubernetesConfig{
-				Kubeconfig: "~/.kube/config",
-				Timeout:    30 * time.Second,
-			},
-		}
+		return nil, fmt.Errorf("failed to parse embedded default config: %w", err)
 	}
 	
 	// Expand home directory paths
@@ -227,7 +205,7 @@ func DefaultConfig() *SpotterConfig {
 		config.Kubernetes.Kubeconfig = filepath.Join(homeDir, ".kube", "config")
 	}
 	
-	return &config
+	return &config, nil
 }
 
 // GetSpotterDir returns the Spotter configuration directory
