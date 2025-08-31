@@ -1,17 +1,11 @@
 package config
 
 import (
-	_ "embed"
 	"fmt"
 	"os"
 	"path/filepath"
 	"time"
-
-	"gopkg.in/yaml.v3"
 )
-
-//go:embed default.yaml
-var defaultConfigYAML []byte
 
 // LoggingConfig represents logging configuration
 type LoggingConfig struct {
@@ -183,29 +177,71 @@ type SpotterConfig struct {
 
 // DefaultConfig returns the default configuration
 func DefaultConfig() (*SpotterConfig, error) {
-	var config SpotterConfig
-	
-	// Parse the embedded default config
-	if err := yaml.Unmarshal(defaultConfigYAML, &config); err != nil {
-		return nil, fmt.Errorf("failed to parse embedded default config: %w", err)
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user home directory: %w", err)
 	}
 	
-	// Expand home directory paths
-	homeDir, _ := os.UserHomeDir()
-	if config.CacheDir == "~/.spotter" {
-		config.CacheDir = filepath.Join(homeDir, ".spotter")
-	}
-	if config.RulesDir == "~/.spotter/rules" {
-		config.RulesDir = filepath.Join(homeDir, ".spotter", "rules")
-	}
-	if config.PacksDir == "~/.spotter/rulepacks" {
-		config.PacksDir = filepath.Join(homeDir, ".spotter", "rulepacks")
-	}
-	if config.Kubernetes.Kubeconfig == "~/.kube/config" {
-		config.Kubernetes.Kubeconfig = filepath.Join(homeDir, ".kube", "config")
+	config := &SpotterConfig{
+		HubURL:   "https://rules.spotter.run/api/v1",
+		APIKey:   "",
+		CacheDir: filepath.Join(homeDir, ".spotter"),
+		RulesDir: filepath.Join(homeDir, ".spotter", "rules"),
+		PacksDir: filepath.Join(homeDir, ".spotter", "rulepacks"),
+		Logging: LoggingConfig{
+			Level:  "info",
+			Format: "text",
+		},
+		Rules: RulesConfig{
+			CustomPaths: []string{
+				"./custom-rules/",
+				"/etc/spotter/rules/",
+			},
+			SeverityFilter: []string{
+				"CRITICAL",
+				"HIGH",
+				"MEDIUM",
+				"LOW",
+			},
+			MinSeverity:   "",
+			IncludeRules:  []string{},
+			ExcludeRules:  []string{},
+			Categories:    []string{},
+			CustomFilters: map[string]string{},
+			DefaultPacks: []string{
+				"spotter-secure-defaults-pack",
+			},
+		},
+		Output: OutputConfig{
+			Format:  "table",
+			Verbose: false,
+			File:    "",
+			Pretty:  true,
+		},
+		Kubernetes: KubernetesConfig{
+			Kubeconfig: filepath.Join(homeDir, ".kube", "config"),
+			Context:    "",
+			Timeout:    30 * time.Second,
+			Namespace:  "",
+		},
+		Helm: HelmConfig{
+			ReleaseName:        "spotter-scan",
+			Namespace:          "default",
+			KubeVersion:        "",
+			ValuesFiles:        []string{},
+			SetValues:          []string{},
+			SetStringValues:    []string{},
+			SkipCRDs:           false,
+			SkipTests:          false,
+			ValidateSchema:     false,
+			IncludeCRDs:        true,
+			UpdateDependencies: false,
+			ChartRepo:          "",
+			ChartVersion:       "",
+		},
 	}
 	
-	return &config, nil
+	return config, nil
 }
 
 // GetSpotterDir returns the Spotter configuration directory

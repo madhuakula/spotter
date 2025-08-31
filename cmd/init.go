@@ -9,8 +9,8 @@ import (
 	pkgconfig "github.com/madhuakula/spotter/pkg/config"
 )
 
-// initCmd represents the init command
-var initCmd = &cobra.Command{
+// configInitCmd represents the config init command
+var configInitCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Initialize a ~/.spotter/config.yaml configuration file",
 	Long: `Initialize a ~/.spotter/config.yaml configuration file with sane defaults and documented options.
@@ -25,24 +25,24 @@ unless a different path is specified with the --config flag.
 
 Examples:
   # Create ~/.spotter/config.yaml
-  spotter init
+  spotter config init
   
   # Create configuration file at specific path
-  spotter init --config /path/to/my-config.yaml
+  spotter config init --config /path/to/my-config.yaml
   
   # Force overwrite existing configuration
-  spotter init --force`,
+  spotter config init --force`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runInit(cmd)
 	},
 }
 
 func init() {
-	// Add init command to root
-	rootCmd.AddCommand(initCmd)
+	// Add init command to config
+	configCmd.AddCommand(configInitCmd)
 
 	// Add flags specific to init command
-	initCmd.Flags().Bool("force", false, "force overwrite existing configuration file")
+	configInitCmd.Flags().Bool("force", false, "force overwrite existing configuration file")
 }
 
 func runInit(cmd *cobra.Command) error {

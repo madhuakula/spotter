@@ -1,5 +1,5 @@
 # GoReleaser configuration for Spotter
-version: 1
+version: 2
 
 before:
   hooks:
@@ -19,22 +19,16 @@ builds:
     ldflags:
       - -s -w
       - -X github.com/madhuakula/spotter/pkg/version.Version={{.Version}}
-      - -X github.com/madhuakula/spotter/pkg/version.Commit={{.Commit}}
-      - -X github.com/madhuakula/spotter/pkg/version.Date={{.Date}}
+      - -X github.com/madhuakula/spotter/pkg/version.CommitHash={{.Commit}}
+      - -X github.com/madhuakula/spotter/pkg/version.BuildDate={{.Date}}
     binary: spotter
 
 archives:
-  - format: tar.gz
-    name_template: >-
+  - name_template: >
       {{ .ProjectName }}_
       {{- title .Os }}_
-      {{- if eq .Arch "amd64" }}x86_64
-      {{- else if eq .Arch "386" }}i386
-      {{- else }}{{ .Arch }}{{ end }}
+      {{- .Arch }}
       {{- if .Arm }}v{{ .Arm }}{{ end }}
-    format_overrides:
-      - goos: windows
-        format: zip
     files:
       - README.md
       - LICENSE
@@ -43,7 +37,7 @@ checksum:
   name_template: 'checksums.txt'
 
 snapshot:
-  name_template: "{{ incpatch .Version }}-next"
+  version_template: "{{ incpatch .Version }}-next"
 
 changelog:
   sort: asc
@@ -55,13 +49,14 @@ changelog:
       - '^ci:'
 
 dockers:
-  # Unified spotter image (CLI + admission controller)
+  # Multi-platform spotter image (CLI + admission controller)
   - image_templates:
       - "ghcr.io/madhuakula/spotter:{{ .Tag }}"
       - "ghcr.io/madhuakula/spotter:latest"
     dockerfile: Dockerfile
+    use: buildx
     build_flag_templates:
-      - "--platform=linux/amd64"
+      - "--platform=linux/amd64,linux/arm64"
       - "--build-arg=VERSION={{.Version}}"
       - "--build-arg=COMMIT={{.FullCommit}}"
       - "--build-arg=DATE={{.Date}}"
@@ -76,9 +71,7 @@ dockers:
       - go.mod
       - go.sum
       - main.go
-      - main_wasm.go
       - cmd/
-      - internal/
       - pkg/
 
 release:
