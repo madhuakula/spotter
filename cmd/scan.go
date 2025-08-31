@@ -18,7 +18,6 @@ import (
 	"github.com/madhuakula/spotter/pkg/k8s"
 	"github.com/madhuakula/spotter/pkg/models"
 	"github.com/madhuakula/spotter/pkg/parser"
-	"github.com/madhuakula/spotter/pkg/progress"
 	"github.com/madhuakula/spotter/pkg/reporter"
 	"github.com/madhuakula/spotter/pkg/utils"
 )
@@ -49,6 +48,15 @@ Examples:
   
   # Output to file
   spotter scan cluster --output=json --output-file=results.json`,
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		// Bind persistent flags from root command
+		if err := viper.BindPFlag("output", cmd.Root().PersistentFlags().Lookup("output")); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to bind output flag: %v\n", err)
+		}
+		if err := viper.BindPFlag("output-file", cmd.Root().PersistentFlags().Lookup("output-file")); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to bind output-file flag: %v\n", err)
+		}
+	},
 }
 
 // clusterCmd represents the cluster scan command
@@ -296,6 +304,8 @@ func init() {
 	if err := viper.BindPFlag("scan.helm.update-dependencies", helmCmd.Flags().Lookup("update-dependencies")); err != nil {
 		panic(fmt.Errorf("failed to bind scan.helm.update-dependencies flag: %w", err))
 	}
+
+
 }
 
 func runClusterScan(cmd *cobra.Command, args []string) error {
@@ -314,11 +324,19 @@ func runClusterScan(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to build scan configuration: %w", err)
 	}
 
+	// Show startup message unless quiet mode is enabled
+	if !scanConfig.Quiet {
+		fmt.Println("🔍 Starting Kubernetes cluster security scan...")
+	}
+
 	// Load and filter security rules
 	rules, err := loadAndFilterRules(cmd)
 	if err != nil {
 		return fmt.Errorf("failed to load security rules: %w", err)
 	}
+
+	// Show startup message
+	fmt.Fprintf(os.Stderr, "🚀 Starting cluster scan with %d rules...\n", len(rules))
 
 	if logLevel == "debug" {
 		logger.Info("Loaded security rules", "count", len(rules))
@@ -375,11 +393,19 @@ func runManifestsScan(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to build scan configuration: %w", err)
 	}
 
+	// Show startup message unless quiet mode is enabled
+	if !scanConfig.Quiet {
+		fmt.Println("📄 Starting Kubernetes manifest security scan...")
+	}
+
 	// Load and filter security rules using resolved config
 	rules, err := loadAndFilterRules(cmd)
 	if err != nil {
 		return fmt.Errorf("failed to load security rules: %w", err)
 	}
+
+	// Show startup message
+	fmt.Fprintf(os.Stderr, "🚀 Starting manifests scan with %d rules...\n", len(rules))
 
 	if logLevel == "debug" {
 		logger.Info("Loaded security rules", "count", len(rules))
@@ -451,11 +477,19 @@ func runHelmScan(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to build scan configuration: %w", err)
 	}
 
+	// Show startup message unless quiet mode is enabled
+	if !scanConfig.Quiet {
+		fmt.Println("⎈ Starting Helm chart security scan...")
+	}
+
 	// Load and filter security rules using resolved config
 	rules, err := loadAndFilterRules(cmd)
 	if err != nil {
 		return fmt.Errorf("failed to load security rules: %w", err)
 	}
+
+	// Show startup message
+	fmt.Fprintf(os.Stderr, "🚀 Starting Helm charts scan with %d rules...\n", len(rules))
 
 	if logLevel == "debug" {
 		logger.Info("Loaded security rules", "count", len(rules))
@@ -600,49 +634,7 @@ func loadDefaultPacksWithAutoPull(packIDs []string) ([]*models.SpotterRule, erro
 	return allRules, nil
 }
 
-// loadRules loads security rules from configured paths
-func loadRules() ([]*models.SpotterRule, error) {
-	parser := parser.NewYAMLParser(true)
-	var allRules []*models.SpotterRule
-	ruleIDMap := make(map[string]bool) // Track rule IDs to prevent duplicates
 
-	// Load cached rules first
-	cfg, err := config.LoadConfig()
-	if err == nil {
-		cacheManager := cache.NewCacheManager(cfg)
-		cachedRules, err := cacheManager.ListCachedRules()
-		if err == nil {
-			for _, cacheEntry := range cachedRules {
-				rule, err := cacheManager.GetRule(cacheEntry.ID)
-				if err == nil && rule != nil {
-					if !ruleIDMap[rule.GetID()] {
-						allRules = append(allRules, rule)
-						ruleIDMap[rule.GetID()] = true
-					}
-				}
-			}
-		}
-	}
-
-	// Load external rules if specified
-	rulesPaths := viper.GetStringSlice("rules-path")
-	if len(rulesPaths) > 0 {
-		externalRules, err := loadExternalRules(parser, rulesPaths)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load external rules: %w", err)
-		}
-
-		// Add external rules only if their IDs are not already present
-		for _, rule := range externalRules {
-			if !ruleIDMap[rule.GetID()] {
-				allRules = append(allRules, rule)
-				ruleIDMap[rule.GetID()] = true
-			}
-		}
-	}
-
-	return allRules, nil
-}
 
 // loadAndFilterRules loads security rules and applies include/exclude filtering
 func loadAndFilterRules(cmd *cobra.Command) ([]*models.SpotterRule, error) {
@@ -661,76 +653,11 @@ func loadAndFilterRules(cmd *cobra.Command) ([]*models.SpotterRule, error) {
 		return loadDefaultPacksWithAutoPull(defaultPacks)
 	}
 
-	// Load all rules (existing behavior)
-	allRules, err := loadRules()
-	if err != nil {
-		return nil, err
-	}
-
-	// Get filter flags
-	includeRules, _ := cmd.Flags().GetStringSlice("include-rules")
-	excludeRules, _ := cmd.Flags().GetStringSlice("exclude-rules")
-	categories, _ := cmd.Flags().GetStringSlice("categories")
-
-	// Apply filtering
-	filteredRules := applyRuleFilters(allRules, includeRules, excludeRules, categories)
-
-	return filteredRules, nil
+	// If no specific rules or packs are provided, use spotter-secure-defaults-pack as default
+	return loadDefaultPacksWithAutoPull([]string{"spotter-secure-defaults-pack"})
 }
 
-// applyRuleFilters filters rules based on include/exclude criteria
-func applyRuleFilters(rules []*models.SpotterRule, includeRules, excludeRules, categories []string) []*models.SpotterRule {
-	// If no filters specified, return all rules
-	if len(includeRules) == 0 && len(excludeRules) == 0 && len(categories) == 0 {
-		return rules
-	}
 
-	var filteredRules []*models.SpotterRule
-
-	// Convert slices to maps for faster lookup
-	includeMap := make(map[string]bool)
-	for _, id := range includeRules {
-		includeMap[id] = true
-	}
-
-	excludeMap := make(map[string]bool)
-	for _, id := range excludeRules {
-		excludeMap[id] = true
-	}
-
-	categoryMap := make(map[string]bool)
-	for _, cat := range categories {
-		categoryMap[strings.ToLower(cat)] = true
-	}
-
-	for _, rule := range rules {
-		ruleID := rule.GetID()
-		ruleCategory := strings.ToLower(rule.GetCategory())
-
-		// Skip if explicitly excluded
-		if excludeMap[ruleID] {
-			continue
-		}
-
-		// If include-rules is specified, only include those rules
-		if len(includeRules) > 0 {
-			if !includeMap[ruleID] {
-				continue
-			}
-		}
-
-		// If categories is specified, only include rules from those categories
-		if len(categories) > 0 {
-			if !categoryMap[ruleCategory] {
-				continue
-			}
-		}
-
-		filteredRules = append(filteredRules, rule)
-	}
-
-	return filteredRules
-}
 
 // loadExternalRules loads security rules from external file paths
 func loadExternalRules(parser *parser.YAMLParser, rulesPaths []string) ([]*models.SpotterRule, error) {
@@ -805,8 +732,14 @@ func buildScanConfig(cmd *cobra.Command) (*ScanConfig, error) {
 	// Get command name to determine which section of config to use
 	cmdName := cmd.Name()
 
+	// Get output format with default fallback
+	outputFormat := viper.GetString("output")
+	if outputFormat == "" {
+		outputFormat = "table" // Default to table format
+	}
+
 	config := &ScanConfig{
-		Output:      viper.GetString("output"),
+		Output:      outputFormat,
 		OutputFile:  viper.GetString("output-file"),
 		Parallelism: 4, // Default parallelism, will be overridden by flag
 		Timeout:     parseDuration(viper.GetString("timeout")),
@@ -1144,20 +1077,11 @@ func executeHelmScan(ctx context.Context, scanner k8s.ResourceScanner, engine en
 func evaluateResourcesConcurrently(ctx context.Context, engine engine.EvaluationEngine, rules []*models.SpotterRule, resources []map[string]interface{}, config *ScanConfig) (*models.ScanResult, error) {
 	logger := GetLogger()
 
-	// Initialize progress bar
-	progressBar := progress.NewProgressBar(len(resources), "🔍 Scanning resources")
-	defer progressBar.Finish()
-
 	// Use the engine's built-in concurrency with configured parallelism
 	// This avoids the double worker pool issue that was causing duplicate evaluations
 	result, err := engine.EvaluateRulesAgainstResourcesConcurrent(ctx, rules, resources, config.Parallelism)
 	if err != nil {
 		return nil, fmt.Errorf("failed to evaluate resources: %w", err)
-	}
-
-	// Update progress bar to completion
-	for i := 0; i < len(resources); i++ {
-		progressBar.Increment()
 	}
 
 	// Filter by severity if specified

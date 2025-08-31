@@ -3,7 +3,6 @@ package config
 import (
 	"fmt"
 	"os"
-	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -97,20 +96,21 @@ func mapLegacyToNewConfig(legacy map[string]interface{}, config *SpotterConfig) 
 	}
 
 	// Map scanner configuration
-	if scanner, ok := legacy["scanner"].(map[string]interface{}); ok {
-		if workers, ok := scanner["workers"].(int); ok {
-			config.Scanner.Workers = workers
-		}
-		if maxConcurrency, ok := scanner["max_concurrency"].(int); ok {
-			config.Scanner.MaxConcurrency = maxConcurrency
-		}
-		if timeout, ok := scanner["timeout"].(string); ok {
-			if duration, err := time.ParseDuration(timeout); err == nil {
-				config.Scanner.Timeout = duration
-			}
-		}
-		// Map other scanner fields as needed
-	}
+	// TODO: Scanner configuration mapping - fields not yet implemented
+	// if scanner, ok := legacy["scanner"].(map[string]interface{}); ok {
+	//	if workers, ok := scanner["workers"].(int); ok {
+	//		config.Scanner.Workers = workers
+	//	}
+	//	if maxConcurrency, ok := scanner["max_concurrency"].(int); ok {
+	//		config.Scanner.MaxConcurrency = maxConcurrency
+	//	}
+	//	if timeout, ok := scanner["timeout"].(string); ok {
+	//		if duration, err := time.ParseDuration(timeout); err == nil {
+	//			config.Scanner.Timeout = duration
+	//		}
+	//	}
+	//	// Map other scanner fields as needed
+	// }
 
 	// Map output configuration
 	if output, ok := legacy["output"].(map[string]interface{}); ok {
@@ -159,16 +159,16 @@ func mergeWithDefaults(config *SpotterConfig, defaults *SpotterConfig) {
 		config.Logging.Format = defaults.Logging.Format
 	}
 
-	// Merge scanner config
-	if config.Scanner.Workers == 0 {
-		config.Scanner.Workers = defaults.Scanner.Workers
-	}
-	if config.Scanner.MaxConcurrency == 0 {
-		config.Scanner.MaxConcurrency = defaults.Scanner.MaxConcurrency
-	}
-	if config.Scanner.Timeout == 0 {
-		config.Scanner.Timeout = defaults.Scanner.Timeout
-	}
+	// TODO: Merge scanner config - fields not yet implemented
+	// if config.Scanner.Workers == 0 {
+	//	config.Scanner.Workers = defaults.Scanner.Workers
+	// }
+	// if config.Scanner.MaxConcurrency == 0 {
+	//	config.Scanner.MaxConcurrency = defaults.Scanner.MaxConcurrency
+	// }
+	// if config.Scanner.Timeout == 0 {
+	//	config.Scanner.Timeout = defaults.Scanner.Timeout
+	// }
 
 	// Merge output config
 	if config.Output.Format == "" {

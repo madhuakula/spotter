@@ -13,25 +13,27 @@ type LoggingConfig struct {
 }
 
 // ScannerConfig represents scanner configuration
+// Note: Most fields are not yet implemented in the codebase
 type ScannerConfig struct {
-	Workers                 int           `yaml:"workers" json:"workers"`
-	MaxConcurrency          int           `yaml:"max_concurrency" json:"max_concurrency"`
-	Timeout                 time.Duration `yaml:"timeout" json:"timeout"`
-	BatchSize               int           `yaml:"batch_size" json:"batch_size"`
-	StreamingMode           bool          `yaml:"streaming_mode" json:"streaming_mode"`
-	MemoryLimit             string        `yaml:"memory_limit" json:"memory_limit"`
-	ResourcePoolSize        int           `yaml:"resource_pool_size" json:"resource_pool_size"`
-	IncludeNamespaces       []string      `yaml:"include_namespaces" json:"include_namespaces"`
-	ExcludeNamespaces       []string      `yaml:"exclude_namespaces" json:"exclude_namespaces"`
-	ExcludeSystemNamespaces bool          `yaml:"exclude_system_namespaces" json:"exclude_system_namespaces"`
-	ResourceTypes           []string      `yaml:"resource_types" json:"resource_types"`
-	IncludeClusterResources bool          `yaml:"include_cluster_resources" json:"include_cluster_resources"`
-	Recursive               bool          `yaml:"recursive" json:"recursive"`
-	FileExtensions          []string      `yaml:"file_extensions" json:"file_extensions"`
-	Parallelism             int           `yaml:"parallelism" json:"parallelism"`
-	FailOnViolations        bool          `yaml:"fail_on_violations" json:"fail_on_violations"`
-	MaxViolations           int           `yaml:"max_violations" json:"max_violations"`
-	IncludePassed           bool          `yaml:"include_passed" json:"include_passed"`
+	// TODO: Implement these scanner configuration options
+	// Workers                 int           `yaml:"workers" json:"workers"`
+	// MaxConcurrency          int           `yaml:"max_concurrency" json:"max_concurrency"`
+	// Timeout                 time.Duration `yaml:"timeout" json:"timeout"`
+	// BatchSize               int           `yaml:"batch_size" json:"batch_size"`
+	// StreamingMode           bool          `yaml:"streaming_mode" json:"streaming_mode"`
+	// MemoryLimit             string        `yaml:"memory_limit" json:"memory_limit"`
+	// ResourcePoolSize        int           `yaml:"resource_pool_size" json:"resource_pool_size"`
+	// IncludeNamespaces       []string      `yaml:"include_namespaces" json:"include_namespaces"`
+	// ExcludeNamespaces       []string      `yaml:"exclude_namespaces" json:"exclude_namespaces"`
+	// ExcludeSystemNamespaces bool          `yaml:"exclude_system_namespaces" json:"exclude_system_namespaces"`
+	// ResourceTypes           []string      `yaml:"resource_types" json:"resource_types"`
+	// IncludeClusterResources bool          `yaml:"include_cluster_resources" json:"include_cluster_resources"`
+	// Recursive               bool          `yaml:"recursive" json:"recursive"`
+	// FileExtensions          []string      `yaml:"file_extensions" json:"file_extensions"`
+	// Parallelism             int           `yaml:"parallelism" json:"parallelism"`
+	// FailOnViolations        bool          `yaml:"fail_on_violations" json:"fail_on_violations"`
+	// MaxViolations           int           `yaml:"max_violations" json:"max_violations"`
+	// IncludePassed           bool          `yaml:"include_passed" json:"include_passed"`
 }
 
 // RulesConfig represents rules configuration
@@ -43,6 +45,7 @@ type RulesConfig struct {
 	ExcludeRules   []string          `yaml:"exclude_rules" json:"exclude_rules"`
 	Categories     []string          `yaml:"categories" json:"categories"`
 	CustomFilters  map[string]string `yaml:"custom_filters" json:"custom_filters"`
+	DefaultPacks   []string          `yaml:"default_packs" json:"default_packs"`
 }
 
 // OutputConfig represents output configuration
@@ -79,58 +82,70 @@ type HelmConfig struct {
 }
 
 // FilteringConfig represents filtering configuration
+// Note: Not yet implemented in the codebase
 type FilteringConfig struct {
-	NamespacePatterns struct {
-		UseDynamicDetection bool     `yaml:"use_dynamic_detection" json:"use_dynamic_detection"`
-		UseSecureValidation bool     `yaml:"use_secure_validation" json:"use_secure_validation"`
-		CustomPatterns      []string `yaml:"custom_patterns" json:"custom_patterns"`
-	} `yaml:"namespace_patterns" json:"namespace_patterns"`
-	ResourceFilter struct {
-		UseDynamicFiltering bool              `yaml:"use_dynamic_filtering" json:"use_dynamic_filtering"`
-		CustomFilters       map[string]string `yaml:"custom_filters" json:"custom_filters"`
-	} `yaml:"resource_filter" json:"resource_filter"`
+	// TODO: Implement filtering configuration
+	// NamespacePatterns struct {
+	//	UseDynamicDetection bool     `yaml:"use_dynamic_detection" json:"use_dynamic_detection"`
+	//	UseSecureValidation bool     `yaml:"use_secure_validation" json:"use_secure_validation"`
+	//	CustomPatterns      []string `yaml:"custom_patterns" json:"custom_patterns"`
+	// } `yaml:"namespace_patterns" json:"namespace_patterns"`
+	// ResourceFilter struct {
+	//	UseDynamicFiltering bool              `yaml:"use_dynamic_filtering" json:"use_dynamic_filtering"`
+	//	CustomFilters       map[string]string `yaml:"custom_filters" json:"custom_filters"`
+	// } `yaml:"resource_filter" json:"resource_filter"`
 }
 
 // PerformanceConfig represents performance configuration
+// Note: Not yet implemented in the codebase
 type PerformanceConfig struct {
-	EnableMetrics bool          `yaml:"enable_metrics" json:"enable_metrics"`
-	CPUProfile    bool          `yaml:"cpu_profile" json:"cpu_profile"`
-	MemoryProfile bool          `yaml:"memory_profile" json:"memory_profile"`
-	EnableCache   bool          `yaml:"enable_cache" json:"enable_cache"`
-	CacheTTL      time.Duration `yaml:"cache_ttl" json:"cache_ttl"`
+	// TODO: Implement performance configuration
+	// EnableMetrics bool          `yaml:"enable_metrics" json:"enable_metrics"`
+	// CPUProfile    bool          `yaml:"cpu_profile" json:"cpu_profile"`
+	// MemoryProfile bool          `yaml:"memory_profile" json:"memory_profile"`
+	// EnableCache   bool          `yaml:"enable_cache" json:"enable_cache"`
+	// CacheTTL      time.Duration `yaml:"cache_ttl" json:"cache_ttl"`
 }
 
 // SecurityConfig represents security configuration
+// Note: Not yet implemented in the codebase
 type SecurityConfig struct {
-	ValidateSignatures bool     `yaml:"validate_signatures" json:"validate_signatures"`
-	AllowUnsignedRules bool     `yaml:"allow_unsigned_rules" json:"allow_unsigned_rules"`
-	TrustedSources     []string `yaml:"trusted_sources" json:"trusted_sources"`
+	// TODO: Implement security configuration
+	// ValidateSignatures bool     `yaml:"validate_signatures" json:"validate_signatures"`
+	// AllowUnsignedRules bool     `yaml:"allow_unsigned_rules" json:"allow_unsigned_rules"`
+	// TrustedSources     []string `yaml:"trusted_sources" json:"trusted_sources"`
 }
 
 // ReportingConfig represents reporting configuration
+// Note: Not yet implemented in the codebase
 type ReportingConfig struct {
-	IncludeMetadata    bool `yaml:"include_metadata" json:"include_metadata"`
-	IncludeRemediation bool `yaml:"include_remediation" json:"include_remediation"`
-	IncludeReferences  bool `yaml:"include_references" json:"include_references"`
-	GroupByCategory    bool `yaml:"group_by_category" json:"group_by_category"`
-	ShowProgress       bool `yaml:"show_progress" json:"show_progress"`
+	// TODO: Implement reporting configuration
+	// IncludeMetadata    bool `yaml:"include_metadata" json:"include_metadata"`
+	// IncludeRemediation bool `yaml:"include_remediation" json:"include_remediation"`
+	// IncludeReferences  bool `yaml:"include_references" json:"include_references"`
+	// GroupByCategory    bool `yaml:"group_by_category" json:"group_by_category"`
+	// ShowProgress       bool `yaml:"show_progress" json:"show_progress"`
 }
 
 // IntegrationsConfig represents integrations configuration
+// Note: Not yet implemented in the codebase
 type IntegrationsConfig struct {
-	Webhooks []string `yaml:"webhooks" json:"webhooks"`
-	SARIF    struct {
-		IncludeRuleHelp  bool `yaml:"include_rule_help" json:"include_rule_help"`
-		IncludeLocations bool `yaml:"include_locations" json:"include_locations"`
-	} `yaml:"sarif" json:"sarif"`
+	// TODO: Implement integrations configuration
+	// Webhooks []string `yaml:"webhooks" json:"webhooks"`
+	// SARIF    struct {
+	//	IncludeRuleHelp  bool `yaml:"include_rule_help" json:"include_rule_help"`
+	//	IncludeLocations bool `yaml:"include_locations" json:"include_locations"`
+	// } `yaml:"sarif" json:"sarif"`
 }
 
 // DevelopmentConfig represents development configuration
+// Note: Not yet implemented in the codebase
 type DevelopmentConfig struct {
-	Debug        bool `yaml:"debug" json:"debug"`
-	DryRun       bool `yaml:"dry_run" json:"dry_run"`
-	ValidateOnly bool `yaml:"validate_only" json:"validate_only"`
-	Experimental bool `yaml:"experimental" json:"experimental"`
+	// TODO: Implement development configuration
+	// Debug        bool `yaml:"debug" json:"debug"`
+	// DryRun       bool `yaml:"dry_run" json:"dry_run"`
+	// ValidateOnly bool `yaml:"validate_only" json:"validate_only"`
+	// Experimental bool `yaml:"experimental" json:"experimental"`
 }
 
 // SpotterConfig represents the complete Spotter configuration
@@ -176,24 +191,7 @@ func DefaultConfig() *SpotterConfig {
 			Format: "text",
 		},
 		Scanner: ScannerConfig{
-			Workers:                 4,
-			MaxConcurrency:          10,
-			Timeout:                 300 * time.Second,
-			BatchSize:               100,
-			StreamingMode:           false,
-			MemoryLimit:             "1GB",
-			ResourcePoolSize:        50,
-			IncludeNamespaces:       []string{},
-			ExcludeNamespaces:       []string{"kube-system", "kube-public", "kube-node-lease"},
-			ExcludeSystemNamespaces: true,
-			ResourceTypes:           []string{},
-			IncludeClusterResources: true,
-			Recursive:               true,
-			FileExtensions:          []string{".yaml", ".yml"},
-			Parallelism:             4,
-			FailOnViolations:        false,
-			MaxViolations:           0,
-			IncludePassed:           false,
+			// TODO: Add default values when scanner config fields are implemented
 		},
 		Rules: RulesConfig{
 			CustomPaths:    []string{"./custom-rules/", "/etc/spotter/rules/"},
@@ -203,6 +201,7 @@ func DefaultConfig() *SpotterConfig {
 			ExcludeRules:   []string{},
 			Categories:     []string{},
 			CustomFilters:  map[string]string{},
+			DefaultPacks:   []string{"spotter-secure-defaults-pack"}, // Set default pack
 		},
 		Output: OutputConfig{
 			Format:  "table",
@@ -232,57 +231,22 @@ func DefaultConfig() *SpotterConfig {
 			ChartVersion:       "",
 		},
 		Filtering: FilteringConfig{
-			NamespacePatterns: struct {
-				UseDynamicDetection bool     `yaml:"use_dynamic_detection" json:"use_dynamic_detection"`
-				UseSecureValidation bool     `yaml:"use_secure_validation" json:"use_secure_validation"`
-				CustomPatterns      []string `yaml:"custom_patterns" json:"custom_patterns"`
-			}{
-				UseDynamicDetection: true,
-				UseSecureValidation: true,
-				CustomPatterns:      []string{},
-			},
-			ResourceFilter: struct {
-				UseDynamicFiltering bool              `yaml:"use_dynamic_filtering" json:"use_dynamic_filtering"`
-				CustomFilters       map[string]string `yaml:"custom_filters" json:"custom_filters"`
-			}{
-				UseDynamicFiltering: true,
-				CustomFilters:       map[string]string{},
-			},
+			// TODO: Add default values when filtering config fields are implemented
 		},
 		Performance: PerformanceConfig{
-			EnableMetrics: false,
-			CPUProfile:    false,
-			MemoryProfile: false,
-			EnableCache:   true,
-			CacheTTL:      1 * time.Hour,
+			// TODO: Add default values when performance config fields are implemented
 		},
 		Security: SecurityConfig{
-			ValidateSignatures: false,
-			AllowUnsignedRules: true,
-			TrustedSources:     []string{},
+			// TODO: Add default values when security config fields are implemented
 		},
 		Reporting: ReportingConfig{
-			IncludeMetadata:    true,
-			IncludeRemediation: true,
-			IncludeReferences:  true,
-			GroupByCategory:    false,
-			ShowProgress:       true,
+			// TODO: Add default values when reporting config fields are implemented
 		},
 		Integrations: IntegrationsConfig{
-			Webhooks: []string{},
-			SARIF: struct {
-				IncludeRuleHelp  bool `yaml:"include_rule_help" json:"include_rule_help"`
-				IncludeLocations bool `yaml:"include_locations" json:"include_locations"`
-			}{
-				IncludeRuleHelp:  true,
-				IncludeLocations: true,
-			},
+			// TODO: Add default values when integrations config fields are implemented
 		},
 		Development: DevelopmentConfig{
-			Debug:        false,
-			DryRun:       false,
-			ValidateOnly: false,
-			Experimental: false,
+			// TODO: Add default values when development config fields are implemented
 		},
 	}
 }
