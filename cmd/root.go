@@ -4,15 +4,17 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
+	pkgconfig "github.com/madhuakula/spotter/pkg/config"
 )
 
 var (
-	cfgFile string
-	verbose bool
-	logger  *slog.Logger
+	cfgFile      string
+	verbose      bool
+	logger       *slog.Logger
+	globalConfig *pkgconfig.SpotterConfig
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -41,14 +43,34 @@ Examples:
   
   # Run as admission controller
   spotter server --mode=admission-controller`,
+	SuggestionsMinimumDistance: 2,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		initializeLogger()
+		if globalConfig != nil {
+			initializeLogger(globalConfig)
+		} else {
+			defaultConfig, err := pkgconfig.DefaultConfig()
+			if err != nil {
+				// Fallback to basic logger if default config fails
+				logger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
+				return
+			}
+			initializeLogger(defaultConfig)
+		}
 	},
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
+		// Check if it's an unknown command error and provide suggestions
+		if strings.Contains(err.Error(), "unknown command") {
+			fmt.Fprintf(os.Stderr, "%s\n\nDid you mean one of these?\n", err.Error())
+			fmt.Fprintf(os.Stderr, "  scan     - Scan Kubernetes resources for vulnerabilities\n")
+			fmt.Fprintf(os.Stderr, "  rules    - Manage security rules\n")
+			fmt.Fprintf(os.Stderr, "  packs    - Manage rule packs\n")
+			fmt.Fprintf(os.Stderr, "  validate - Validate rules or manifests\n")
+			fmt.Fprintf(os.Stderr, "\nRun 'spotter --help' for more information.\n")
+		}
 		os.Exit(1)
 	}
 }
@@ -57,7 +79,7 @@ func init() {
 	cobra.OnInitialize(initConfig)
 
 	// Global flags
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.spotter.yaml)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is ~/.spotter/config.yaml)")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "verbose output")
 	rootCmd.PersistentFlags().String("log-level", "info", "log level (trace, debug, info, warn, error, fatal, panic)")
 	rootCmd.PersistentFlags().String("log-format", "text", "log format (text, json)")
@@ -70,71 +92,42 @@ func init() {
 	rootCmd.PersistentFlags().Bool("no-color", false, "disable colored output")
 	rootCmd.PersistentFlags().String("timeout", "5m", "timeout for operations")
 
-	// Bind flags to viper
-	bindFlags := []struct {
-		name string
-		flag string
-	}{
-		{"verbose", "verbose"},
-		{"log-level", "log-level"},
-		{"log-format", "log-format"},
-		{"kubeconfig", "kubeconfig"},
-		{"context", "context"},
-		{"namespace", "namespace"},
-		{"rules-path", "rules-path"},
-		{"output", "output"},
-		{"output-file", "output-file"},
-		{"no-color", "no-color"},
-	}
-
-	for _, bf := range bindFlags {
-		if err := viper.BindPFlag(bf.name, rootCmd.PersistentFlags().Lookup(bf.flag)); err != nil {
-			logger.Error("Failed to bind flag", "name", bf.name, "error", err)
-		}
-	}
-	if err := viper.BindPFlag("timeout", rootCmd.PersistentFlags().Lookup("timeout")); err != nil {
-		logger.Error("Failed to bind timeout flag", "error", err)
-	}
+	// Configuration is now handled through the consolidated config system
+	// Individual flags will be processed by each command as needed
 }
 
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
-	if cfgFile != "" {
-		// Use config file from the flag.
-		viper.SetConfigFile(cfgFile)
-	} else {
-		// Find home directory.
-		home, err := os.UserHomeDir()
-		cobra.CheckErr(err)
-
-		// Search config in home directory with name ".spotter" (without extension).
-		viper.AddConfigPath(home)
-		viper.AddConfigPath(".")
-		viper.SetConfigType("yaml")
-		viper.SetConfigName(".spotter")
+	// Load configuration using the new consolidated config structure
+	config, err := pkgconfig.LoadConfig("")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
+		// Continue with default config on error
+		config, err = pkgconfig.DefaultConfig()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error loading default config: %v\n", err)
+			os.Exit(1)
+		}
 	}
 
-	// Environment variables
-	viper.SetEnvPrefix("SPOTTER")
-	viper.AutomaticEnv() // read in environment variables that match
+	// Store the loaded config globally for access by other commands
+	globalConfig = config
 
-	// If a config file is found, read it in.
-	if err := viper.ReadInConfig(); err == nil {
-		fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
-	}
+	// Initialize logger with the loaded configuration
+	initializeLogger(config)
 }
 
 // initializeLogger sets up the logger based on configuration
-func initializeLogger() {
-	// Parse log level
-	levelStr := viper.GetString("log-level")
+func initializeLogger(config *pkgconfig.SpotterConfig) {
+	// Parse log level from config
+	levelStr := config.Logging.Level
 	var level slog.Level
-	switch levelStr {
+	switch strings.ToLower(levelStr) {
 	case "trace", "debug":
 		level = slog.LevelDebug
 	case "info":
 		level = slog.LevelInfo
-	case "warn":
+	case "warn", "warning":
 		level = slog.LevelWarn
 	case "error", "fatal", "panic":
 		level = slog.LevelError
@@ -142,13 +135,13 @@ func initializeLogger() {
 		level = slog.LevelInfo
 	}
 
-	// Create handler based on format
+	// Create handler based on format from config
 	var handler slog.Handler
 	handlerOpts := &slog.HandlerOptions{
 		Level: level,
 	}
 
-	if viper.GetString("log-format") == "json" {
+	if strings.ToLower(config.Logging.Format) == "json" {
 		handler = slog.NewJSONHandler(os.Stderr, handlerOpts)
 	} else {
 		handler = slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
@@ -173,7 +166,17 @@ func initializeLogger() {
 // GetLogger returns the configured logger instance
 func GetLogger() *slog.Logger {
 	if logger == nil {
-		initializeLogger()
+		if globalConfig != nil {
+			initializeLogger(globalConfig)
+		} else {
+			defaultConfig, err := pkgconfig.DefaultConfig()
+	if err != nil {
+		// Fallback to basic logger if default config fails
+		logger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
+		return logger
+	}
+	initializeLogger(defaultConfig)
+		}
 	}
 	return logger
 }

@@ -1,0 +1,47 @@
+# Example SpotterRulePack Structure
+# This file demonstrates the complete structure of a SpotterRulePack
+# based on the official OpenAPI specification at https://rules.spotter.run/api/v1/openapi.yaml
+
+apiVersion: rules.spotter.dev/v1alpha1
+kind: SpotterRulePack
+metadata:
+  # Rule pack identifier following Kubernetes naming conventions
+  # Limited to 63 characters, must match pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
+  name: example-security-pack
+  
+  # Required annotations for rule pack metadata
+  annotations:
+    # Required: Human-readable title for the rule pack
+    rules.spotter.dev/title: "Example Security Rule Pack"
+    
+    # Required: Rule pack version (semantic versioning)
+    rules.spotter.dev/version: "1.0.0"
+    
+    # Required: Detailed description of the rule pack
+    rules.spotter.dev/description: "A comprehensive security rule pack demonstrating various Kubernetes security controls and best practices."
+    
+    # Optional: Author or organization that created the rule pack
+    rules.spotter.dev/author: "Security Team"
+
+spec:
+  # List of rule IDs included in this rule pack
+  # Each rule ID should reference an existing SpotterRule
+  rules:
+    - spotter-workload-001  # Example: Privileged container detection
+    - spotter-workload-002  # Example: Root user detection
+    - spotter-platform-001  # Example: RBAC misconfiguration
+    - spotter-network-001   # Example: Network policy validation
+    - spotter-config-001    # Example: Secret management
+    - spotter-audit-001     # Example: Audit logging
+    - spotter-data-001      # Example: Data encryption
+    - spotter-supply-001    # Example: Image vulnerability
+    - spotter-access-001    # Example: Access control
+  
+  # Optional: References to external documentation, standards, or guidelines
+  references:
+    - title: "Kubernetes Security Best Practices"
+      url: "https://kubernetes.io/docs/concepts/security/"
+    - title: "CIS Kubernetes Benchmark"
+      url: "https://www.cisecurity.org/benchmark/kubernetes"
+    - title: "NIST Cybersecurity Framework"
+      url: "https://www.nist.gov/cyberframework"

@@ -1,77 +1,160 @@
-apiVersion: rules.spotter.run/v1
-kind: SecurityRule
+# Example SpotterRule Structure
+# This file demonstrates the complete structure of a SpotterRule
+# based on the official OpenAPI specification at https://rules.spotter.run/api/v1/openapi.yaml
+
+apiVersion: rules.spotter.dev/v1alpha1
+kind: SpotterRule
 metadata:
-  name: unique-name
+  # Rule identifier following the pattern: spotter-<category>-<nnn>
+  # Must match pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$ and be limited to 63 characters
+  name: spotter-<category>-<nnn>  # e.g., spotter-workload-001
+  
+  # Required labels for rule classification
   labels:
-    category: "Workload Security"
-    severity: high
+    # Required: Security severity level
+    severity: "high"              # low | medium | high | critical
+    # Required: Security category for rule organization
+    category: "workload"          # workload | access | config | data | network | platform | supply | audit
+  
+  # Required annotations for rule metadata
+  annotations:
+    # Required: Human-readable title for the rule
+    rules.spotter.dev/title: "Readable Rule Name"
+    # Required: Rule version (semantic versioning)
+    rules.spotter.dev/version: "1.0.0"
+    # Required: Detailed description of what this rule checks
+    rules.spotter.dev/description: "Human readable explanation of what this rule checks"
+    # Optional: CWE (Common Weakness Enumeration) reference
+    rules.spotter.dev/cwe: "CWE-269"  # Optional CWE reference
+    # Optional: Author or organization that created the rule
+    rules.spotter.dev/author: "Security Team"  # Optional author information
 
 spec:
-  id: SPOTTER-<CATEGORY>-<NNN>
-  name: "Readable Rule Name"
-  version: "1.0.0"
-  description: "Human readable explanation of what this rule checks"
-
-  severity:
-    level: "HIGH"                  # LOW | MEDIUM | HIGH | CRITICAL
-    score: 8.7                     # 0.0 - 10.0, like CVSS
-
-  category: "Workload Security"   # See SecurityCategory constants for all available categories
-  subcategory: "Privilege Escalation"
-  cwe: "CWE-269"                   # Optional CWE or MITRE ref
-
-  regulatoryStandards:
-    - name: "CIS Kubernetes 5.2.5"
-      reference: "https://cisecurity.org/..."
-    - name: "NIST SP 800-53 AC-6"
-      reference: "https://csrc.nist.gov/..."
-
+  # Resource matching configuration - defines which Kubernetes resources this rule applies to
   match:
     resources:
       kubernetes:
-        apiGroups:
-          - ""
-          - apps
-        versions:
-          - v1
-        kinds:
-          - Pod
-          - Deployment
-          - StatefulSet
-          - Job
+        # API groups to match - can be core ("") or named groups
+        # Specify which Kubernetes API groups contain the resources you want to scan
+        apiGroups: 
+          - ""      # Core API group (Pod, Service, ConfigMap, Secret, etc.)
+          - "apps"  # Apps API group (Deployment, StatefulSet, ReplicaSet, etc.)
+          - "batch" # Batch API group (Job, CronJob)
+        
+        # API versions to match - specify which versions of the APIs to include
+        # This allows rules to work across different Kubernetes versions
+        versions: 
+          - "v1"       # Stable version
+          - "v1beta1"  # Include beta versions if needed for newer features
+        
+        # Kubernetes resource kinds to match - the specific resource types to scan
+        # List all resource types that this security rule should evaluate
+        kinds: 
+          - "Pod"           # Individual pods
+          - "Deployment"    # Deployment workloads
+          - "StatefulSet"   # Stateful workloads
+          - "DaemonSet"     # Node-level workloads
+          - "Job"           # Batch jobs
+          - "CronJob"       # Scheduled jobs
+        
+        # Namespace selector (optional) - control which namespaces to scan
+        # Use this to include/exclude specific namespaces from rule evaluation
         namespaces:
-          include: ["*"]
-          exclude: ["kube-system", "kube-public"]
+          include: ["*"]  # Include all namespaces by default (wildcard)
+          exclude: 
+            - "kube-system"     # Exclude system namespaces to avoid false positives
+            - "kube-public"     # Exclude public namespace
+            - "kube-node-lease" # Exclude node lease namespace
+        
+        # Label selector (optional) - filter resources based on labels
+        # This provides fine-grained control over which resources to evaluate
         labels:
+          # Include resources that match these label criteria
           include:
-            environment: ["production", "staging"]
+            environment: ["production", "staging"]  # Only scan prod/staging environments
+            security.scan: ["enabled"]              # Only scan resources explicitly marked for scanning
+          # Exclude resources that match these label criteria
           exclude:
-            security.spotter.dev/ignore: ["true"]
+            rules.spotter.dev/ignore: ["true"]      # Skip resources marked to ignore this rule
+            security.exempt: ["true"]               # Skip security-exempt resources
 
+  # CEL (Common Expression Language) expression that defines the security check logic
+  # This expression evaluates to true when a security violation is detected
+  # The 'object' variable contains the Kubernetes resource being evaluated
   cel: |
-    object.kind in ["Pod", "Deployment", "StatefulSet", "Job"] &&
-    (
-      (object.kind == "Pod" &&
-       has(object.spec.containers) &&
-       object.spec.containers.exists(container,
-         has(container.securityContext) &&
-         container.securityContext.allowPrivilegeEscalation == true
-       )) ||
-      (has(object.spec.template.spec.containers) &&
-       object.spec.template.spec.containers.exists(container,
-         has(container.securityContext) &&
-         container.securityContext.allowPrivilegeEscalation == true
-       ))
-    )
+    // Check for privileged containers in both Pods and workload resources
+    // This rule detects containers running with privileged security context
+    
+    (object.kind == 'Pod' && (
+      // For direct Pod resources, check containers and initContainers
+      (has(object.spec.containers) && 
+       object.spec.containers.exists(c, 
+         has(c.securityContext) && 
+         has(c.securityContext.privileged) && 
+         c.securityContext.privileged == true)) ||
+      (has(object.spec.initContainers) && 
+       object.spec.initContainers.exists(c, 
+         has(c.securityContext) && 
+         has(c.securityContext.privileged) && 
+         c.securityContext.privileged == true))
+    )) || (object.kind != 'Pod' && (
+      // For workload resources (Deployment, StatefulSet, etc.), check pod template
+      (has(object.spec.template.spec.containers) && 
+       object.spec.template.spec.containers.exists(c, 
+         has(c.securityContext) && 
+         has(c.securityContext.privileged) && 
+         c.securityContext.privileged == true)) ||
+      (has(object.spec.template.spec.initContainers) && 
+       object.spec.template.spec.initContainers.exists(c, 
+         has(c.securityContext) && 
+         has(c.securityContext.privileged) && 
+         c.securityContext.privileged == true))
+    ))
 
+  # Remediation instructions for fixing the security issue
+  # Provides both manual steps for operators and optional automated fixes
   remediation:
+    # Manual remediation instructions for human operators
+    # Clear, actionable steps that security teams can follow to resolve the issue
     manual: |
-      Update securityContext to disable allowPrivilegeEscalation...
-
+      To fix this security issue:
+      1. Locate the container specification in the resource
+      2. Set `privileged: false` in the container's securityContext
+      3. If privileged access is truly needed, consider using specific capabilities instead
+      4. Review and validate that the application still functions correctly
+      
+      Example fix:
+      ```yaml
+      securityContext:
+        privileged: false
+        # Use specific capabilities if needed instead of privileged mode
+        capabilities:
+          add: ["NET_ADMIN"]
+      ```
+    
+    # Automated remediation configuration (optional field)
+    # Defines how the security issue can be automatically fixed
+    # auto:
+    #   # JSON Patch operations to apply to the resource
+    #   patch:
+    #     - op: "replace"                                    # Operation type: add, remove, replace
+    #       path: "/spec/containers/0/securityContext/privileged"  # JSONPath to the field
+    #       value: false                                     # New value to set
+    #     - op: "remove"                                     # Remove privileged field entirely
+    #       path: "/spec/template/spec/containers/0/securityContext/privileged"
+  
+  # External references providing additional context and documentation
+  # Links to official documentation, security standards, and best practices
+  # Each reference should include both a descriptive title and a valid URL
   references:
-    - title: "Kubernetes Security Context"
-      url: "https://kubernetes.io/docs/tasks/configure-pod-container/security-context/"
-
-  metadata:
-    author: "Spotter Security Team"
-    created: "2024-01-01"
+    # Official Kubernetes security documentation
+    - title: "Kubernetes Pod Security Standards (Restricted)"
+      url: "https://kubernetes.io/docs/concepts/security/pod-security-standards/#restricted"
+    
+    # Industry security benchmarks and standards
+    - title: "CIS Kubernetes Benchmark - 5.1.5 Minimize the admission of privileged containers"
+      url: "https://www.cisecurity.org/benchmark/kubernetes"
+    
+    # Government and regulatory security guidelines
+    - title: "NIST SP 800-190 - Container Security Guide"
+      url: "https://csrc.nist.gov/publications/detail/sp/800-190/final"

@@ -10,19 +10,19 @@ import (
 // EvaluationEngine defines the interface for evaluating security rules
 type EvaluationEngine interface {
 	// EvaluateRule evaluates a single rule against a Kubernetes resource
-	EvaluateRule(ctx context.Context, rule *models.SecurityRule, resource map[string]interface{}) (*models.ValidationResult, error)
+	EvaluateRule(ctx context.Context, rule *models.SpotterRule, resource map[string]interface{}) (*models.ValidationResult, error)
 
 	// EvaluateRules evaluates multiple rules against a Kubernetes resource
-	EvaluateRules(ctx context.Context, rules []*models.SecurityRule, resource map[string]interface{}) ([]*models.ValidationResult, error)
+	EvaluateRules(ctx context.Context, rules []*models.SpotterRule, resource map[string]interface{}) ([]*models.ValidationResult, error)
 
 	// EvaluateRulesAgainstResources evaluates multiple rules against multiple resources
-	EvaluateRulesAgainstResources(ctx context.Context, rules []*models.SecurityRule, resources []map[string]interface{}) (*models.ScanResult, error)
+	EvaluateRulesAgainstResources(ctx context.Context, rules []*models.SpotterRule, resources []map[string]interface{}) (*models.ScanResult, error)
 
 	// EvaluateRulesAgainstResourcesConcurrent evaluates multiple rules against multiple resources with specified parallelism
-	EvaluateRulesAgainstResourcesConcurrent(ctx context.Context, rules []*models.SecurityRule, resources []map[string]interface{}, parallelism int) (*models.ScanResult, error)
+	EvaluateRulesAgainstResourcesConcurrent(ctx context.Context, rules []*models.SpotterRule, resources []map[string]interface{}, parallelism int) (*models.ScanResult, error)
 
 	// CompileRule pre-compiles a rule's CEL expression for better performance
-	CompileRule(ctx context.Context, rule *models.SecurityRule) error
+	CompileRule(ctx context.Context, rule *models.SpotterRule) error
 
 	// ValidateCELExpression validates a CEL expression without executing it
 	ValidateCELExpression(ctx context.Context, expression string) error
@@ -31,7 +31,7 @@ type EvaluationEngine interface {
 // ResourceMatcher defines the interface for matching resources against rule criteria
 type ResourceMatcher interface {
 	// MatchesRule checks if a resource matches the rule's match criteria
-	MatchesRule(ctx context.Context, rule *models.SecurityRule, resource map[string]interface{}) (bool, error)
+	MatchesRule(ctx context.Context, rule *models.SpotterRule, resource map[string]interface{}) (bool, error)
 
 	// MatchesNamespace checks if a resource's namespace matches the namespace selector
 	MatchesNamespace(ctx context.Context, namespace string, selector *models.NamespaceSelector) (bool, error)

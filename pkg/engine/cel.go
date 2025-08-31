@@ -103,7 +103,7 @@ func NewCELEngine() (*CELEngine, error) {
 
 // quickResourceMatch performs a fast pre-filter to check if a resource might match a rule
 // This avoids expensive CEL compilation and evaluation for obviously non-matching resources
-func (e *CELEngine) quickResourceMatch(rule *models.SecurityRule, resource map[string]interface{}) bool {
+func (e *CELEngine) quickResourceMatch(rule *models.SpotterRule, resource map[string]interface{}) bool {
 	// Extract resource metadata
 	apiVersion, _ := resource["apiVersion"].(string)
 	kind, _ := resource["kind"].(string)
@@ -200,13 +200,13 @@ func (e *CELEngine) quickResourceMatch(rule *models.SecurityRule, resource map[s
 }
 
 // EvaluateRule evaluates a single security rule against a single resource
-func (e *CELEngine) EvaluateRule(ctx context.Context, rule *models.SecurityRule, resource map[string]interface{}) (*models.ValidationResult, error) {
+func (e *CELEngine) EvaluateRule(ctx context.Context, rule *models.SpotterRule, resource map[string]interface{}) (*models.ValidationResult, error) {
 	result := &models.ValidationResult{
-		RuleID:    rule.Spec.ID,
-		RuleName:  rule.Spec.Name,
+		RuleID:    rule.GetID(),
+		RuleName:  rule.GetTitle(),
 		Resource:  resource,
-		Severity:  rule.Spec.Severity.Level,
-		Category:  rule.Spec.Category,
+		Severity:  rule.GetSeverityLevel(),
+		Category:  rule.GetCategory(),
 		Timestamp: time.Now(),
 		Passed:    true, // Default to passed
 	}
@@ -223,22 +223,22 @@ func (e *CELEngine) EvaluateRule(ctx context.Context, rule *models.SecurityRule,
 	}
 
 	// Get compiled program from cache, compile if not cached
-	program, exists := e.compiler.GetCompiled(ctx, rule.Spec.ID)
+	program, exists := e.compiler.GetCompiled(ctx, rule.GetID())
 	if !exists {
 		// Compile CEL expression if not already compiled
 		if err := e.CompileRule(ctx, rule); err != nil {
 			return nil, fmt.Errorf("failed to compile rule: %w", err)
 		}
 		// Retrieve compiled program after compilation
-		program, exists = e.compiler.GetCompiled(ctx, rule.Spec.ID)
+		program, exists = e.compiler.GetCompiled(ctx, rule.GetID())
 		if !exists {
-			return nil, fmt.Errorf("failed to retrieve compiled program for rule %s after compilation", rule.Spec.ID)
+			return nil, fmt.Errorf("failed to retrieve compiled program for rule %s after compilation", rule.GetID())
 		}
 	}
 
 	celProgram, ok := program.(cel.Program)
 	if !ok {
-		return nil, fmt.Errorf("invalid compiled program type for rule %s", rule.Spec.ID)
+		return nil, fmt.Errorf("invalid compiled program type for rule %s", rule.GetID())
 	}
 
 	// Prepare evaluation context with comprehensive variable set
@@ -268,9 +268,9 @@ func (e *CELEngine) EvaluateRule(ctx context.Context, rule *models.SecurityRule,
 	// If CEL expression returns true, it means the rule failed (security issue found)
 	result.Passed = !boolResult
 	if !result.Passed {
-		result.Message = fmt.Sprintf("Security rule violation: %s", rule.Spec.Description)
-		if rule.Spec.Remediation != nil && rule.Spec.Remediation.Manual != "" {
-			result.Remediation = rule.Spec.Remediation.Manual
+		result.Message = fmt.Sprintf("Security rule violation: %s", rule.GetDescription())
+		if rule.GetRemediation() != "" {
+			result.Remediation = rule.GetRemediation()
 		}
 	}
 
@@ -278,7 +278,7 @@ func (e *CELEngine) EvaluateRule(ctx context.Context, rule *models.SecurityRule,
 }
 
 // EvaluateRules evaluates multiple rules against a Kubernetes resource
-func (e *CELEngine) EvaluateRules(ctx context.Context, rules []*models.SecurityRule, resource map[string]interface{}) ([]*models.ValidationResult, error) {
+func (e *CELEngine) EvaluateRules(ctx context.Context, rules []*models.SpotterRule, resource map[string]interface{}) ([]*models.ValidationResult, error) {
 	results := make([]*models.ValidationResult, 0, len(rules))
 
 	for _, rule := range rules {
@@ -290,7 +290,7 @@ func (e *CELEngine) EvaluateRules(ctx context.Context, rules []*models.SecurityR
 
 		result, err := e.EvaluateRule(ctx, rule, resource)
 		if err != nil {
-			return nil, fmt.Errorf("failed to evaluate rule %s: %w", rule.Spec.ID, err)
+			return nil, fmt.Errorf("failed to evaluate rule %s: %w", rule.GetID(), err)
 		}
 
 		// Only append results where the resource matches the rule criteria
@@ -303,13 +303,13 @@ func (e *CELEngine) EvaluateRules(ctx context.Context, rules []*models.SecurityR
 }
 
 // EvaluateRulesAgainstResources evaluates multiple rules against multiple resources
-func (e *CELEngine) EvaluateRulesAgainstResources(ctx context.Context, rules []*models.SecurityRule, resources []map[string]interface{}) (*models.ScanResult, error) {
+func (e *CELEngine) EvaluateRulesAgainstResources(ctx context.Context, rules []*models.SpotterRule, resources []map[string]interface{}) (*models.ScanResult, error) {
 	// Default parallelism
 	return e.EvaluateRulesAgainstResourcesConcurrent(ctx, rules, resources, 10)
 }
 
 // EvaluateRulesAgainstResourcesConcurrent evaluates multiple rules against multiple resources with optimized parallelism
-func (e *CELEngine) EvaluateRulesAgainstResourcesConcurrent(ctx context.Context, rules []*models.SecurityRule, resources []map[string]interface{}, parallelism int) (*models.ScanResult, error) {
+func (e *CELEngine) EvaluateRulesAgainstResourcesConcurrent(ctx context.Context, rules []*models.SpotterRule, resources []map[string]interface{}, parallelism int) (*models.ScanResult, error) {
 	startTime := time.Now()
 	allResults := make([]models.ValidationResult, 0)
 	severityBreakdown := make(map[string]int)
@@ -337,7 +337,7 @@ func (e *CELEngine) EvaluateRulesAgainstResourcesConcurrent(ctx context.Context,
 
 	// Pre-filter and batch jobs for better efficiency
 	type ruleResourceBatch struct {
-		rule      *models.SecurityRule
+		rule      *models.SpotterRule
 		resources []map[string]interface{}
 	}
 
@@ -444,14 +444,14 @@ func (e *CELEngine) EvaluateRulesAgainstResourcesConcurrent(ctx context.Context,
 }
 
 // CompileRule pre-compiles a rule's CEL expression for better performance
-func (e *CELEngine) CompileRule(ctx context.Context, rule *models.SecurityRule) error {
+func (e *CELEngine) CompileRule(ctx context.Context, rule *models.SpotterRule) error {
 	// Check if already compiled
-	if _, exists := e.compiler.GetCompiled(ctx, rule.Spec.ID); exists {
+	if _, exists := e.compiler.GetCompiled(ctx, rule.GetID()); exists {
 		return nil
 	}
 
 	// Parse CEL expression
-	ast, issues := e.env.Parse(rule.Spec.CEL)
+	ast, issues := e.env.Parse(rule.GetCELExpression())
 	if issues != nil && issues.Err() != nil {
 		return fmt.Errorf("failed to parse CEL expression: %w", issues.Err())
 	}
@@ -469,7 +469,7 @@ func (e *CELEngine) CompileRule(ctx context.Context, rule *models.SecurityRule) 
 	}
 
 	// Cache compiled program
-	return e.compiler.Compile(ctx, rule.Spec.ID, program)
+	return e.compiler.Compile(ctx, rule.GetID(), program)
 }
 
 // ValidateCELExpression validates a CEL expression without caching
@@ -514,7 +514,7 @@ func NewResourceMatcher() ResourceMatcher {
 }
 
 // MatchesRule checks if a resource matches the rule's match criteria
-func (m *resourceMatcher) MatchesRule(ctx context.Context, rule *models.SecurityRule, resource map[string]interface{}) (bool, error) {
+func (m *resourceMatcher) MatchesRule(ctx context.Context, rule *models.SpotterRule, resource map[string]interface{}) (bool, error) {
 	// Extract resource metadata
 	apiVersion, _ := resource["apiVersion"].(string)
 	kind, _ := resource["kind"].(string)
