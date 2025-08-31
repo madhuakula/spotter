@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/spf13/cobra"
 	pkgconfig "github.com/madhuakula/spotter/pkg/config"
+	"github.com/spf13/cobra"
 )
 
 var (
@@ -92,14 +92,12 @@ func init() {
 	rootCmd.PersistentFlags().Bool("no-color", false, "disable colored output")
 	rootCmd.PersistentFlags().String("timeout", "5m", "timeout for operations")
 
-	// Configuration is now handled through the consolidated config system
-	// Individual flags will be processed by each command as needed
 }
 
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
 	// Load configuration using the new consolidated config structure
-	config, err := pkgconfig.LoadConfig("")
+	config, err := pkgconfig.LoadConfig(cfgFile)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
 		// Continue with default config on error
@@ -170,12 +168,12 @@ func GetLogger() *slog.Logger {
 			initializeLogger(globalConfig)
 		} else {
 			defaultConfig, err := pkgconfig.DefaultConfig()
-	if err != nil {
-		// Fallback to basic logger if default config fails
-		logger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
-		return logger
-	}
-	initializeLogger(defaultConfig)
+			if err != nil {
+				// Fallback to basic logger if default config fails
+				logger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
+				return logger
+			}
+			initializeLogger(defaultConfig)
 		}
 	}
 	return logger

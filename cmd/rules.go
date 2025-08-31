@@ -638,12 +638,12 @@ func runRulesPull(cmd *cobra.Command, args []string) error {
 
 	// Load configuration
 	cfg, err := config.LoadConfig("")
+	if err != nil {
+		cfg, err = config.DefaultConfig()
 		if err != nil {
-			cfg, err = config.DefaultConfig()
-			if err != nil {
-				return fmt.Errorf("failed to load default config: %w", err)
-			}
+			return fmt.Errorf("failed to load default config: %w", err)
 		}
+	}
 
 	// Initialize cache manager
 	cacheManager := cache.NewCacheManager(cfg)
@@ -1082,8 +1082,6 @@ func outputRuleInfoYAML(rule *models.SpotterRule) error {
 	fmt.Print(string(data))
 	return nil
 }
-
-
 
 func exportToSARIF(rules []*models.SpotterRule) ([]byte, error) {
 	// SARIF export implementation

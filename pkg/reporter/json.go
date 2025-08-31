@@ -58,12 +58,13 @@ func (r *JSONReporter) WriteReport(ctx context.Context, results *models.ScanResu
 
 // JSONReport represents the structure of the JSON output
 type JSONReport struct {
-	Metadata         JSONMetadata            `json:"metadata"`
-	Summary          JSONSummary             `json:"summary"`
-	CategoryScoring  map[string]CategoryStat `json:"category_scoring"`
-	SeverityAnalysis map[string]SeverityStat `json:"severity_analysis"`
-	ResourceGrouping map[string]ResourceStat `json:"resource_grouping"`
-	Results          []JSONResult            `json:"results"`
+	Metadata          JSONMetadata            `json:"metadata"`
+	Summary           JSONSummary             `json:"summary"`
+	CategoryScoring   map[string]CategoryStat `json:"category_scoring"`
+	SeverityAnalysis  map[string]SeverityStat `json:"severity_analysis"`
+	ResourceGrouping  map[string]ResourceStat `json:"resource_grouping"`
+	Results           []JSONResult            `json:"results"`
+	AIRecommendations interface{}             `json:"ai_recommendations,omitempty"`
 }
 
 // JSONMetadata contains metadata about the scan
@@ -175,10 +176,11 @@ func (r *JSONReporter) buildJSONReport(results *models.ScanResult) *JSONReport {
 			SeverityBreakdown: results.SeverityBreakdown,
 			CategoryBreakdown: results.CategoryBreakdown,
 		},
-		CategoryScoring:  r.calculateCategoryStats(results.Results),
-		SeverityAnalysis: r.calculateSeverityStats(results.Results),
-		ResourceGrouping: r.calculateResourceGroupingStats(results.Results),
-		Results:          make([]JSONResult, 0, len(results.Results)),
+		CategoryScoring:   r.calculateCategoryStats(results.Results),
+		SeverityAnalysis:  r.calculateSeverityStats(results.Results),
+		ResourceGrouping:  r.calculateResourceGroupingStats(results.Results),
+		Results:           make([]JSONResult, 0, len(results.Results)),
+		AIRecommendations: results.AIRecommendations,
 	}
 
 	// Convert validation results

@@ -82,6 +82,15 @@ type HelmConfig struct {
 	ChartVersion       string   `yaml:"chart_version" json:"chart_version"`
 }
 
+// AIConfig represents AI recommendations configuration
+type AIConfig struct {
+	Enable   bool   `yaml:"enable" json:"enable"`
+	Provider string `yaml:"provider" json:"provider"`
+	Host     string `yaml:"host" json:"host"`
+	Model    string `yaml:"model" json:"model"`
+	APIKey   string `yaml:"api_key" json:"api_key"`
+}
+
 // FilteringConfig represents filtering configuration
 // Note: Not yet implemented in the codebase
 type FilteringConfig struct {
@@ -164,6 +173,7 @@ type SpotterConfig struct {
 	Output     OutputConfig     `yaml:"output" json:"output"`
 	Kubernetes KubernetesConfig `yaml:"kubernetes" json:"kubernetes"`
 	Helm       HelmConfig       `yaml:"helm" json:"helm"`
+	AI         AIConfig         `yaml:"ai" json:"ai"`
 
 	// TODO: Uncomment when these features are implemented
 	// Scanner      ScannerConfig      `yaml:"scanner" json:"scanner"`
@@ -181,7 +191,7 @@ func DefaultConfig() (*SpotterConfig, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user home directory: %w", err)
 	}
-	
+
 	config := &SpotterConfig{
 		HubURL:   "https://rules.spotter.run/api/v1",
 		APIKey:   "",
@@ -239,8 +249,15 @@ func DefaultConfig() (*SpotterConfig, error) {
 			ChartRepo:          "",
 			ChartVersion:       "",
 		},
+		AI: AIConfig{
+			Enable:   false,
+			Provider: "ollama",
+			Host:     "http://localhost:11434",
+			Model:    "llama3.2:latest",
+			APIKey:   "",
+		},
 	}
-	
+
 	return config, nil
 }
 
@@ -261,8 +278,6 @@ func GetConfigPath() (string, error) {
 	}
 	return filepath.Join(spotterDir, "config.yaml"), nil
 }
-
-
 
 // GetRulesDir returns the rules directory path
 func GetRulesDir() (string, error) {

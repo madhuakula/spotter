@@ -18,6 +18,7 @@ import (
 	"github.com/madhuakula/spotter/pkg/k8s"
 	"github.com/madhuakula/spotter/pkg/models"
 	"github.com/madhuakula/spotter/pkg/parser"
+	"github.com/madhuakula/spotter/pkg/recommendations"
 	"github.com/madhuakula/spotter/pkg/reporter"
 	"github.com/madhuakula/spotter/pkg/utils"
 )
@@ -189,6 +190,13 @@ func init() {
 		cmd.Flags().Bool("exclude-system-namespaces", false, "exclude system namespaces (kube-system, kube-public, etc.)")
 		cmd.Flags().Bool("include-cluster-resources", true, "include cluster-scoped resources")
 
+		// AI flags
+		cmd.Flags().Bool("ai.enable", false, "enable AI recommendations in JSON output")
+		cmd.Flags().String("ai.provider", "ollama", "ai provider: ollama|openai")
+		cmd.Flags().String("ai.host", "http://localhost:11434", "ai endpoint host (for ollama)")
+		cmd.Flags().String("ai.model", "llama3.2:latest", "ai model name")
+		cmd.Flags().String("ai.apikey", "", "ai api key (for providers requiring auth)")
+
 		// Note: 'no-color' flag is inherited from global persistent flags
 
 		// Bind common flags to viper so they can be set in config file
@@ -305,7 +313,6 @@ func init() {
 		panic(fmt.Errorf("failed to bind scan.helm.update-dependencies flag: %w", err))
 	}
 
-
 }
 
 func runClusterScan(cmd *cobra.Command, args []string) error {
@@ -367,7 +374,7 @@ func runClusterScan(cmd *cobra.Command, args []string) error {
 	}
 
 	// Generate and output report
-	if err := generateReport(scanResult, scanConfig); err != nil {
+	if err := generateReport(scanResult, scanConfig, rules); err != nil {
 		return fmt.Errorf("failed to generate report: %w", err)
 	}
 
@@ -451,7 +458,7 @@ func runManifestsScan(cmd *cobra.Command, args []string) error {
 	}
 
 	// Generate and output report
-	if err := generateReport(scanResult, scanConfig); err != nil {
+	if err := generateReport(scanResult, scanConfig, rules); err != nil {
 		return fmt.Errorf("failed to generate report: %w", err)
 	}
 
@@ -510,7 +517,7 @@ func runHelmScan(cmd *cobra.Command, args []string) error {
 	}
 
 	// Generate and output report
-	if err := generateReport(scanResult, scanConfig); err != nil {
+	if err := generateReport(scanResult, scanConfig, rules); err != nil {
 		return fmt.Errorf("failed to generate report: %w", err)
 	}
 
@@ -569,9 +576,9 @@ func loadSpecificRulesAndPacks(ruleIDs, packIDs []string) ([]*models.SpotterRule
 // loadDefaultPacksWithAutoPull loads rules from default packs with auto-pull functionality
 func loadDefaultPacksWithAutoPull(packIDs []string) ([]*models.SpotterRule, error) {
 	cfg, err := config.LoadConfig("")
-		if err != nil {
-			return nil, fmt.Errorf("failed to load config: %w", err)
-		}
+	if err != nil {
+		return nil, fmt.Errorf("failed to load config: %w", err)
+	}
 
 	cacheManager := cache.NewCacheManager(cfg)
 	hubClient := hub.NewClientWithConfig(cfg)
@@ -634,8 +641,6 @@ func loadDefaultPacksWithAutoPull(packIDs []string) ([]*models.SpotterRule, erro
 	return allRules, nil
 }
 
-
-
 // loadAndFilterRules loads security rules and applies include/exclude filtering
 func loadAndFilterRules(cmd *cobra.Command) ([]*models.SpotterRule, error) {
 	// Get specific rules and packs flags
@@ -656,8 +661,6 @@ func loadAndFilterRules(cmd *cobra.Command) ([]*models.SpotterRule, error) {
 	// If no specific rules or packs are provided, use spotter-secure-defaults-pack as default
 	return loadDefaultPacksWithAutoPull([]string{"spotter-secure-defaults-pack"})
 }
-
-
 
 // loadExternalRules loads security rules from external file paths
 func loadExternalRules(parser *parser.YAMLParser, rulesPaths []string) ([]*models.SpotterRule, error) {
@@ -690,8 +693,6 @@ func loadExternalRules(parser *parser.YAMLParser, rulesPaths []string) ([]*model
 
 	return allRules, nil
 }
-
-
 
 // parseDuration parses a duration string with fallback
 func parseDuration(s string) time.Duration {
@@ -823,6 +824,23 @@ func buildScanConfig(cmd *cobra.Command) (*ScanConfig, error) {
 	}
 	if cmd.Flags().Changed("parallelism") {
 		config.Parallelism, _ = cmd.Flags().GetInt("parallelism")
+	}
+
+	// Handle AI flag overrides
+	if cmd.Flags().Changed("ai.enable") {
+		globalConfig.AI.Enable, _ = cmd.Flags().GetBool("ai.enable")
+	}
+	if cmd.Flags().Changed("ai.provider") {
+		globalConfig.AI.Provider, _ = cmd.Flags().GetString("ai.provider")
+	}
+	if cmd.Flags().Changed("ai.host") {
+		globalConfig.AI.Host, _ = cmd.Flags().GetString("ai.host")
+	}
+	if cmd.Flags().Changed("ai.model") {
+		globalConfig.AI.Model, _ = cmd.Flags().GetString("ai.model")
+	}
+	if cmd.Flags().Changed("ai.apikey") {
+		globalConfig.AI.APIKey, _ = cmd.Flags().GetString("ai.apikey")
 	}
 
 	// Set defaults
@@ -1162,9 +1180,43 @@ func filterBySeverity(results []models.ValidationResult, minSeverity string) []m
 }
 
 // generateReport creates and outputs the scan report
-func generateReport(scanResult *models.ScanResult, config *ScanConfig) error {
+func generateReport(scanResult *models.ScanResult, config *ScanConfig, rules []*models.SpotterRule) error {
 	logger := GetLogger()
 	ctx := context.Background()
+
+	// AI enrichment: when enabled, add AI recommendations as separate section
+	if globalConfig.AI.Enable {
+		ctxAI, cancelAI := context.WithTimeout(ctx, parseDuration(viper.GetString("timeout")))
+		defer cancelAI()
+		out, err := recommendations.GenerateRecommendations(ctxAI, *scanResult, recommendations.Params{
+			TopN:     5,
+			Model:    globalConfig.AI.Model,
+			Host:     globalConfig.AI.Host,
+			Timeout:  parseDuration(viper.GetString("timeout")),
+			Provider: globalConfig.AI.Provider,
+			APIKey:   globalConfig.AI.APIKey,
+			Rules:    rules,
+		})
+		if err == nil {
+			// Always store AI output (may contain error or recommendations)
+			scanResult.AIRecommendations = out
+			if logLevel := viper.GetString("log-level"); logLevel == "debug" {
+				if out.Error != "" {
+					logger.Debug("AI recommendations generation had issues", "error", out.Error)
+				} else if len(out.Recommendations) > 0 {
+					logger.Debug("AI recommendations generated successfully", "count", len(out.Recommendations))
+				} else {
+					logger.Debug("AI model returned no recommendations")
+				}
+			}
+		} else {
+			// This shouldn't happen with our new error handling, but keep as fallback
+			if logLevel := viper.GetString("log-level"); logLevel == "debug" {
+				logger.Debug("AI recommendations generation failed completely", "error", err)
+			}
+			scanResult.AIRecommendations = nil
+		}
+	}
 
 	// Create reporter factory
 	factory := reporter.NewFactory()

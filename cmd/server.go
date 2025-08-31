@@ -16,10 +16,10 @@ import (
 	admissionv1 "k8s.io/api/admission/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	pkgconfig "github.com/madhuakula/spotter/pkg/config"
 	"github.com/madhuakula/spotter/pkg/engine"
 	"github.com/madhuakula/spotter/pkg/models"
 	"github.com/madhuakula/spotter/pkg/parser"
-	pkgconfig "github.com/madhuakula/spotter/pkg/config"
 )
 
 // serverCmd represents the server command
