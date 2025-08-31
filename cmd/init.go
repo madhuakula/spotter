@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/spf13/cobra"
 	pkgconfig "github.com/madhuakula/spotter/pkg/config"
+	"github.com/spf13/cobra"
 )
 
 // configInitCmd represents the config init command
@@ -91,18 +91,18 @@ func writeDefaultConfig(path string) error {
 	if err != nil {
 		return fmt.Errorf("failed to get default config: %w", err)
 	}
-	
+
 	// Ensure the directory exists
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
-	
+
 	// Save the config using the existing SaveConfig function
 	if err := pkgconfig.SaveConfig(defaultConfig); err != nil {
 		return fmt.Errorf("failed to save default config: %w", err)
 	}
-	
+
 	return nil
 
 }

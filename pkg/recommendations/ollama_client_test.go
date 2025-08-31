@@ -12,7 +12,7 @@ func TestCallOllama_Success(t *testing.T) {
 	resp := `{"response":"{\"recommendations\":[{\"title\":\"t\",\"priority\":1,\"rationale\":\"r\",\"actions\":[\"a\"],\"related_rules\":[\"R1\"]}]}"}`
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(resp))
+		_, _ = w.Write([]byte(resp))
 	}))
 	defer ts.Close()
 

@@ -22,9 +22,9 @@ func TestValidateSpotterRule(t *testing.T) {
 				Metadata: models.RuleMetadata{
 					Name: "spotter-workload-001",
 					Labels: map[string]string{
-					"severity": "high",
-					"category": "workload",
-				},
+						"severity": "high",
+						"category": "workload",
+					},
 					Annotations: map[string]string{
 						"rules.spotter.dev/title":       "Container is privileged",
 						"rules.spotter.dev/version":     "1.0.0",
@@ -56,7 +56,7 @@ func TestValidateSpotterRule(t *testing.T) {
 					Name: "spotter-workload-001",
 				},
 			},
-			wantValid:  false,
+			wantValid: false,
 			wantErrors: []string{
 				"apiVersion: must be 'rules.spotter.dev/v1alpha1'",
 				"metadata.annotations: annotations are required",
@@ -74,7 +74,7 @@ func TestValidateSpotterRule(t *testing.T) {
 					Name: "spotter-workload-001",
 				},
 			},
-			wantValid:  false,
+			wantValid: false,
 			wantErrors: []string{
 				"kind: must be 'SpotterRule'",
 				"metadata.annotations: annotations are required",
@@ -90,7 +90,7 @@ func TestValidateSpotterRule(t *testing.T) {
 				Kind:       "SpotterRule",
 				Metadata:   models.RuleMetadata{},
 			},
-			wantValid:  false,
+			wantValid: false,
 			wantErrors: []string{
 				"metadata.name: name is required",
 				"metadata.annotations: annotations are required",
@@ -108,7 +108,7 @@ func TestValidateSpotterRule(t *testing.T) {
 					Name: "invalid-name",
 				},
 			},
-			wantValid:  false,
+			wantValid: false,
 			wantErrors: []string{
 				"metadata.name: name must match pattern: spotter-[category]-[number] (e.g., spotter-workload-001)",
 				"metadata.annotations: annotations are required",
@@ -126,7 +126,7 @@ func TestValidateSpotterRule(t *testing.T) {
 					Name: "spotter-workload-001",
 				},
 			},
-			wantValid:  false,
+			wantValid: false,
 			wantErrors: []string{
 				"metadata.annotations: annotations are required",
 				"metadata.labels: labels are required",
@@ -168,7 +168,7 @@ func TestValidateSpotterRule(t *testing.T) {
 					},
 				},
 			},
-			wantValid:  false,
+			wantValid: false,
 			wantErrors: []string{
 				"metadata.labels: labels are required",
 				"spec.cel: CEL expression is required",
@@ -183,9 +183,9 @@ func TestValidateSpotterRule(t *testing.T) {
 				Metadata: models.RuleMetadata{
 					Name: "spotter-workload-001",
 					Labels: map[string]string{
-					"severity": "invalid",
-					"category": "workload",
-				},
+						"severity": "invalid",
+						"category": "workload",
+					},
 					Annotations: map[string]string{
 						"rules.spotter.dev/title":       "Test",
 						"rules.spotter.dev/version":     "1.0.0",
@@ -193,7 +193,7 @@ func TestValidateSpotterRule(t *testing.T) {
 					},
 				},
 			},
-			wantValid:  false,
+			wantValid: false,
 			wantErrors: []string{
 				"metadata.labels.severity: severity must be one of: low, medium, high, critical",
 				"spec.cel: CEL expression is required",
@@ -208,9 +208,9 @@ func TestValidateSpotterRule(t *testing.T) {
 				Metadata: models.RuleMetadata{
 					Name: "spotter-workload-001",
 					Labels: map[string]string{
-					"severity": "high",
-					"category": "workload",
-				},
+						"severity": "high",
+						"category": "workload",
+					},
 					Annotations: map[string]string{
 						"rules.spotter.dev/title":       "Test",
 						"rules.spotter.dev/version":     "1.0.0",
@@ -238,9 +238,9 @@ func TestValidateSpotterRule(t *testing.T) {
 				Metadata: models.RuleMetadata{
 					Name: "spotter-workload-001",
 					Labels: map[string]string{
-					"severity": "high",
-					"category": "workload",
-				},
+						"severity": "high",
+						"category": "workload",
+					},
 					Annotations: map[string]string{
 						"rules.spotter.dev/title":       "Test",
 						"rules.spotter.dev/version":     "1.0.0",
@@ -269,9 +269,9 @@ func TestValidateSpotterRule(t *testing.T) {
 				Metadata: models.RuleMetadata{
 					Name: "spotter-workload-001",
 					Labels: map[string]string{
-					"severity": "high",
-					"category": "workload",
-				},
+						"severity": "high",
+						"category": "workload",
+					},
 					Annotations: map[string]string{
 						"rules.spotter.dev/title":       "Test",
 						"rules.spotter.dev/version":     "1.0.0",

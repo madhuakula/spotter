@@ -73,26 +73,3 @@ func GenerateRecommendations(ctx context.Context, scan models.ScanResult, params
 		Recommendations: recs,
 	}, nil
 }
-
-func fallbackFromScored(top []ScoredRule, rag map[string]RuleContext) []Recommendation {
-	var recs []Recommendation
-	for i, s := range top {
-		title := fmt.Sprintf("Mitigate %s findings", s.RuleID)
-		if rc, ok := rag[s.RuleID]; ok && rc.Name != "" {
-			title = fmt.Sprintf("Mitigate: %s", rc.Name)
-		}
-		rationale := fmt.Sprintf("Reduces %s risk across %d resources (namespaces: %d).", s.Severity, s.Count, s.Namespaces)
-		actions := []string{}
-		if rc, ok := rag[s.RuleID]; ok && rc.Remediation != "" {
-			actions = append(actions, rc.Remediation)
-		}
-		recs = append(recs, Recommendation{
-			Title:        title,
-			Priority:     i + 1,
-			Rationale:    rationale,
-			Actions:      actions,
-			RelatedRules: []string{s.RuleID},
-		})
-	}
-	return recs
-}

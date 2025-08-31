@@ -45,7 +45,7 @@ func CallOllama(ctx context.Context, host, model, prompt string, timeout time.Du
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(resp.Body)
 	var or ollamaResponse
 	if err := json.Unmarshal(body, &or); err != nil {
@@ -73,13 +73,14 @@ func CallOllama(ctx context.Context, host, model, prompt string, timeout time.Du
 			rec.Priority = int(priority)
 		} else if priorityStr, ok := recMap["priority"].(string); ok {
 			// Try to parse string priority
-			if priorityStr == "HIGH" || priorityStr == "high" {
+			switch priorityStr {
+			case "HIGH", "high":
 				rec.Priority = 1
-			} else if priorityStr == "MEDIUM" || priorityStr == "medium" {
+			case "MEDIUM", "medium":
 				rec.Priority = 2
-			} else if priorityStr == "LOW" || priorityStr == "low" {
+			case "LOW", "low":
 				rec.Priority = 3
-			} else {
+			default:
 				rec.Priority = 1 // Default to high priority
 			}
 		}

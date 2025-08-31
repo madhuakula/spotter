@@ -10,10 +10,10 @@ import (
 )
 
 func TestGenerateRecommendations_Fallback(t *testing.T) {
-	// mock Ollama returning malformed JSON to trigger fallback
+	// mock Ollama returning malformed JSON to trigger error handling
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"response":"{not-json}"}`))
+		_, _ = w.Write([]byte(`{"response":"{not-json}"}`))
 	}))
 	defer ts.Close()
 
@@ -22,7 +22,14 @@ func TestGenerateRecommendations_Fallback(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GenerateRecommendations error: %v", err)
 	}
-	if len(out.Recommendations) != 1 {
-		t.Fatalf("expected 1 recommendation, got %d", len(out.Recommendations))
+	// When AI fails, we expect an error message and no recommendations
+	if out.Error == "" {
+		t.Fatalf("expected error message when AI fails, got none")
+	}
+	if len(out.Recommendations) != 0 {
+		t.Fatalf("expected 0 recommendations when AI fails, got %d", len(out.Recommendations))
+	}
+	if out.RiskScore == 0 {
+		t.Fatalf("expected non-zero risk score, got %f", out.RiskScore)
 	}
 }
