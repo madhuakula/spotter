@@ -312,6 +312,7 @@ type ScanResult struct {
 	SeverityBreakdown map[string]int     `json:"severityBreakdown"`
 	CategoryBreakdown map[string]int     `json:"categoryBreakdown"`
 	AIRecommendations interface{}        `json:"aiRecommendations,omitempty"`
+	AttackPathResult  *AttackPathResult  `json:"attackPathResult,omitempty"`
 	Timestamp         time.Time          `json:"timestamp"`
 	Duration          time.Duration      `json:"duration"`
 }

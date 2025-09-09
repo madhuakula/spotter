@@ -65,6 +65,7 @@ type JSONReport struct {
 	ResourceGrouping  map[string]ResourceStat `json:"resource_grouping"`
 	Results           []JSONResult            `json:"results"`
 	AIRecommendations interface{}             `json:"ai_recommendations,omitempty"`
+	AttackPaths       *JSONAttackPaths        `json:"attack_paths,omitempty"`
 }
 
 // JSONMetadata contains metadata about the scan
@@ -98,6 +99,35 @@ type JSONResult struct {
 	Remediation string               `json:"remediation,omitempty"`
 	Resource    JSONResource         `json:"resource"`
 	Timestamp   time.Time            `json:"timestamp"`
+}
+
+// JSONAttackPaths represents attack path analysis results
+type JSONAttackPaths struct {
+	TotalPaths       int                     `json:"total_paths"`
+	PathsByType      map[string]int          `json:"paths_by_type"`
+	CacheHit         bool                    `json:"cache_hit"`
+	AnalysisDuration string                  `json:"analysis_duration"`
+	Findings         []JSONAttackPathFinding `json:"findings"`
+}
+
+// JSONAttackPathFinding represents a single attack path finding
+type JSONAttackPathFinding struct {
+	CorrelationID string                 `json:"correlation_id"`
+	Type          string                 `json:"type"`
+	Path          string                 `json:"path"`
+	Impact        string                 `json:"impact"`
+	FixHint       string                 `json:"fix_hint"`
+	Entities      []JSONAttackPathEntity `json:"entities"`
+	Metadata      map[string]interface{} `json:"metadata,omitempty"`
+	Timestamp     time.Time              `json:"timestamp"`
+}
+
+// JSONAttackPathEntity represents an entity in an attack path
+type JSONAttackPathEntity struct {
+	ID         string            `json:"id"`
+	Type       string            `json:"type"`
+	Namespace  string            `json:"namespace,omitempty"`
+	Properties map[string]string `json:"properties,omitempty"`
 }
 
 // JSONResource represents the resource information
@@ -181,6 +211,7 @@ func (r *JSONReporter) buildJSONReport(results *models.ScanResult) *JSONReport {
 		ResourceGrouping:  r.calculateResourceGroupingStats(results.Results),
 		Results:           make([]JSONResult, 0, len(results.Results)),
 		AIRecommendations: results.AIRecommendations,
+		AttackPaths:       r.buildAttackPathsJSON(results.AttackPathResult),
 	}
 
 	// Convert validation results
@@ -200,6 +231,45 @@ func (r *JSONReporter) buildJSONReport(results *models.ScanResult) *JSONReport {
 	}
 
 	return report
+}
+
+// buildAttackPathsJSON converts attack path results to JSON format
+func (r *JSONReporter) buildAttackPathsJSON(attackPathResult *models.AttackPathResult) *JSONAttackPaths {
+	if attackPathResult == nil {
+		return nil
+	}
+
+	jsonFindings := make([]JSONAttackPathFinding, 0, len(attackPathResult.Findings))
+	for _, finding := range attackPathResult.Findings {
+		jsonEntities := make([]JSONAttackPathEntity, 0, len(finding.Entities))
+		for _, entity := range finding.Entities {
+			jsonEntities = append(jsonEntities, JSONAttackPathEntity{
+				ID:         entity.ID,
+				Type:       entity.Type,
+				Namespace:  entity.Namespace,
+				Properties: entity.Properties,
+			})
+		}
+
+		jsonFindings = append(jsonFindings, JSONAttackPathFinding{
+			CorrelationID: finding.CorrelationID,
+			Type:          string(finding.Type),
+			Path:          finding.Path,
+			Impact:        finding.Impact,
+			FixHint:       finding.FixHint,
+			Entities:      jsonEntities,
+			Metadata:      finding.Metadata,
+			Timestamp:     finding.Timestamp,
+		})
+	}
+
+	return &JSONAttackPaths{
+		TotalPaths:       attackPathResult.TotalPaths,
+		PathsByType:      attackPathResult.PathsByType,
+		CacheHit:         attackPathResult.CacheHit,
+		AnalysisDuration: attackPathResult.AnalysisDuration.String(),
+		Findings:         jsonFindings,
+	}
 }
 
 // Helper methods for JSON reporter

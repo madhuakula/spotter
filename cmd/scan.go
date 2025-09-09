@@ -14,6 +14,7 @@ import (
 	"github.com/madhuakula/spotter/pkg/cache"
 	"github.com/madhuakula/spotter/pkg/config"
 	"github.com/madhuakula/spotter/pkg/engine"
+	"github.com/madhuakula/spotter/pkg/graphstore"
 	"github.com/madhuakula/spotter/pkg/hub"
 	"github.com/madhuakula/spotter/pkg/k8s"
 	"github.com/madhuakula/spotter/pkg/models"
@@ -153,11 +154,25 @@ func init() {
 	clusterCmd.Flags().StringSlice("resource-types", []string{}, "specific resource types to scan (format: group/version/kind, e.g., apps/v1/Deployment)")
 	clusterCmd.Flags().String("context", "", "kubernetes context to use")
 
+	// Attack path analysis flags
+	clusterCmd.Flags().Bool("attack-path", false, "enable attack path analysis using graph database")
+	clusterCmd.Flags().String("cache-ttl", "1h", "cache time-to-live (e.g., 10m, 1h, 24h)")
+	clusterCmd.Flags().String("cache-dir", "", "cache directory (default: follows XDG Base Directory spec)")
+	clusterCmd.Flags().Bool("no-cache", false, "disable caching (in-memory only)")
+	clusterCmd.Flags().Bool("force-refresh", false, "force cache refresh")
+
 	// Manifests scan flags
 	manifestsCmd.Flags().Bool("recursive", true, "recursively scan directories")
 	manifestsCmd.Flags().StringSlice("file-extensions", []string{".yaml", ".yml", ".json"}, "file extensions to scan")
 	manifestsCmd.Flags().StringSlice("include-paths", []string{}, "paths to include in scanning")
 	manifestsCmd.Flags().Bool("follow-symlinks", false, "follow symbolic links when scanning directories")
+
+	// Attack path analysis flags for manifests
+	manifestsCmd.Flags().Bool("attack-path", false, "enable attack path analysis using graph database")
+	manifestsCmd.Flags().String("cache-ttl", "1h", "cache time-to-live (e.g., 10m, 1h, 24h)")
+	manifestsCmd.Flags().String("cache-dir", "", "cache directory (default: follows XDG Base Directory spec)")
+	manifestsCmd.Flags().Bool("no-cache", false, "disable caching (in-memory only)")
+	manifestsCmd.Flags().Bool("force-refresh", false, "force cache refresh")
 
 	// Helm scan flags
 	helmCmd.Flags().StringSlice("values", []string{}, "values files for Helm chart rendering")
@@ -169,7 +184,14 @@ func init() {
 	helmCmd.Flags().Bool("validate-schema", true, "validate chart schema before scanning")
 	helmCmd.Flags().String("kube-version", "", "kubernetes version to use for rendering (e.g., 1.28.0)")
 	helmCmd.Flags().Bool("skip-tests", false, "skip test templates when scanning")
-	helmCmd.Flags().Bool("skip-crds", false, "skip Custom Resource Definitions when scanning")
+	helmCmd.Flags().Bool("skip-crds", false, "skip custom resource definitions when scanning")
+
+	// Attack path analysis flags for helm
+	helmCmd.Flags().Bool("attack-path", false, "enable attack path analysis using graph database")
+	helmCmd.Flags().String("cache-ttl", "1h", "cache time-to-live (e.g., 10m, 1h, 24h)")
+	helmCmd.Flags().String("cache-dir", "", "cache directory (default: follows XDG Base Directory spec)")
+	helmCmd.Flags().Bool("no-cache", false, "disable caching (in-memory only)")
+	helmCmd.Flags().Bool("force-refresh", false, "force cache refresh")
 	helmCmd.Flags().String("chart-repo", "", "helm chart repository URL")
 	helmCmd.Flags().String("chart-version", "", "specific chart version to scan")
 	helmCmd.Flags().Bool("update-dependencies", false, "update chart dependencies before scanning")
@@ -373,6 +395,17 @@ func runClusterScan(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("cluster scan failed: %w", err)
 	}
 
+	// Execute attack path analysis if enabled
+	var attackPathResult *models.AttackPathResult
+	if scanConfig.AttackPath {
+		attackPathResult, err = executeAttackPathAnalysis(ctx, scanner, scanConfig, "cluster")
+		if err != nil {
+			return fmt.Errorf("attack path analysis failed: %w", err)
+		}
+		// Add attack path findings to scan result
+		scanResult.AttackPathResult = attackPathResult
+	}
+
 	// Generate and output report
 	if err := generateReport(scanResult, scanConfig, rules); err != nil {
 		return fmt.Errorf("failed to generate report: %w", err)
@@ -382,6 +415,267 @@ func runClusterScan(cmd *cobra.Command, args []string) error {
 		logger.Info("Cluster scan completed successfully", "violations", scanResult.Failed, "total_resources", scanResult.TotalResources)
 	}
 	return nil
+}
+
+// executeAttackPathAnalysis performs attack path analysis using graph database
+func executeAttackPathAnalysis(ctx context.Context, scanner k8s.ResourceScanner, config *ScanConfig, target string) (*models.AttackPathResult, error) {
+	logger := GetLogger()
+	startTime := time.Now()
+
+	if !config.Quiet {
+		fmt.Println("🕸️  Starting attack path analysis...")
+	}
+
+	// Create cache configuration
+	cacheConfig := &graphstore.CacheConfig{
+		CacheDir:     config.CacheDir,
+		TTL:          config.CacheTTL,
+		NoCache:      config.NoCache,
+		ForceRefresh: config.ForceRefresh,
+		Target:       target,
+	}
+
+	// Get cache path
+	cachePath, err := graphstore.GetCachePath(cacheConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get cache path: %w", err)
+	}
+
+	// Create graph store
+	graphStore := graphstore.NewKuzuGraphStore(cacheConfig)
+
+	var cacheHit bool
+
+	// Check if we need to refresh the cache
+	if !config.NoCache && !config.ForceRefresh {
+		if stale, err := graphStore.IsStale(config.CacheTTL); err == nil && !stale {
+			cacheHit = true
+			logger.Info("Using cached graph data")
+		}
+	}
+
+	// If cache miss or force refresh, scan and populate graph
+	if !cacheHit || config.ForceRefresh {
+		if config.ForceRefresh {
+			if err := graphStore.Invalidate(); err != nil {
+				logger.Warn("Failed to invalidate cache", "error", err)
+			}
+		}
+
+		// Ensure cache directory exists
+		if err := graphstore.EnsureCacheDir(cachePath); err != nil {
+			return nil, fmt.Errorf("failed to create cache directory: %w", err)
+		}
+
+		// Open graph database
+		if err := graphStore.Open(cachePath); err != nil {
+			return nil, fmt.Errorf("failed to open graph database: %w", err)
+		}
+		defer graphStore.Close()
+
+		// Ensure schema
+		if err := graphStore.EnsureSchema(ctx); err != nil {
+			return nil, fmt.Errorf("failed to ensure graph schema: %w", err)
+		}
+
+		// Scan resources for graph facts
+		var resources []map[string]interface{}
+		switch target {
+		case "cluster":
+			scanOptions := k8s.ScanOptions{
+				IncludeNamespaces:       config.IncludeNamespaces,
+				ExcludeNamespaces:       config.ExcludeNamespaces,
+				IncludeSystemNamespaces: !config.ExcludeSystemNamespaces,
+				IncludeClusterResources: config.IncludeClusterResources,
+				Timeout:                 config.Timeout.String(),
+			}
+			resources, err = scanner.ScanCluster(ctx, scanOptions)
+			if err != nil {
+				return nil, fmt.Errorf("failed to scan cluster for attack path analysis: %w", err)
+			}
+		default:
+			return nil, fmt.Errorf("unsupported target for attack path analysis: %s", target)
+		}
+
+		// Extract facts from resources
+		extractor := graphstore.NewFactExtractor()
+		facts, err := extractor.ExtractFacts(resources)
+		if err != nil {
+			return nil, fmt.Errorf("failed to extract facts from resources: %w", err)
+		}
+
+		// Upsert facts into graph
+		if err := graphStore.UpsertFacts(ctx, facts); err != nil {
+			return nil, fmt.Errorf("failed to upsert facts into graph: %w", err)
+		}
+
+		logger.Info("Graph populated with facts", "pods", len(facts.Pods), "secrets", len(facts.Secrets), "relationships", len(facts.Relationships))
+	} else {
+		// Open existing graph database
+		if err := graphStore.Open(cachePath); err != nil {
+			return nil, fmt.Errorf("failed to open cached graph database: %w", err)
+		}
+		defer graphStore.Close()
+	}
+
+	// Run correlation queries
+	correlationTypes := []string{"credential-exfil", "rbac-pivot"}
+	findings, err := graphStore.RunCorrelations(ctx, correlationTypes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to run correlation queries: %w", err)
+	}
+
+	// Build result
+	pathsByType := make(map[string]int)
+	for _, finding := range findings {
+		pathsByType[string(finding.Type)]++
+	}
+
+	result := &models.AttackPathResult{
+		Findings:         findings,
+		TotalPaths:       len(findings),
+		PathsByType:      pathsByType,
+		CacheHit:         cacheHit,
+		AnalysisDuration: time.Since(startTime),
+		Timestamp:        time.Now(),
+	}
+
+	if !config.Quiet {
+		fmt.Printf("🎯 Found %d attack paths (%d credential exfil, %d RBAC pivot)\n",
+			result.TotalPaths,
+			pathsByType[string(models.AttackPathTypeCredentialExfil)],
+			pathsByType[string(models.AttackPathTypeRBACPivot)])
+	}
+
+	return result, nil
+}
+
+// executeAttackPathAnalysisForManifests performs attack path analysis for manifest files
+func executeAttackPathAnalysisForManifests(ctx context.Context, manifestFiles []string, config *ScanConfig) (*models.AttackPathResult, error) {
+	logger := GetLogger()
+	startTime := time.Now()
+
+	if !config.Quiet {
+		fmt.Println("🕸️  Starting attack path analysis for manifests...")
+	}
+
+	// Create cache configuration
+	target := strings.Join(manifestFiles, ",") // Use manifest files as target key
+	cacheConfig := &graphstore.CacheConfig{
+		CacheDir:     config.CacheDir,
+		TTL:          config.CacheTTL,
+		NoCache:      config.NoCache,
+		ForceRefresh: config.ForceRefresh,
+		Target:       target,
+	}
+
+	// Get cache path
+	cachePath, err := graphstore.GetCachePath(cacheConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get cache path: %w", err)
+	}
+
+	// Create graph store
+	graphStore := graphstore.NewKuzuGraphStore(cacheConfig)
+
+	var cacheHit bool
+
+	// Check if we need to refresh the cache
+	if !config.NoCache && !config.ForceRefresh {
+		if stale, err := graphStore.IsStale(config.CacheTTL); err == nil && !stale {
+			cacheHit = true
+			logger.Info("Using cached graph data")
+		}
+	}
+
+	// If cache miss or force refresh, scan and populate graph
+	if !cacheHit || config.ForceRefresh {
+		if config.ForceRefresh {
+			if err := graphStore.Invalidate(); err != nil {
+				logger.Warn("Failed to invalidate cache", "error", err)
+			}
+		}
+
+		// Ensure cache directory exists
+		if err := graphstore.EnsureCacheDir(cachePath); err != nil {
+			return nil, fmt.Errorf("failed to create cache directory: %w", err)
+		}
+
+		// Open graph database
+		if err := graphStore.Open(cachePath); err != nil {
+			return nil, fmt.Errorf("failed to open graph database: %w", err)
+		}
+		defer graphStore.Close()
+
+		// Ensure schema
+		if err := graphStore.EnsureSchema(ctx); err != nil {
+			return nil, fmt.Errorf("failed to ensure graph schema: %w", err)
+		}
+
+		// Parse manifest files to get resources
+		scanner := initializeFileScanner()
+		scanOptions := k8s.ScanOptions{
+			IncludeSystemNamespaces: !config.ExcludeSystemNamespaces,
+			IncludeClusterResources: config.IncludeClusterResources,
+			Timeout:                 config.Timeout.String(),
+		}
+
+		resources, err := scanner.ScanManifests(ctx, manifestFiles, scanOptions)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan manifests for attack path analysis: %w", err)
+		}
+
+		// Extract facts from resources
+		extractor := graphstore.NewFactExtractor()
+		facts, err := extractor.ExtractFacts(resources)
+		if err != nil {
+			return nil, fmt.Errorf("failed to extract facts from resources: %w", err)
+		}
+
+		// Upsert facts into graph
+		if err := graphStore.UpsertFacts(ctx, facts); err != nil {
+			return nil, fmt.Errorf("failed to upsert facts into graph: %w", err)
+		}
+
+		logger.Info("Graph populated with facts", "pods", len(facts.Pods), "secrets", len(facts.Secrets), "relationships", len(facts.Relationships))
+	} else {
+		// Open existing graph database
+		if err := graphStore.Open(cachePath); err != nil {
+			return nil, fmt.Errorf("failed to open cached graph database: %w", err)
+		}
+		defer graphStore.Close()
+	}
+
+	// Run correlation queries
+	correlationTypes := []string{"credential-exfil", "rbac-pivot"}
+	findings, err := graphStore.RunCorrelations(ctx, correlationTypes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to run correlation queries: %w", err)
+	}
+
+	// Build result
+	pathsByType := make(map[string]int)
+	for _, finding := range findings {
+		pathsByType[string(finding.Type)]++
+	}
+
+	result := &models.AttackPathResult{
+		Findings:         findings,
+		TotalPaths:       len(findings),
+		PathsByType:      pathsByType,
+		CacheHit:         cacheHit,
+		AnalysisDuration: time.Since(startTime),
+		Timestamp:        time.Now(),
+	}
+
+	if !config.Quiet {
+		fmt.Printf("🎯 Found %d attack paths (%d credential exfil, %d RBAC pivot)\n",
+			result.TotalPaths,
+			pathsByType[string(models.AttackPathTypeCredentialExfil)],
+			pathsByType[string(models.AttackPathTypeRBACPivot)])
+	}
+
+	return result, nil
 }
 
 func runManifestsScan(cmd *cobra.Command, args []string) error {
@@ -455,6 +749,16 @@ func runManifestsScan(cmd *cobra.Command, args []string) error {
 	scanResult, err := executeManifestsScan(ctx, scanner, engine, rules, manifestFiles, scanConfig)
 	if err != nil {
 		return fmt.Errorf("manifests scan failed: %w", err)
+	}
+
+	// Execute attack path analysis if enabled
+	if scanConfig.AttackPath {
+		attackPathResult, err := executeAttackPathAnalysisForManifests(ctx, manifestFiles, scanConfig)
+		if err != nil {
+			return fmt.Errorf("attack path analysis failed: %w", err)
+		}
+		// Add attack path findings to scan result
+		scanResult.AttackPathResult = attackPathResult
 	}
 
 	// Generate and output report
@@ -725,6 +1029,13 @@ type ScanConfig struct {
 	FailOnViolations        bool
 	ExcludeSystemNamespaces bool
 	IncludeClusterResources bool
+
+	// Attack path analysis configuration
+	AttackPath   bool
+	CacheTTL     time.Duration
+	CacheDir     string
+	NoCache      bool
+	ForceRefresh bool
 }
 
 // buildScanConfig creates scan configuration from command flags
@@ -824,6 +1135,30 @@ func buildScanConfig(cmd *cobra.Command) (*ScanConfig, error) {
 	}
 	if cmd.Flags().Changed("parallelism") {
 		config.Parallelism, _ = cmd.Flags().GetInt("parallelism")
+	}
+
+	// Attack path analysis flags
+	if cmd.Flags().Changed("attack-path") {
+		config.AttackPath, _ = cmd.Flags().GetBool("attack-path")
+	}
+	if cmd.Flags().Changed("cache-ttl") {
+		cacheTTLStr, _ := cmd.Flags().GetString("cache-ttl")
+		if ttl, err := time.ParseDuration(cacheTTLStr); err == nil {
+			config.CacheTTL = ttl
+		} else {
+			config.CacheTTL = time.Hour // Default to 1 hour
+		}
+	} else {
+		config.CacheTTL = time.Hour // Default to 1 hour
+	}
+	if cmd.Flags().Changed("cache-dir") {
+		config.CacheDir, _ = cmd.Flags().GetString("cache-dir")
+	}
+	if cmd.Flags().Changed("no-cache") {
+		config.NoCache, _ = cmd.Flags().GetBool("no-cache")
+	}
+	if cmd.Flags().Changed("force-refresh") {
+		config.ForceRefresh, _ = cmd.Flags().GetBool("force-refresh")
 	}
 
 	// Handle AI flag overrides

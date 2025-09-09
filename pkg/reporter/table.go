@@ -107,6 +107,12 @@ func (r *TableReporter) GenerateReport(ctx context.Context, results *models.Scan
 	output.WriteString(r.formatResourceGroupingTable(results))
 	output.WriteString("\n")
 
+	// Attack path analysis (if available)
+	if results.AttackPathResult != nil {
+		output.WriteString(r.formatAttackPaths(results.AttackPathResult))
+		output.WriteString("\n")
+	}
+
 	// Findings
 	if len(results.Results) > 0 {
 		output.WriteString(r.formatFindings(results.Results))
@@ -682,6 +688,85 @@ func (r *TableReporter) formatActionableSummary(results *models.ScanResult) stri
 	summary.WriteString("   • Get help: spotter --help\n")
 
 	return summary.String()
+}
+
+// formatAttackPaths formats attack path analysis results
+func (r *TableReporter) formatAttackPaths(attackPaths *models.AttackPathResult) string {
+	var output strings.Builder
+
+	output.WriteString(r.colorize("Attack Path Analysis", "cyan"))
+	output.WriteString("\n")
+	output.WriteString(strings.Repeat("═", 80) + "\n")
+
+	// Summary
+	output.WriteString(fmt.Sprintf("Total Attack Paths: %s\n", r.colorize(fmt.Sprintf("%d", attackPaths.TotalPaths), "yellow")))
+	output.WriteString(fmt.Sprintf("Analysis Duration: %s\n", attackPaths.AnalysisDuration.String()))
+	output.WriteString(fmt.Sprintf("Cache Hit: %s\n", r.formatBooleanStatus(attackPaths.CacheHit)))
+	output.WriteString("\n")
+
+	// Path breakdown by type
+	if len(attackPaths.PathsByType) > 0 {
+		output.WriteString(r.colorize("Paths by Type:", "white"))
+		output.WriteString("\n")
+		for pathType, count := range attackPaths.PathsByType {
+			color := "yellow"
+			if count > 0 {
+				color = "red"
+			}
+			output.WriteString(fmt.Sprintf("  • %s: %s\n", pathType, r.colorize(fmt.Sprintf("%d", count), color)))
+		}
+		output.WriteString("\n")
+	}
+
+	// Individual findings
+	if len(attackPaths.Findings) > 0 {
+		output.WriteString(r.colorize("Attack Path Findings:", "white"))
+		output.WriteString("\n")
+		output.WriteString(strings.Repeat("-", 80) + "\n")
+
+		for i, finding := range attackPaths.Findings {
+			// Finding header
+			output.WriteString(fmt.Sprintf("%s %s [%s]\n",
+				r.colorize(fmt.Sprintf("%d.", i+1), "cyan"),
+				r.colorize(finding.CorrelationID, "yellow"),
+				r.colorize(string(finding.Type), "magenta")))
+
+			// Attack path
+			output.WriteString(fmt.Sprintf("   Path: %s\n", r.colorize(finding.Path, "white")))
+
+			// Impact
+			output.WriteString(fmt.Sprintf("   Impact: %s\n", r.colorize(finding.Impact, "red")))
+
+			// Fix hint
+			output.WriteString(fmt.Sprintf("   Fix: %s\n", r.colorize(finding.FixHint, "green")))
+
+			// Entities involved
+			if len(finding.Entities) > 0 {
+				output.WriteString("   Entities:\n")
+				for _, entity := range finding.Entities {
+					entityStr := fmt.Sprintf("%s/%s", entity.Type, entity.ID)
+					if entity.Namespace != "" {
+						entityStr = fmt.Sprintf("%s (ns: %s)", entityStr, entity.Namespace)
+					}
+					output.WriteString(fmt.Sprintf("     - %s\n", entityStr))
+				}
+			}
+
+			output.WriteString("\n")
+		}
+	} else {
+		output.WriteString(r.colorize("✓ No attack paths detected!\n", "green"))
+	}
+
+	return output.String()
+}
+
+// formatBooleanStatus formats a boolean value with appropriate color
+func (r *TableReporter) formatBooleanStatus(value bool) string {
+	if value {
+		return r.colorize("Yes", "green")
+	}
+	return r.colorize("No", "yellow")
 }
 
 // formatEnhancedSummary creates an enhanced summary with better visual formatting
