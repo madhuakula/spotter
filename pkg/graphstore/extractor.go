@@ -415,14 +415,12 @@ func (e *FactExtractor) isCredentialLike(secretType string, metadata map[string]
 
 	// Check annotations for credential indicators
 	annotations := e.getMapField(metadata, "annotations")
-	if annotations != nil {
-		for key := range annotations {
-			if strings.Contains(strings.ToLower(key), "credential") ||
-				strings.Contains(strings.ToLower(key), "password") ||
-				strings.Contains(strings.ToLower(key), "token") ||
-				strings.Contains(strings.ToLower(key), "key") {
-				return true, fmt.Sprintf("Annotation indicates credentials: %s", key)
-			}
+	for key := range annotations {
+		if strings.Contains(strings.ToLower(key), "credential") ||
+			strings.Contains(strings.ToLower(key), "password") ||
+			strings.Contains(strings.ToLower(key), "token") ||
+			strings.Contains(strings.ToLower(key), "key") {
+			return true, fmt.Sprintf("Annotation indicates credentials: %s", key)
 		}
 	}
 
@@ -445,13 +443,11 @@ func (e *FactExtractor) isConfigMapCredentialLike(resource map[string]interface{
 
 	// Check data keys for credential indicators
 	data := e.getMapField(resource, "data")
-	if data != nil {
-		for key := range data {
-			keyLower := strings.ToLower(key)
-			for _, keyword := range credentialKeywords {
-				if strings.Contains(keyLower, keyword) {
-					return true, fmt.Sprintf("Data key suggests credentials: %s", key)
-				}
+	for key := range data {
+		keyLower := strings.ToLower(key)
+		for _, keyword := range credentialKeywords {
+			if strings.Contains(keyLower, keyword) {
+				return true, fmt.Sprintf("Data key suggests credentials: %s", key)
 			}
 		}
 	}

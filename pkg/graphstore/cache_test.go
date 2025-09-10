@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -15,21 +16,21 @@ func TestGetDefaultCacheDir(t *testing.T) {
 	defer func() {
 		// Restore original environment
 		if originalXDGCache != "" {
-			os.Setenv("XDG_CACHE_HOME", originalXDGCache)
+			_ = os.Setenv("XDG_CACHE_HOME", originalXDGCache)
 		} else {
-			os.Unsetenv("XDG_CACHE_HOME")
+			_ = os.Unsetenv("XDG_CACHE_HOME")
 		}
 		if originalLocalAppData != "" {
-			os.Setenv("LOCALAPPDATA", originalLocalAppData)
+			_ = os.Setenv("LOCALAPPDATA", originalLocalAppData)
 		} else {
-			os.Unsetenv("LOCALAPPDATA")
+			_ = os.Unsetenv("LOCALAPPDATA")
 		}
 	}()
 
 	switch runtime.GOOS {
 	case "linux", "darwin":
 		// Test with XDG_CACHE_HOME set
-		os.Setenv("XDG_CACHE_HOME", "/tmp/test-cache")
+		_ = os.Setenv("XDG_CACHE_HOME", "/tmp/test-cache")
 		cacheDir, err := GetDefaultCacheDir()
 		if err != nil {
 			t.Fatalf("Expected no error, got %v", err)
@@ -40,7 +41,7 @@ func TestGetDefaultCacheDir(t *testing.T) {
 		}
 
 		// Test without XDG_CACHE_HOME
-		os.Unsetenv("XDG_CACHE_HOME")
+		_ = os.Unsetenv("XDG_CACHE_HOME")
 		cacheDir, err = GetDefaultCacheDir()
 		if err != nil {
 			t.Fatalf("Expected no error, got %v", err)
@@ -53,7 +54,7 @@ func TestGetDefaultCacheDir(t *testing.T) {
 
 	case "windows":
 		// Test with LOCALAPPDATA set
-		os.Setenv("LOCALAPPDATA", "C:\\Users\\Test\\AppData\\Local")
+		_ = os.Setenv("LOCALAPPDATA", "C:\\Users\\Test\\AppData\\Local")
 		cacheDir, err := GetDefaultCacheDir()
 		if err != nil {
 			t.Fatalf("Expected no error, got %v", err)
@@ -127,7 +128,7 @@ func TestGetCachePath(t *testing.T) {
 	}
 
 	// Should contain the base directory
-	if !filepath.HasPrefix(cachePath, "/tmp/test-cache") {
+	if !strings.HasPrefix(cachePath, "/tmp/test-cache") {
 		t.Errorf("Expected cache path to start with '/tmp/test-cache', got '%s'", cachePath)
 	}
 

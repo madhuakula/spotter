@@ -91,7 +91,7 @@ func EnsureCacheDir(path string) error {
 	var perm os.FileMode = 0700 // Default to user-only
 
 	// If it's a system-wide path, use more permissive permissions
-	if filepath.HasPrefix(path, "/var/lib") || strings.Contains(path, "ProgramData") {
+	if strings.HasPrefix(path, "/var/lib") || strings.Contains(path, "ProgramData") {
 		perm = 0750
 	}
 

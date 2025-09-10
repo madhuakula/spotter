@@ -48,7 +48,7 @@ func (k *KuzuGraphStore) Open(path string) error {
 
 	// Use flock for file locking
 	if err := syscall.Flock(int(lockFile.Fd()), syscall.LOCK_EX); err != nil {
-		lockFile.Close()
+		_ = lockFile.Close()
 		return fmt.Errorf("failed to acquire exclusive lock: %w", err)
 	}
 	k.lockFile = lockFile
@@ -57,7 +57,7 @@ func (k *KuzuGraphStore) Open(path string) error {
 	systemConfig := kuzu.DefaultSystemConfig()
 	database, err := kuzu.OpenDatabase(path, systemConfig)
 	if err != nil {
-		k.ReleaseLock()
+		_ = k.ReleaseLock()
 		return fmt.Errorf("failed to open Kuzu database: %w", err)
 	}
 	k.database = database
@@ -66,7 +66,7 @@ func (k *KuzuGraphStore) Open(path string) error {
 	connection, err := kuzu.OpenConnection(database)
 	if err != nil {
 		k.database.Close()
-		k.ReleaseLock()
+		_ = k.ReleaseLock()
 		return fmt.Errorf("failed to open Kuzu connection: %w", err)
 	}
 	k.connection = connection
@@ -101,7 +101,7 @@ func (k *KuzuGraphStore) Close() error {
 func (k *KuzuGraphStore) ReleaseLock() error {
 	if k.lockFile != nil {
 		if err := syscall.Flock(int(k.lockFile.Fd()), syscall.LOCK_UN); err != nil {
-			k.lockFile.Close()
+			_ = k.lockFile.Close()
 			return fmt.Errorf("failed to release lock: %w", err)
 		}
 		if err := k.lockFile.Close(); err != nil {
