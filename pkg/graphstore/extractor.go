@@ -27,6 +27,14 @@ func (e *FactExtractor) ExtractFacts(resources []map[string]interface{}) (*model
 		Relationships:   []models.RelationshipFact{},
 	}
 
+	// Use maps to track seen entities and avoid duplicates
+	seenPods := make(map[string]bool)
+	seenSecrets := make(map[string]bool)
+	seenConfigMaps := make(map[string]bool)
+	seenServiceAccounts := make(map[string]bool)
+	seenRoles := make(map[string]bool)
+	seenApiPerms := make(map[string]bool)
+
 	// Process each resource
 	for _, resource := range resources {
 		if err := e.extractFromResource(resource, facts); err != nil {
@@ -34,6 +42,14 @@ func (e *FactExtractor) ExtractFacts(resources []map[string]interface{}) (*model
 			continue
 		}
 	}
+
+	// Deduplicate facts
+	facts.Pods = e.deduplicatePods(facts.Pods, seenPods)
+	facts.Secrets = e.deduplicateSecrets(facts.Secrets, seenSecrets)
+	facts.ConfigMaps = e.deduplicateConfigMaps(facts.ConfigMaps, seenConfigMaps)
+	facts.ServiceAccounts = e.deduplicateServiceAccounts(facts.ServiceAccounts, seenServiceAccounts)
+	facts.Roles = e.deduplicateRoles(facts.Roles, seenRoles)
+	facts.ApiPermissions = e.deduplicateApiPermissions(facts.ApiPermissions, seenApiPerms)
 
 	return facts, nil
 }
@@ -425,6 +441,73 @@ func (e *FactExtractor) isCredentialLike(secretType string, metadata map[string]
 	}
 
 	return false, ""
+}
+
+// Deduplication helper methods
+func (e *FactExtractor) deduplicatePods(pods []models.PodFact, seen map[string]bool) []models.PodFact {
+	var result []models.PodFact
+	for _, pod := range pods {
+		if !seen[pod.ID] {
+			seen[pod.ID] = true
+			result = append(result, pod)
+		}
+	}
+	return result
+}
+
+func (e *FactExtractor) deduplicateSecrets(secrets []models.SecretFact, seen map[string]bool) []models.SecretFact {
+	var result []models.SecretFact
+	for _, secret := range secrets {
+		if !seen[secret.ID] {
+			seen[secret.ID] = true
+			result = append(result, secret)
+		}
+	}
+	return result
+}
+
+func (e *FactExtractor) deduplicateConfigMaps(configMaps []models.ConfigMapFact, seen map[string]bool) []models.ConfigMapFact {
+	var result []models.ConfigMapFact
+	for _, cm := range configMaps {
+		if !seen[cm.ID] {
+			seen[cm.ID] = true
+			result = append(result, cm)
+		}
+	}
+	return result
+}
+
+func (e *FactExtractor) deduplicateServiceAccounts(serviceAccounts []models.ServiceAccountFact, seen map[string]bool) []models.ServiceAccountFact {
+	var result []models.ServiceAccountFact
+	for _, sa := range serviceAccounts {
+		if !seen[sa.ID] {
+			seen[sa.ID] = true
+			result = append(result, sa)
+		}
+	}
+	return result
+}
+
+func (e *FactExtractor) deduplicateRoles(roles []models.RoleFact, seen map[string]bool) []models.RoleFact {
+	var result []models.RoleFact
+	for _, role := range roles {
+		if !seen[role.ID] {
+			seen[role.ID] = true
+			result = append(result, role)
+		}
+	}
+	return result
+}
+
+func (e *FactExtractor) deduplicateApiPermissions(apiPerms []models.ApiPermissionFact, seen map[string]bool) []models.ApiPermissionFact {
+	var result []models.ApiPermissionFact
+	for _, perm := range apiPerms {
+		if !seen[perm.ID] {
+			seen[perm.ID] = true
+			result = append(result, perm)
+		}
+	}
+	return result
 }
 
 // isConfigMapCredentialLike determines if a ConfigMap contains credential-like data

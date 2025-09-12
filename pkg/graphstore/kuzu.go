@@ -53,8 +53,14 @@ func (k *KuzuGraphStore) Open(path string) error {
 	}
 	k.lockFile = lockFile
 
-	// Initialize Kuzu database with default system config
+	// Initialize Kuzu database with custom system config
 	systemConfig := kuzu.DefaultSystemConfig()
+	// Try with reduced buffer pool size for compatibility
+	systemConfig.BufferPoolSize = 256 * 1024 * 1024 // 256MB instead of default
+	systemConfig.MaxNumThreads = 4                  // Reduce thread count
+	systemConfig.EnableCompression = false          // Disable compression
+	systemConfig.ReadOnly = false
+	systemConfig.MaxDbSize = 1024 * 1024 * 1024 // 1GB max size
 	database, err := kuzu.OpenDatabase(path, systemConfig)
 	if err != nil {
 		_ = k.ReleaseLock()
@@ -142,7 +148,13 @@ func (k *KuzuGraphStore) EnsureSchema(ctx context.Context) error {
 // UpsertFacts inserts or updates facts in the graph
 func (k *KuzuGraphStore) UpsertFacts(ctx context.Context, facts *models.GraphFacts) error {
 	// Clear existing data first (for simplicity in MVP)
+	// First clear all relationships, then nodes
 	clearStatements := []string{
+		"MATCH ()-[r:UsesSecret]-() DELETE r;",
+		"MATCH ()-[r:UsesConfigMap]-() DELETE r;",
+		"MATCH ()-[r:UsesSA]-() DELETE r;",
+		"MATCH ()-[r:BoundTo]-() DELETE r;",
+		"MATCH ()-[r:Allows]-() DELETE r;",
 		"MATCH (n:Pod) DELETE n;",
 		"MATCH (n:Secret) DELETE n;",
 		"MATCH (n:ConfigMap) DELETE n;",

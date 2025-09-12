@@ -6,6 +6,7 @@ toolchain go1.24.5
 
 require (
 	github.com/google/cel-go v0.26.0
+	github.com/kuzudb/go-kuzu v0.10.0
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.20.1
 	golang.org/x/term v0.32.0
@@ -36,7 +37,6 @@ require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/kuzudb/go-kuzu v0.11.2 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
